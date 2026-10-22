@@ -323,9 +323,16 @@ export function parseBudgetOptions(body: unknown): Parsed<BudgetOptionsRequest> 
   return picked.value.budget === undefined ? invalid("Missing budget") : { ok: true, value: { budget: picked.value.budget } };
 }
 
-/** POST /api/quotes/[id]/price-update/apply: the message as copied, never empty. It becomes the reply text. */
+const APPLY_FIELDS: Record<keyof ApplyPriceUpdateRequest, Check> = { message: name(2000), newPrice: money, validUntil: date };
+
+/**
+ * POST /api/quotes/[id]/price-update/apply: the draft as copied, every field
+ * required. The message, never empty, becomes the reply text.
+ */
 export function parseApplyPriceUpdate(body: unknown): Parsed<ApplyPriceUpdateRequest> {
-  const picked = pick<ApplyPriceUpdateRequest>(body, { message: name(2000) });
+  const picked = pick<ApplyPriceUpdateRequest>(body, APPLY_FIELDS);
   if (!picked.ok) return picked;
-  return picked.value.message === undefined ? invalid("Missing message") : { ok: true, value: { message: picked.value.message } };
+  const missing = Object.keys(APPLY_FIELDS).find((field) => !Object.hasOwn(picked.value, field));
+  if (missing) return invalid(`Missing ${missing}`);
+  return { ok: true, value: picked.value as ApplyPriceUpdateRequest };
 }

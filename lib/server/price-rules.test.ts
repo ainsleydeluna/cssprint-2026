@@ -74,6 +74,12 @@ describe("priceBudgetOptions", () => {
     expect(shown.map(({ label, overBudgetBy }) => ({ label, overBudgetBy }))).toEqual([{ label: "Fewer roses", overBudgetBy: 0 }]);
   });
 
+  test("drops an option naming a row the shop does not have, rather than failing", () => {
+    const peony = { label: "Peonies instead", lines: [{ stem: "Peony - pink", count: 3, note: "" }] };
+    const kept = priceBudgetOptions([peony, fewerRoses], stems, shop, 700);
+    expect(kept.map((option) => option.label)).toEqual(["Fewer roses"]);
+  });
+
   test("answers no options when fitToBudget suggested none", () => {
     expect(priceBudgetOptions([], stems, shop, 500)).toEqual([]);
   });
@@ -111,21 +117,55 @@ describe("priceUpdateTerms", () => {
   });
 });
 
+// The draft as the price-update route answered it and the florist copied it.
+const draft = { message: "Pasensya na po, ₱1,130 na po ito, valid until Oct 25.", newPrice: 1130, validUntil: "2026-10-25" };
+const sentQuote = { ...flagged, validUntil: "2026-10-24", replyText: "Hi po!" };
+
 describe("priceUpdateChanges", () => {
-  test("sets the new price, resets valid-until, clears the flag and saves the message as the reply text", () => {
-    expect(priceUpdateChanges(flagged, recipe, latest, termsShop, "Pasensya na po…", now)).toEqual({
+  test("saves the draft's price, valid-until and message, and clears the flag when the new price keeps the minimum margin", () => {
+    // ₱1,130 at recipe cost ₱650 keeps 42%.
+    expect(priceUpdateChanges(sentQuote, recipe, latest, shop, draft, now)).toEqual({
       ok: true,
-      changes: { price: 1130, validUntil: "2026-10-25", underwaterAt: null, replyText: "Pasensya na po…" },
+      changes: { price: 1130, validUntil: "2026-10-25", replyText: draft.message, underwaterAt: null },
+    });
+  });
+
+  test("keeps the flag when the saved price is still below the minimum margin at latest costs", () => {
+    // ₱800 at recipe cost ₱650 keeps 18.75%, below 20%.
+    const low = { message: "Pasensya na po, ₱800 na po ito, valid until Oct 25.", newPrice: 800, validUntil: "2026-10-25" };
+    expect(priceUpdateChanges(sentQuote, recipe, latest, shop, low, now)).toEqual({
+      ok: true,
+      changes: { price: 800, validUntil: "2026-10-25", replyText: low.message, underwaterAt: flagged.underwaterAt },
     });
   });
 
   test("leaves the sent time and status alone, so time-to-quote does not change", () => {
-    const applied = priceUpdateChanges(flagged, recipe, latest, termsShop, "Hi po", now);
+    const applied = priceUpdateChanges(sentQuote, recipe, latest, shop, draft, now);
     expect(applied.ok && Object.keys(applied.changes)).not.toContain("sentAt");
     expect(applied.ok && Object.keys(applied.changes)).not.toContain("status");
   });
 
-  test("refuses a quote that is not underwater", () => {
-    expect(priceUpdateChanges({ ...flagged, underwaterAt: null }, recipe, latest, termsShop, "Hi po", now)).toEqual({ ok: false });
+  test("accepts a valid-until date of today in Manila", () => {
+    expect(priceUpdateChanges(sentQuote, recipe, latest, shop, { ...draft, validUntil: "2026-10-23" }, now).ok).toBe(true);
+  });
+
+  test.each([
+    ["a message without the new price", { ...draft, message: "Pasensya na po, ₱1,120 na po ito." }],
+    ["a valid-until date before today in Manila", { ...draft, validUntil: "2026-10-22" }],
+  ])("refuses %s", (_case, sent) => {
+    expect(priceUpdateChanges(sentQuote, recipe, latest, shop, sent, now)).toMatchObject({ ok: false });
+  });
+
+  test.each([
+    ["a draft", { ...sentQuote, status: "draft" }],
+    ["an expired quote", { ...sentQuote, status: "expired" }],
+    ["a quote that is not underwater", { ...sentQuote, underwaterAt: null }],
+  ] as const)("refuses %s", (_case, quote) => {
+    expect(priceUpdateChanges(quote, recipe, latest, shop, draft, now)).toMatchObject({ ok: false });
+  });
+
+  test("copying the same draft again after the flag cleared changes nothing", () => {
+    const applied = { ...sentQuote, price: 1130, validUntil: "2026-10-25", replyText: draft.message, underwaterAt: null };
+    expect(priceUpdateChanges(applied, recipe, latest, shop, draft, now)).toEqual({ ok: true, changes: {} });
   });
 });

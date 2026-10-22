@@ -317,13 +317,20 @@ describe("parseBudgetOptions", () => {
 });
 
 describe("parseApplyPriceUpdate", () => {
-  test("keeps the copied message and drops every other field", () => {
-    expect(parseApplyPriceUpdate({ message: "Pasensya na po", price: 1 })).toEqual({ ok: true, value: { message: "Pasensya na po" } });
+  const draft = { message: "Pasensya na po, ₱1,130 na po", newPrice: 1130, validUntil: "2026-10-25" };
+
+  test("keeps the copied draft and drops every other field", () => {
+    expect(parseApplyPriceUpdate({ ...draft, price: 1, sentAt: null })).toEqual({ ok: true, value: draft });
   });
 
   test.each([
-    ["no message", {}],
-    ["an empty message", { message: " " }],
+    ["no message", { newPrice: 1130, validUntil: "2026-10-25" }],
+    ["an empty message", { ...draft, message: " " }],
+    ["no new price", { message: draft.message, validUntil: "2026-10-25" }],
+    ["a new price as text", { ...draft, newPrice: "1130" }],
+    ["a new price below zero", { ...draft, newPrice: -1 }],
+    ["no valid-until date", { message: draft.message, newPrice: 1130 }],
+    ["a valid-until date that does not exist", { ...draft, validUntil: "2026-02-30" }],
   ])("refuses %s with invalid_request", (_case, body) => {
     expect(parseApplyPriceUpdate(body)).toMatchObject({ ok: false, code: "invalid_request" });
   });

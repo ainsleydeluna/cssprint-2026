@@ -7,11 +7,12 @@ import { priceUpdateChanges } from "@/lib/server/price-rules";
 import { readQuote } from "@/lib/server/quotes";
 import { QUOTE_COLUMNS, toColumns, toQuote } from "@/lib/server/rows";
 
-// On copying the price-update message: sets the price at latest costs, resets
-// valid-until to the shop's default, clears underwater_at and saves the message
-// as the reply text. sent_at stays, so time-to-quote does not change. The price
-// is worked out again here, never taken from the request. Answers
-// invalid_request unless the quote is open and underwater.
+// On copying the price-update message: saves the draft's price, valid-until
+// date and message (as the reply text) exactly as the customer was told, after
+// checking the message contains that price and the date has not passed in
+// Manila. The flag is cleared only if the saved price keeps the minimum margin
+// at latest costs. sent_at stays, so time-to-quote does not change. Copying the
+// same draft again changes nothing.
 export async function POST(request: Request, ctx: RouteContext<"/api/quotes/[id]/price-update/apply">) {
   const session = await requireShop();
   if (session instanceof Response) return session;
@@ -20,17 +21,13 @@ export async function POST(request: Request, ctx: RouteContext<"/api/quotes/[id]
   if (!detail) return errorResponse("not_found", "Quote not found");
   const parsed = parseApplyPriceUpdate(await readJson(request));
   if (!parsed.ok) return errorResponse(parsed.code, parsed.error);
-  // Copying the same message again changes nothing, rather than failing because the flag is cleared.
-  const { quote } = detail;
-  if (quote.status === "sent" && quote.underwaterAt === null && quote.replyText === parsed.value.message) {
-    return Response.json(quote satisfies ApplyPriceUpdateResponse);
-  }
 
   const stemIds = detail.lines.flatMap((line) => (line.stemId === null ? [] : [line.stemId]));
   // Read even with MARGIN_ALARM off: a flagged quote's price is checked regardless.
   const costs = await latestCosts(supabase, stemIds, { enabled: true });
-  const applied = priceUpdateChanges(detail.quote, detail.lines, costs, shop, parsed.value.message, new Date());
-  if (!applied.ok) return errorResponse("invalid_request", "Only an open, underwater quote gets a price update");
+  const applied = priceUpdateChanges(detail.quote, detail.lines, costs, shop, parsed.value, new Date());
+  if (!applied.ok) return errorResponse("invalid_request", applied.error);
+  if (Object.keys(applied.changes).length === 0) return Response.json(detail.quote satisfies ApplyPriceUpdateResponse);
 
   const { data, error } = await supabase
     .from("quotes")
