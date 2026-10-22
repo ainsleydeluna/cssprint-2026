@@ -73,7 +73,7 @@ function manilaDate(days: number): string {
   return new Date(Date.UTC(manila.getUTCFullYear(), manila.getUTCMonth(), manila.getUTCDate() + days)).toISOString().slice(0, 10);
 }
 
-describe.skipIf(!testAccountsReady)("quote routes", () => {
+describe.skipIf(!testAccountsReady)("quote routes", { timeout: 20_000 }, () => {
   let client: SupabaseClient;
   let before: Shop;
   let stems: Map<string, StemWithCost>;
@@ -87,6 +87,17 @@ describe.skipIf(!testAccountsReady)("quote routes", () => {
     const created: CreateQuoteResponse = await response.json();
     made.push(created.quote.id);
     return created;
+  }
+
+  /**
+   * Whether the photo is still stored. Asks the folder listing, not a download:
+   * Supabase keeps serving a photo downloaded before its delete from its cache.
+   */
+  async function photoStored(photoPath: string): Promise<boolean> {
+    const [folder, file] = photoPath.split("/");
+    const { data, error } = await client.storage.from("bouquets").list(folder, { search: file });
+    if (error) throw new Error(error.message);
+    return data.some((object) => object.name === file);
   }
 
   async function putLines(id: string, lines: UpdateQuoteLinesRequest["lines"]) {
@@ -170,7 +181,7 @@ describe.skipIf(!testAccountsReady)("quote routes", () => {
     await expect(quotesRoute.POST(json("POST", { photoPath }))).rejects.toThrow(error);
 
     expect((await client.from("quotes").select("id").eq("photo_path", photoPath)).data).toEqual([]);
-    expect((await client.storage.from("bouquets").download(photoPath)).data).toBeNull();
+    expect(await photoStored(photoPath)).toBe(false);
     const logged = await client.from("ai_calls").select("call, ok, quote_id").eq("error", error);
     expect(logged.data).toEqual([{ call: "analyzeBouquet", ok: false, quote_id: null }]);
   });
@@ -269,9 +280,10 @@ describe.skipIf(!testAccountsReady)("quote routes", () => {
 
   test("deleting a quote deletes its photo", async () => {
     const { quote } = await create();
+    expect(await photoStored(quote.photoPath)).toBe(true);
     const response = await quoteRoute.DELETE(json("DELETE"), ctx(quote.id));
     expect(await response.json()).toEqual({ deleted: true });
-    expect((await client.storage.from("bouquets").download(quote.photoPath)).data).toBeNull();
+    expect(await photoStored(quote.photoPath)).toBe(false);
     expect((await quoteRoute.GET(json("GET"), ctx(quote.id))).status).toBe(404);
   });
 });

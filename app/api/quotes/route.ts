@@ -7,8 +7,8 @@ import { parseCreateQuote } from "@/lib/server/fields";
 import { errorResponse, readJson } from "@/lib/server/http";
 import { deletePhoto, downloadPhoto } from "@/lib/server/photos";
 import { averageTimeToQuote, nextInquiryLabel, timeToQuoteSeconds } from "@/lib/server/quote-rules";
-import { expirePassed, quotePrice } from "@/lib/server/quotes";
-import { LINE_COLUMNS, QUOTE_COLUMNS, toColumns, toQuote, toQuoteLine } from "@/lib/server/rows";
+import { expirePassed, quotePrice, readQuote } from "@/lib/server/quotes";
+import { QUOTE_COLUMNS, toColumns, toQuote } from "@/lib/server/rows";
 
 // Newest first, each with its time-to-quote, and the shop's average over sent quotes.
 export async function GET() {
@@ -70,15 +70,15 @@ export async function POST(request: Request) {
 
     const lineRows = await supabase
       .from("quote_lines")
-      .insert(lines.map((line) => ({ ...toColumns(line), quote_id: quote.id, shop_id: shop.id })))
-      .select(LINE_COLUMNS)
-      .order("created_at");
+      .insert(lines.map((line) => ({ ...toColumns(line), quote_id: quote.id, shop_id: shop.id })));
     if (lineRows.error) {
       await supabase.from("quotes").delete().eq("id", quote.id);
       throw new Error(`Saving the quote lines failed: ${lineRows.error.message}`);
     }
     quoteId = quote.id;
-    return Response.json({ quote, lines: lineRows.data.map(toQuoteLine), demo: false } satisfies CreateQuoteResponse);
+    // Read back in the order GET /api/quotes/[id] uses.
+    const detail = (await readQuote(supabase, quote.id))!;
+    return Response.json({ ...detail, demo: false } satisfies CreateQuoteResponse);
   } finally {
     await logAiCall(supabase, shop.id, {
       call: "analyzeBouquet",
