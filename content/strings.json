@@ -15,7 +15,9 @@
     "checkEmail": "Tingnan ang email mo",
     "sentTo": "Pinadala namin ang sign-in link sa {email}. Buksan ito para makapasok.",
     "useAnotherEmail": "Ibang email",
-    "linkFailed": "Hindi gumana ang link. Humingi ng bago."
+    "linkFailed": "Hindi gumana ang link. Humingi ng bago.",
+    "rateLimited": "Masyadong maraming sign-in link na ang na-send. Subukan ulit mamaya."
+  },
   },
   "nav": {
     "menu": "Pangunahing menu",
