@@ -119,11 +119,6 @@
     "color": "Kulay",
     "isFiller": "Filler ito (binibili per bunch)",
     "unit": "Unit",
-    "unitDozen": "Dosena",
-    "unitPer10": "Per 10",
-    "unitBundle": "Bundle",
-    "unitBunch": "Bunch",
-    "unitPiece": "Piraso",
     "bundleSize": "Stem bawat bundle",
     "bundleSizeNeeded": "Ilagay kung ilang stem bawat bundle.",
     "samplePrice": "Sample na presyo bawat unit (₱)"
