@@ -6,7 +6,7 @@
 - Don't add AI attribution or "Generated with Claude Code" lines to commits or pull requests. Never rewrite git history.
 
 ## Who owns which folders
-- Ice: app/api, lib/ai, lib/server, supabase (all database changes), lib/types.ts, lib/contract.ts, package.json.
+- Ice: app/api, lib/ai, lib/server, supabase (all database changes), lib/types.ts, lib/contract.ts, lib/money.ts, features.ts, package.json.
 - Pat: app/(app) screens, components/quote, components/receipt.
 - Ian: components/ui, scripts/eval.ts, fixtures/eval.
 - Zach: content, fixtures/seed, fixtures/receipts, docs, README.
