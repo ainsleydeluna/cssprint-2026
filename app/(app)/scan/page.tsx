@@ -1,10 +1,11 @@
+import { ReceiptScan } from "@/components/receipt/ReceiptScan";
+import { t } from "@/lib/strings";
+
 export default function ScanReceiptPage() {
   return (
-    <section>
-      <h1 className="text-2xl font-bold">I-scan ang resibo</h1>
-      <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-        Dito kukunan ng picture ang resibo ng supplier. (Placeholder)
-      </p>
+    <section className="flex flex-col gap-4">
+      <h1 className="text-2xl font-bold">{t("scan", "title")}</h1>
+      <ReceiptScan />
     </section>
   );
 }
