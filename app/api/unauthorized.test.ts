@@ -2,12 +2,14 @@
 // screens use to send the florist to /sign-in. Runs without the test accounts:
 // the request carries no session cookie, so Supabase is never reached.
 
-import { expect, test, vi } from "vitest";
+import { afterAll, expect, test, vi } from "vitest";
 
+// Placeholders only when the real values are absent; restored after this file.
 vi.hoisted(() => {
-  process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://signed-out.supabase.co";
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??= "sb_publishable_signed_out";
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://signed-out.supabase.co");
+  if (!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_signed_out");
 });
+afterAll(() => vi.unstubAllEnvs());
 vi.mock("next/headers", () => ({ cookies: async () => ({ getAll: () => [], set: () => {} }) }));
 
 const { GET: getShop, PATCH: patchShop } = await import("./shop/route");
