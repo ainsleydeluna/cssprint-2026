@@ -37,6 +37,7 @@ export const extractReceipt = {
     { rawText: "2 dz red rose @270 = 540", stemId: s.roseRed, quantity: 2, unit: "dozen", bundleSize: null, unitPrice: 270, totalPaid: 540, costPerStem: 22.5, confidence: "high", note: "" },
     { rawText: "1 bndl astro 150", stemId: s.alstroemeria, quantity: 1, unit: "bundle", bundleSize: 10, unitPrice: 150, totalPaid: 150, costPerStem: 15, confidence: "medium", note: "Bundle size not written; assumed 10" },
     { rawText: "3 bb breath @80", stemId: s.babysBreath, quantity: 3, unit: "bunch", bundleSize: null, unitPrice: 80, totalPaid: 240, costPerStem: 80, confidence: "medium", note: "No total written; computed from @80" },
+    { rawText: "Carnation - pink, 20pc @15", stemId: s.carnationPink, quantity: 20, unit: "piece", bundleSize: null, unitPrice: 15, totalPaid: 300, costPerStem: 15, confidence: "high", note: "Bought by the piece, not per10; no total written, computed as 20 × ₱15" },
     { rawText: "2 pc ???? 90", stemId: null, quantity: 2, unit: "piece", bundleSize: null, unitPrice: null, totalPaid: 90, costPerStem: 45, confidence: "low", note: "Could not read the flower name" },
   ],
   note: "",

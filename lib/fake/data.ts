@@ -5,7 +5,7 @@
 // - Inquiry 3 is a draft with unsure lines, a blank count and a "pick a flower" line.
 // lib/fake/fake.test.ts checks every price and cost here against lib/money.ts.
 
-import type { QuoteDetail, StemWithCost } from "../contract";
+import { stemName, type QuoteDetail, type StemWithCost } from "../contract";
 import type { QuoteLine, Receipt, Shop, StockBatch } from "../types";
 
 const uuid = (prefix: string, n: number) => `${prefix}000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -35,22 +35,26 @@ export const stemIds = {
   babysBreath: uuid("5e", 7),
   eucalyptus: uuid("5e", 8),
   sunflower: uuid("5e", 9),
+  carnationPink: uuid("5e", 10),
 };
 
 const s = stemIds;
 
+const stemRows = [
+  { id: s.roseRed, shopId, flower: "Rose", color: "red", isFiller: false, unit: "dozen", bundleSize: null, samplePrice: 180, sampleSource: source, hidden: false, latestCost: 22.5, isSample: false },
+  { id: s.roseWhite, shopId, flower: "Rose", color: "white", isFiller: false, unit: "dozen", bundleSize: null, samplePrice: 200, sampleSource: source, hidden: false, latestCost: 16.67, isSample: true },
+  { id: s.tulipPink, shopId, flower: "Tulip", color: "pink", isFiller: false, unit: "piece", bundleSize: null, samplePrice: 120, sampleSource: source, hidden: false, latestCost: 120, isSample: true },
+  { id: s.stargazerPink, shopId, flower: "Stargazer lily", color: "pink", isFiller: false, unit: "piece", bundleSize: null, samplePrice: 150, sampleSource: source, hidden: false, latestCost: 150, isSample: true },
+  { id: s.alstroemeria, shopId, flower: "Alstroemeria", color: "mixed", isFiller: false, unit: "bundle", bundleSize: 10, samplePrice: 160, sampleSource: source, hidden: false, latestCost: 15, isSample: false },
+  { id: s.carnationRed, shopId, flower: "Carnation", color: "red", isFiller: false, unit: "per10", bundleSize: null, samplePrice: 120, sampleSource: source, hidden: false, latestCost: 12, isSample: true },
+  { id: s.babysBreath, shopId, flower: "Baby's breath", color: "white", isFiller: true, unit: "bunch", bundleSize: null, samplePrice: 90, sampleSource: source, hidden: false, latestCost: 80, isSample: false },
+  { id: s.eucalyptus, shopId, flower: "Eucalyptus", color: "green", isFiller: true, unit: "bunch", bundleSize: null, samplePrice: 60, sampleSource: source, hidden: false, latestCost: 50, isSample: false },
+  { id: s.sunflower, shopId, flower: "Sunflower", color: "yellow", isFiller: false, unit: "piece", bundleSize: null, samplePrice: 60, sampleSource: source, hidden: true, latestCost: 60, isSample: true },
+  { id: s.carnationPink, shopId, flower: "Carnation", color: "pink", isFiller: false, unit: "per10", bundleSize: null, samplePrice: 130, sampleSource: source, hidden: false, latestCost: 13, isSample: true },
+] satisfies Omit<StemWithCost, "name">[];
+
 /** Latest costs as of after receipt 2. */
-export const stems = [
-  { id: s.roseRed, shopId, flower: "Rose", color: "red", name: "Rose - red", isFiller: false, unit: "dozen", bundleSize: null, samplePrice: 180, sampleSource: source, hidden: false, latestCost: 22.5, isSample: false },
-  { id: s.roseWhite, shopId, flower: "Rose", color: "white", name: "Rose - white", isFiller: false, unit: "dozen", bundleSize: null, samplePrice: 200, sampleSource: source, hidden: false, latestCost: 16.67, isSample: true },
-  { id: s.tulipPink, shopId, flower: "Tulip", color: "pink", name: "Tulip - pink", isFiller: false, unit: "piece", bundleSize: null, samplePrice: 120, sampleSource: source, hidden: false, latestCost: 120, isSample: true },
-  { id: s.stargazerPink, shopId, flower: "Stargazer lily", color: "pink", name: "Stargazer lily - pink", isFiller: false, unit: "piece", bundleSize: null, samplePrice: 150, sampleSource: source, hidden: false, latestCost: 150, isSample: true },
-  { id: s.alstroemeria, shopId, flower: "Alstroemeria", color: "mixed", name: "Alstroemeria - mixed", isFiller: false, unit: "bundle", bundleSize: 10, samplePrice: 160, sampleSource: source, hidden: false, latestCost: 15, isSample: false },
-  { id: s.carnationRed, shopId, flower: "Carnation", color: "red", name: "Carnation - red", isFiller: false, unit: "per10", bundleSize: null, samplePrice: 120, sampleSource: source, hidden: false, latestCost: 12, isSample: true },
-  { id: s.babysBreath, shopId, flower: "Baby's breath", color: "white", name: "Baby's breath - white", isFiller: true, unit: "bunch", bundleSize: null, samplePrice: 90, sampleSource: source, hidden: false, latestCost: 80, isSample: false },
-  { id: s.eucalyptus, shopId, flower: "Eucalyptus", color: "green", name: "Eucalyptus - green", isFiller: true, unit: "bunch", bundleSize: null, samplePrice: 60, sampleSource: source, hidden: false, latestCost: 50, isSample: false },
-  { id: s.sunflower, shopId, flower: "Sunflower", color: "yellow", name: "Sunflower - yellow", isFiller: false, unit: "piece", bundleSize: null, samplePrice: 60, sampleSource: source, hidden: true, latestCost: 60, isSample: true },
-] satisfies StemWithCost[];
+export const stems: StemWithCost[] = stemRows.map((row) => ({ ...row, name: stemName(row) }));
 
 export const receipts = [
   { id: uuid("ec", 2), shopId, purchaseDate: "2026-10-22", photoPath: `${shopId}/${uuid("f0", 2)}.jpg`, createdAt: "2026-10-22T00:30:00Z" },

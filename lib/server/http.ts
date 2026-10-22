@@ -1,6 +1,6 @@
-import type { ApiError } from "../contract";
+import { ERROR_STATUS, type ApiError, type ApiErrorCode } from "../contract";
 
-/** A JSON error body with its HTTP status. */
-export function errorResponse(status: number, error: string): Response {
-  return Response.json({ error } satisfies ApiError, { status });
+/** A JSON error body, with the HTTP status lib/contract.ts sets for its code. */
+export function errorResponse(code: ApiErrorCode, error: string): Response {
+  return Response.json({ code, error } satisfies ApiError, { status: ERROR_STATUS[code] });
 }

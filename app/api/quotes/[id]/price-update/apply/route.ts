@@ -6,7 +6,7 @@ import { errorResponse } from "@/lib/server/http";
 // Sets the new price, resets valid-until, clears the flag, leaves sentAt alone.
 export async function POST(_request: Request, ctx: RouteContext<"/api/quotes/[id]/price-update/apply">) {
   const detail = findQuote((await ctx.params).id);
-  if (!detail) return errorResponse(404, "Quote not found");
+  if (!detail) return errorResponse("not_found", "Quote not found");
   return Response.json({
     ...detail.quote,
     price: priceUpdate.newPrice,

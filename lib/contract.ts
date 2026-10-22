@@ -44,12 +44,18 @@ export type ExtractReceiptResult = {
     rawText: string;
     /** A name from allowedStems if matched. */
     stem: string | null;
+    /** In the unit written on the receipt. */
     quantity: number | null;
+    /**
+     * The unit written on the receipt ("20pc" is "piece"), not the stem's usual
+     * unit: carnations bought "20pc @15" are 20 pieces at ₱15 a piece, though the
+     * stem row is per10. null when the receipt does not say.
+     */
     unit: Unit | null;
     bundleSize: number | null;
-    /** As written, e.g. "@150". */
+    /** As written, e.g. "@150", per one of `unit`. */
     unitPrice: number | null;
-    /** As written; code computes it when missing. */
+    /** As written; null when the receipt has no total. */
     totalPaid: number | null;
     confidence: Confidence;
     note: string;
@@ -70,11 +76,23 @@ export type DraftReplyResult = { message: string; note: string };
 export type PriceUpdateResult = { message: string; note: string };
 
 // ---------------------------------------------------------------------------
-// Routes. Every route answers JSON; failures answer ApiError with a 4xx or 5xx
-// status. Responses built from an AI call carry `demo: true` when they come
-// from saved demo answers, so screens can show the "Demo" label.
+// Routes. Every route answers JSON; failures answer ApiError with the status
+// ERROR_STATUS gives its code. Responses built from an AI call carry
+// `demo: true` when they come from saved demo answers, so screens can show the
+// "Demo" label.
 
-export type ApiError = { error: string };
+export type ApiErrorCode = "not_found" | "incomplete_quote" | "invalid_bundle_size";
+
+/** Screens check `code`, which never changes; `error` is a short English message for logs. */
+export type ApiError = { code: ApiErrorCode; error: string };
+
+export const ERROR_STATUS: Record<ApiErrorCode, number> = {
+  not_found: 404,
+  /** Copying the reply of a quote with a blank count or a "pick a flower" line. */
+  incomplete_quote: 422,
+  /** Adding or editing a stem with unit "bundle" and no bundle size above 0. */
+  invalid_bundle_size: 422,
+};
 
 /** A stem row with its latest cost. Per bunch for fillers. */
 export type StemWithCost = Stem & {
@@ -84,6 +102,11 @@ export type StemWithCost = Stem & {
   /** True until a receipt replaces the sample price. */
   isSample: boolean;
 };
+
+/** A stem's display name, which is also its name in allowedStems: "Rose - red". */
+export function stemName(stem: Pick<Stem, "flower" | "color">): string {
+  return `${stem.flower} - ${stem.color}`;
+}
 
 export type QuoteDetail = { quote: Quote; lines: QuoteLine[] };
 
@@ -103,10 +126,11 @@ export type UpdateShopResponse = Shop;
 
 // GET /api/stems — hidden rows included, so the shop setup screen can unhide them.
 export type StemListResponse = { stems: StemWithCost[] };
-// POST /api/stems
+// POST /api/stems — answers invalid_bundle_size for a "bundle" stem without a bundle size above 0.
 export type AddStemRequest = Pick<Stem, "flower" | "color" | "isFiller" | "unit" | "bundleSize" | "samplePrice">;
 export type AddStemResponse = StemWithCost;
 // PATCH /api/stems/[id] — edit a row, or hide it with { hidden: true }.
+// Answers invalid_bundle_size when the edited row is "bundle" without a bundle size above 0.
 export type UpdateStemRequest = Partial<
   Pick<Stem, "flower" | "color" | "isFiller" | "unit" | "bundleSize" | "samplePrice" | "hidden">
 >;
@@ -118,11 +142,16 @@ export type ReceiptDraftLine = {
   rawText: string;
   /** null until the florist matches the line; blocks saving. */
   stemId: string | null;
+  /** quantity and unitPrice are both in `unit`, the unit written on the receipt, not the stem's usual unit. */
   quantity: number | null;
   unit: Unit | null;
   bundleSize: number | null;
   unitPrice: Money | null;
-  /** Computed as quantity × unitPrice when the receipt left it out. */
+  /**
+   * As written; when missing, computed as quantity × unitPrice (lib/money.ts
+   * receiptLineTotal) only if the unit is known. Otherwise null, and the screen
+   * asks the florist.
+   */
   totalPaid: Money | null;
   /** Computed with lib/money.ts costPerStem; null while a field is missing. */
   costPerStem: Money | null;
@@ -189,7 +218,8 @@ export type UpdateQuoteLinesResponse = QuoteDetail;
 // text is saved when copied.
 export type DraftReplyResponse = { message: string; demo: boolean };
 // POST /api/quotes/[id]/copied — first copy sets status "sent", stamps sentAt
-// and validUntil; later copies only save the text.
+// and validUntil; later copies only save the text. Answers incomplete_quote
+// while any line has a blank count or is a "pick a flower" line.
 export type CopiedRequest = { replyText: string };
 export type CopiedResponse = Quote;
 

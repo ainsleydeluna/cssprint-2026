@@ -3,7 +3,7 @@
 
 import { describe, expect, test } from "vitest";
 import type { QuoteDetail, UpdateQuoteLinesRequest } from "@/lib/contract";
-import { createQuote, stems } from "@/lib/fake/responses";
+import { createQuote, quoteList, stems } from "@/lib/fake/responses";
 import * as accuracy from "./accuracy/route";
 import * as photos from "./photos/route";
 import * as quoteBudgetOptions from "./quotes/[id]/budget-options/route";
@@ -23,7 +23,10 @@ import * as stemsRoute from "./stems/route";
 
 type Handler = (request: Request, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
 
+/** Inquiry 3: a draft with a blank count and a "pick a flower" line. */
 const quoteId = createQuote.quote.id;
+/** Inquiry 1: every line has a stem and a count. */
+const completeQuoteId = quoteList.quotes.find((item) => item.label === "Debut, Oct 25")!.id;
 const stemId = stems[0].id;
 
 function call(handler: Handler, id = "", body?: unknown) {
@@ -53,7 +56,7 @@ const routes: Array<[string, Handler, string?, unknown?]> = [
   ["rename a quote", quote.PATCH, quoteId, { label: "Debut, Oct 25" }],
   ["delete a quote", quote.DELETE, quoteId],
   ["draft a reply", quoteReply.POST, quoteId],
-  ["mark a reply copied", quoteCopied.POST, quoteId, { replyText: "Hi po!" }],
+  ["mark a reply copied", quoteCopied.POST, completeQuoteId, { replyText: "Hi po!" }],
   ["get budget options", quoteBudgetOptions.POST, quoteId, { budget: 1000 }],
   ["draft a price update", quotePriceUpdate.POST, quoteId],
   ["apply a price update", quoteApplyPriceUpdate.POST, quoteId, { message: "Hi po!" }],
@@ -69,7 +72,30 @@ describe("stub routes", () => {
 
   test("an unknown quote answers 404 with an error", async () => {
     const response = await call(quote.GET, "no-such-quote");
-    expect([response.status, await response.json()]).toEqual([404, { error: "Quote not found" }]);
+    expect([response.status, await response.json()]).toEqual([404, { code: "not_found", error: "Quote not found" }]);
+  });
+
+  test("copying the reply of an unfinished draft answers 422 incomplete_quote", async () => {
+    const response = await call(quoteCopied.POST, quoteId, { replyText: "Hi po!" });
+    expect([response.status, (await response.json()).code]).toEqual([422, "incomplete_quote"]);
+  });
+
+  test("adding a bundle stem without a bundle size answers 422 invalid_bundle_size", async () => {
+    const mums = { flower: "Mums", color: "white", isFiller: false, unit: "bundle", samplePrice: 150 };
+    const responses = await Promise.all([
+      call(stemsRoute.POST, "", { ...mums, bundleSize: null }),
+      call(stemsRoute.POST, "", { ...mums, bundleSize: 0 }),
+    ]);
+    const answers = await Promise.all(responses.map(async (r) => [r.status, (await r.json()).code]));
+    expect(answers).toEqual([
+      [422, "invalid_bundle_size"],
+      [422, "invalid_bundle_size"],
+    ]);
+  });
+
+  test("editing a stem to a bundle without a bundle size answers 422 invalid_bundle_size", async () => {
+    const response = await call(stem.PATCH, stemId, { unit: "bundle", bundleSize: null });
+    expect([response.status, (await response.json()).code]).toEqual([422, "invalid_bundle_size"]);
   });
 
   test("editing a sample price answers the new latest cost", async () => {

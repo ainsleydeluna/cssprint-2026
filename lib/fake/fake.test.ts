@@ -3,7 +3,7 @@
 // money rules, so screens built on fakes show numbers the real code would.
 
 import { describe, expect, test } from "vitest";
-import { costPerStem, isUnderwater, latestCost, margin, price, recipeCost } from "../money";
+import { costPerStem, isUnderwater, latestCost, margin, price, receiptLineTotal, recipeCost } from "../money";
 import { batches, quotes, receipts, shop, stems } from "./data";
 import { budgetOptions, extractReceipt, priceUpdate, quoteList } from "./responses";
 
@@ -22,8 +22,11 @@ describe("fake data follows the money rules", () => {
     }
   });
 
-  test("each extracted receipt line's cost per stem", () => {
+  test("each extracted receipt line's total and cost per stem", () => {
     for (const line of extractReceipt.lines) {
+      // Wherever quantity × unit price can be computed, it matches the total.
+      const computed = receiptLineTotal({ ...line, totalPaid: null });
+      if (computed !== null) expect(line.totalPaid, line.rawText).toBe(computed);
       expect(line.costPerStem, line.rawText).toBe(costPerStem(line));
     }
   });
