@@ -3,6 +3,7 @@ import type { Message } from "@anthropic-ai/sdk/resources/messages";
 import { describe, expect, test } from "vitest";
 import { askClaude } from "./client";
 import { fakeApi, fakeMessage } from "./fakeApi";
+import { schema } from "./shared";
 
 const request = { system: "Read the receipt.", content: "hello", schema: { type: "object" } };
 
@@ -84,6 +85,39 @@ describe("askClaude", () => {
     expect(await askClaude("extractReceipt", request, api)).toMatchObject({
       ok: false,
       error: "Answer was not valid JSON",
+    });
+  });
+
+  describe("checks the answer against its schema", () => {
+    const linesRequest = {
+      ...request,
+      schema: schema.object({
+        lines: { type: "array", items: schema.object({ stem: schema.nullable("string"), count: { type: "integer" } }) },
+        note: { type: "string" },
+      }),
+    };
+    const ask = (answer: unknown) => askClaude("analyzeBouquet", linesRequest, fakeApi(fakeMessage(answer)).api);
+
+    test("passes an answer with every field", async () => {
+      expect(await ask({ lines: [{ stem: null, count: 3 }], note: "" })).toMatchObject({ ok: true });
+    });
+
+    test("fails an answer without its lines array", async () => {
+      expect(await ask({ note: "" })).toMatchObject({ ok: false, error: "Answer is missing lines" });
+    });
+
+    test("fails a line without a required field", async () => {
+      expect(await ask({ lines: [{ count: 3 }], note: "" })).toMatchObject({
+        ok: false,
+        error: "Answer is missing lines[0].stem",
+      });
+    });
+
+    test("fails a field of the wrong type", async () => {
+      expect(await ask({ lines: [{ stem: "Rose - red", count: 2.5 }], note: "" })).toMatchObject({
+        ok: false,
+        error: "Answer has a wrong lines[0].count",
+      });
     });
   });
 

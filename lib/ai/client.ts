@@ -11,6 +11,7 @@ import type {
 } from "@anthropic-ai/sdk/resources/messages";
 import type { AiCallName } from "../types";
 import { CALLS, MAX_RETRIES, TIMEOUT_MS, type ModelId } from "./config";
+import { shapeError } from "./shape";
 
 /**
  * What every call returns. Failures still carry the model and seconds so the
@@ -66,7 +67,7 @@ function errorText(error: unknown): string {
 }
 
 /** Reads a finished message: the JSON answer, or why there is none. */
-function readAnswer<T>(message: Message): { ok: true; result: T } | { ok: false; error: string } {
+function readAnswer<T>(message: Message, schema: AiRequest["schema"]): { ok: true; result: T } | { ok: false; error: string } {
   if (message.stop_reason === "refusal") {
     const category = message.stop_details?.category;
     return { ok: false, error: category ? `Claude declined (${category})` : "Claude declined" };
@@ -74,11 +75,14 @@ function readAnswer<T>(message: Message): { ok: true; result: T } | { ok: false;
   if (message.stop_reason === "max_tokens") return { ok: false, error: "Answer was cut off" };
   const text = message.content.find((block) => block.type === "text");
   if (!text) return { ok: false, error: "Answer had no text" };
+  let answer: unknown;
   try {
-    return { ok: true, result: JSON.parse(text.text) as T };
+    answer = JSON.parse(text.text);
   } catch {
     return { ok: false, error: "Answer was not valid JSON" };
   }
+  const error = shapeError(answer, schema);
+  return error ? { ok: false, error } : { ok: true, result: answer as T };
 }
 
 /**
@@ -111,7 +115,7 @@ export async function askClaude<T>(call: AiCallName, request: AiRequest, api?: M
   }
 
   return {
-    ...readAnswer<T>(message),
+    ...readAnswer<T>(message, request.schema),
     model,
     seconds: seconds(),
     inputTokens: message.usage.input_tokens,

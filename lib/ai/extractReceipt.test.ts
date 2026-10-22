@@ -71,6 +71,12 @@ describe("extractReceipt", () => {
     expect(outcome.ok && outcome.result.purchaseDate).toBeNull();
   });
 
+  test("returns an error, not a crash, when the answer has no lines", async () => {
+    const { api } = fakeApi(fakeMessage({ purchaseDate: null, note: "" }));
+
+    expect(await extractReceipt({ photo, stems }, api)).toMatchObject({ ok: false, error: "Answer is missing lines" });
+  });
+
   test("passes a failed call through", async () => {
     const { api } = fakeApi(fakeMessage("not json"));
 
