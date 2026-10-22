@@ -9,12 +9,20 @@ const PREVIEW_LONG_EDGE_PX = 1600;
 // A drag smaller than this share of the photo counts as a tap, not a box.
 const MIN_BOX_FRACTION = 0.03;
 
+type Source = "camera" | "gallery";
+
 type Props = {
   onPhoto: (photo: File) => void;
-  /** "camera" opens the back camera on phones; "gallery" lets the user pick an existing photo. */
-  source?: "camera" | "gallery";
+  /**
+   * "camera" opens the back camera on phones; "gallery" lets the user pick an existing photo;
+   * "both" shows a button for each.
+   */
+  source?: Source | "both";
+  /** Button text when there is one source. */
   label?: string;
 };
+
+const SOURCE_LABELS: Record<Source, string> = { camera: "Kunan ng photo", gallery: "Pumili sa gallery" };
 
 type Point = { x: number; y: number };
 
@@ -22,7 +30,8 @@ type Point = { x: number; y: number };
 const WHOLE: CropRect = { x: 0, y: 0, width: 1, height: 1 };
 
 export function PhotoPicker({ onPhoto, source = "camera", label = "Kumuha ng photo" }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const sources: Source[] = source === "both" ? ["camera", "gallery"] : [source];
+  const inputs = useRef<Partial<Record<Source, HTMLInputElement | null>>>({});
   const previewRef = useRef<HTMLCanvasElement>(null);
   // Where the current drag started, and the box before it (restored if the drag was just a tap).
   const drag = useRef<{ start: Point; before: CropRect | null } | null>(null);
@@ -114,17 +123,22 @@ export function PhotoPicker({ onPhoto, source = "camera", label = "Kumuha ng pho
 
   return (
     <div className="flex flex-col gap-3" aria-busy={busy}>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture={source === "camera" ? "environment" : undefined}
-        className="hidden"
-        onChange={(e) => {
-          handleFile(e.target.files?.[0]);
-          e.target.value = ""; // allow picking the same file again
-        }}
-      />
+      {sources.map((s) => (
+        <input
+          key={s}
+          ref={(el) => {
+            inputs.current[s] = el;
+          }}
+          type="file"
+          accept="image/*"
+          capture={s === "camera" ? "environment" : undefined}
+          className="hidden"
+          onChange={(e) => {
+            handleFile(e.target.files?.[0]);
+            e.target.value = ""; // allow picking the same file again
+          }}
+        />
+      ))}
 
       {bitmap && (
         <>
@@ -162,13 +176,16 @@ export function PhotoPicker({ onPhoto, source = "camera", label = "Kumuha ng pho
         </>
       )}
 
-      <Button
-        variant={bitmap ? "secondary" : "primary"}
-        disabled={busy}
-        onClick={() => inputRef.current?.click()}
-      >
-        {bitmap ? "Ibang photo" : label}
-      </Button>
+      {sources.map((s, i) => (
+        <Button
+          key={s}
+          variant={bitmap || i > 0 ? "secondary" : "primary"}
+          disabled={busy}
+          onClick={() => inputs.current[s]?.click()}
+        >
+          {sources.length > 1 ? SOURCE_LABELS[s] : bitmap ? "Ibang photo" : label}
+        </Button>
+      ))}
 
       <p role="status" className="text-sm">
         {busy && "Inihahanda ang photo…"}
