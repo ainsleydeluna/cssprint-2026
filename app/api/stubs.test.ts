@@ -1,8 +1,9 @@
 // Every stub route the screens call exists and answers JSON (issue #4). Calls the
 // route handlers directly, the way Next.js does, without starting a server.
-// The shop, stem, photo and quote routes are real now; app/api/routes.test.ts
-// and app/api/quote-routes.test.ts cover them. The swap to real stem ids needs
-// a session, so here it passes the fake answer through;
+// The shop, stem, photo, receipt and quote routes are real now;
+// app/api/routes.test.ts, app/api/receipts.test.ts and
+// app/api/quote-routes.test.ts cover them. The swap to real stem ids needs a
+// session, so here it passes the fake answer through;
 // lib/fake/real-stems.test.ts covers the swap.
 
 import { describe, expect, test, vi } from "vitest";
@@ -13,9 +14,6 @@ import * as accuracy from "./accuracy/route";
 import * as quoteBudgetOptions from "./quotes/[id]/budget-options/route";
 import * as quoteApplyPriceUpdate from "./quotes/[id]/price-update/apply/route";
 import * as quotePriceUpdate from "./quotes/[id]/price-update/route";
-import * as receipt from "./receipts/[id]/route";
-import * as receiptExtract from "./receipts/extract/route";
-import * as receipts from "./receipts/route";
 
 type Handler = (request: Request, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
 
@@ -30,10 +28,6 @@ function call(handler: Handler, id = "", body?: unknown) {
 }
 
 const routes: Array<[string, Handler, string?, unknown?]> = [
-  ["extract a receipt", receiptExtract.POST],
-  ["save a receipt", receipts.POST],
-  ["list receipts", receipts.GET],
-  ["delete a receipt", receipt.DELETE, "any"],
   ["get budget options", quoteBudgetOptions.POST, quoteId, { budget: 1000 }],
   ["draft a price update", quotePriceUpdate.POST, quoteId],
   ["apply a price update", quoteApplyPriceUpdate.POST, quoteId, { message: "Hi po!" }],

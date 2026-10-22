@@ -1,8 +1,8 @@
 import type { UpdateStemResponse } from "@/lib/contract";
 import { requireShop } from "@/lib/server/auth";
 import { stemsWithCost } from "@/lib/server/costs";
-import { parseStemUpdate } from "@/lib/server/fields";
-import { DUPLICATE_NAME, errorResponse, readJson, UUID } from "@/lib/server/http";
+import { parseStemUpdate, UUID } from "@/lib/server/fields";
+import { DUPLICATE_NAME, errorResponse, readJson } from "@/lib/server/http";
 import { STEM_COLUMNS, toColumns, toStem } from "@/lib/server/rows";
 
 // Edit a row, or hide it with { hidden: true }; stems are never deleted.
