@@ -2,6 +2,7 @@
 // Imported by both route handlers and screens, so totals always agree.
 
 import type { CountPrefill } from "./ai/config";
+import type { ReceiptDraftLine } from "./contract";
 import type { ManilaDate, Money, QuoteLine, Shop, Stem, StockBatch, Unit } from "./types";
 
 /**
@@ -40,6 +41,20 @@ export function costPerStem(
   return roundMoney(batch.totalPaid / (batch.quantity * perUnit));
 }
 
+/**
+ * A receipt line's total paid. Keeps the total written on the receipt; when it
+ * is missing, computes quantity × unitPrice, both in the unit written on the
+ * receipt. null when the unit, quantity or unit price is unknown: the screen
+ * then asks the florist.
+ */
+export function receiptLineTotal(
+  line: Pick<ReceiptDraftLine, "quantity" | "unit" | "unitPrice" | "totalPaid">,
+): Money | null {
+  if (line.totalPaid !== null) return line.totalPaid;
+  if (line.unit === null || line.quantity === null || line.unitPrice === null) return null;
+  return roundMoney(line.quantity * line.unitPrice);
+}
+
 /** A stock batch with its receipt's purchase date, as latestCost needs it. */
 export type DatedBatch = Pick<StockBatch, "stemId" | "costPerStem" | "createdAt"> & {
   purchaseDate: ManilaDate;
@@ -48,11 +63,13 @@ export type DatedBatch = Pick<StockBatch, "stemId" | "costPerStem" | "createdAt"
 /**
  * What one stem (one bunch for fillers) costs the shop now: the newest batch by
  * purchase date, ties going to the one entered last; else the sample price.
+ * cost is null for a never-bought bundle stem with no bundle size: there is no
+ * usable cost, the same as costPerStem.
  */
 export function latestCost(
   stem: Pick<Stem, "id" | "unit" | "bundleSize" | "samplePrice">,
   batches: DatedBatch[],
-): { cost: Money; isSample: boolean } {
+): { cost: Money | null; isSample: boolean } {
   let newest: DatedBatch | undefined;
   for (const batch of batches) {
     if (batch.stemId !== stem.id) continue;
@@ -66,10 +83,8 @@ export function latestCost(
     }
   }
   if (newest) return { cost: newest.costPerStem, isSample: false };
-  // A stem bought by the bundle always has a bundle size (the stems table must
-  // enforce it); the 1 only stops a bad row from crashing a screen.
-  const perUnit = stemsPerUnit(stem.unit, stem.bundleSize) ?? 1;
-  return { cost: roundMoney(stem.samplePrice / perUnit), isSample: true };
+  const perUnit = stemsPerUnit(stem.unit, stem.bundleSize);
+  return { cost: perUnit === null ? null : roundMoney(stem.samplePrice / perUnit), isSample: true };
 }
 
 /**
@@ -114,13 +129,15 @@ export function margin(price: Money, recipeCostAtLatest: Money): number {
 
 /**
  * True when the margin at latest costs is below the shop's minimum margin.
- * Callers pass open quotes only (sent and not expired).
+ * Callers pass open quotes only (sent and not expired). A ₱0 price is never
+ * underwater: there is no price to update.
  */
 export function isUnderwater(
   price: Money,
   recipeCostAtLatest: Money,
   shop: Pick<Shop, "minimumMarginPercent">,
 ): boolean {
+  if (price === 0) return false;
   return margin(price, recipeCostAtLatest) < shop.minimumMarginPercent / 100;
 }
 
@@ -151,10 +168,11 @@ export function clampBouquet<T extends { count: number | null; isFiller: boolean
   for (const line of lines) if (!line.isFiller && line.count !== null) total += line.count;
   if (total <= COUNT_LIMITS.stemsPerBouquet) return lines;
 
-  const factor = COUNT_LIMITS.stemsPerBouquet / total;
+  // Multiply before dividing: count × 200 is a whole number, so a line that
+  // scales to exactly 125 is not floored to 124 by float error.
   return lines.map((line) =>
     line.isFiller || line.count === null
       ? line
-      : { ...line, count: Math.max(1, Math.floor(line.count * factor)) },
+      : { ...line, count: Math.max(1, Math.floor((line.count * COUNT_LIMITS.stemsPerBouquet) / total)) },
   );
 }

@@ -8,6 +8,7 @@ import {
   margin,
   prefillCount,
   price,
+  receiptLineTotal,
   recipeCost,
 } from "./money";
 
@@ -84,6 +85,11 @@ describe("latestCost", () => {
   test("divides a bundle's sample price by its bundle size", () => {
     const mums = { id: "mums", unit: "bundle", bundleSize: 10, samplePrice: 150 } as const;
     expect(latestCost(mums, [])).toEqual({ cost: 15, isSample: true });
+  });
+
+  test("has no usable cost for a bundle stem without a bundle size", () => {
+    const mums = { id: "mums", unit: "bundle", bundleSize: null, samplePrice: 150 } as const;
+    expect(latestCost(mums, [])).toEqual({ cost: null, isSample: true });
   });
 });
 
@@ -175,6 +181,10 @@ describe("isUnderwater", () => {
   test("is false above the minimum margin", () => {
     expect(isUnderwater(390, 157.5, shop)).toBe(false);
   });
+
+  test("is false for a quote with a price of 0", () => {
+    expect([isUnderwater(0, 0, shop), isUnderwater(0, 50, shop)]).toEqual([false, false]);
+  });
 });
 
 describe("clampCount", () => {
@@ -217,11 +227,38 @@ describe("clampBouquet", () => {
     expect(clampBouquet([flower(150), flower(100), filler(5)])).toEqual([flower(120), flower(80), filler(5)]);
   });
 
+  test("keeps whole counts that float division would shave", () => {
+    // 145 x (200 / 232) is 124.999... in floating point; 145 x 200 / 232 is exactly 125.
+    expect(clampBouquet([flower(145), flower(87)])).toEqual([flower(125), flower(75)]);
+  });
+
   test("never takes a line below 1 stem", () => {
     expect(clampBouquet([flower(100), flower(100), flower(1)])).toEqual([flower(99), flower(99), flower(1)]);
   });
 
   test("leaves blank counts blank", () => {
     expect(clampBouquet([flower(150), flower(null), flower(100)])).toEqual([flower(120), flower(null), flower(80)]);
+  });
+});
+
+describe("receiptLineTotal", () => {
+  test("keeps the total written on the receipt", () => {
+    expect(receiptLineTotal({ quantity: 2, unit: "dozen", unitPrice: 270, totalPaid: 540 })).toBe(540);
+  });
+
+  test("computes a missing total as quantity x unit price in the receipt's unit", () => {
+    // "Carnation - pink, 20pc @15": 20 pieces at 15 a piece.
+    expect(receiptLineTotal({ quantity: 20, unit: "piece", unitPrice: 15, totalPaid: null })).toBe(300);
+  });
+
+  test("leaves the total for the florist when the unit is unknown", () => {
+    expect(receiptLineTotal({ quantity: 20, unit: null, unitPrice: 15, totalPaid: null })).toBeNull();
+  });
+
+  test("leaves the total for the florist when the quantity or unit price is missing", () => {
+    expect([
+      receiptLineTotal({ quantity: null, unit: "piece", unitPrice: 15, totalPaid: null }),
+      receiptLineTotal({ quantity: 20, unit: "piece", unitPrice: null, totalPaid: null }),
+    ]).toEqual([null, null]);
   });
 });
