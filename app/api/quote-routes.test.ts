@@ -286,9 +286,11 @@ describe.skipIf(!testAccountsReady)("quote routes", { timeout: 20_000 }, () => {
     answer({ message: "Hi po! Roses and sunflowers, {price}, valid hanggang {validUntil}.", note: "" });
     const response = await replyRoute.POST(json("POST"), ctx(quote.id));
     const { message, demo } = await response.json();
-    // Sunflower 3 × 80 fills the "pick a flower" line; at sample prices 779.96 × 1.5 + 150 = 1,319.94, rounded up to ₱1,320.
-    const price = expectedPrice(12 * cost("Rose - red") + 6 * cost("Carnation - pink") + 3 * cost("Sunflower - yellow") + 2 * cost("Baby's breath - white"));
-    expect(message).toMatch(new RegExp(`^Hi po! Roses and sunflowers, ₱${price.toLocaleString("en-US")}, valid hanggang \\w{3} \\d{1,2}\\.$`));
+    // The quote's saved price, not one worked out here: another test may change Shop A's costs meanwhile.
+    // The date is the one the first copy will stamp, two days on in Manila ("2026-10-25" is "Oct 25").
+    const [, month, day] = manilaDate(2).split("-").map(Number);
+    const date = `${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][month - 1]} ${day}`;
+    expect(message).toBe(`Hi po! Roses and sunflowers, ₱${quote.price!.toLocaleString("en-US")}, valid hanggang ${date}.`);
     expect(demo).toBe(false);
     expect((await client.from("quotes").select("reply_text").eq("id", quote.id).single()).data?.reply_text).toBe(message);
     const logged = await client.from("ai_calls").select("call, ok").eq("quote_id", quote.id).eq("call", "draftReply");
