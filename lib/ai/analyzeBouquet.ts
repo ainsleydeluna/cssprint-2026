@@ -14,7 +14,7 @@ const SYSTEM = `You look at a photo of a bouquet that a customer sent to a flori
 Return one line per kind of flower and one line per filler you can see.
 - stem: the shop's row for this flower and color, copied exactly from the allowed list, or "Other" if the flower is not in the list.
 - color: your own words for the color, such as "deep red" or "blush pink".
-- countLow, countHigh: how many the bouquet holds. The low end is what you can see; the high end adds the ones likely hidden. Flowers are counted in stems. A filler (marked "(filler)" in the list) is counted in bunches, usually 1 to 3.
+- countLow, countHigh: how many the bouquet holds. The low end is what you can see; the high end adds the ones likely hidden. Flowers are counted in stems. A filler (listed under Fillers) is counted in bunches, usually 1 to 3.
 - confidence: high when the row and count are clear, medium when one is a guess, low when both are.
 - closestStem: when stem is "Other", the row from the allowed list a florist would use in its place; otherwise null.
 - note: when stem is "Other", start with the flower's real name. Otherwise a few words on anything unsure; "" if nothing.
@@ -50,7 +50,7 @@ export async function analyzeBouquet(
     "analyzeBouquet",
     {
       system: SYSTEM,
-      content: [photoBlock(input.photo), { type: "text", text: `Allowed list:\n${stemList(input.stems)}` }],
+      content: [photoBlock(input.photo), { type: "text", text: stemList(input.stems) }],
       schema: SCHEMA,
     },
     api,

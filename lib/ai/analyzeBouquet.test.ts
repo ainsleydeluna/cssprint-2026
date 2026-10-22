@@ -33,7 +33,7 @@ describe("analyzeBouquet", () => {
   test("sends the photo, the row names with fillers marked, and the three counting rules", async () => {
     const { request } = await analyze();
 
-    expect(JSON.stringify(request.messages[0].content)).toContain("Baby's breath - white (filler)");
+    expect(JSON.stringify(request.messages[0].content)).toContain("Fillers:\\n- Baby's breath - white");
     expect(request.system).toContain("not Greenery");
     expect(request.system).toContain("by price and size, not by name");
     expect(request.system).toContain("Count stems, not individual blooms");

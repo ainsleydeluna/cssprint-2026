@@ -17,9 +17,14 @@ export function photoBlock(photo: Photo): BetaContentBlockParam {
   };
 }
 
-/** The allowed list as the prompt shows it, fillers marked. */
+/**
+ * The allowed list as the prompt shows it. Fillers get their own heading, not
+ * a marker after the name, which the model copied into its answers.
+ */
 export function stemList(stems: AllowedStem[]): string {
-  return stems.map((stem) => `- ${stem.name}${stem.isFiller ? " (filler)" : ""}`).join("\n");
+  const names = (isFiller: boolean) =>
+    stems.filter((stem) => stem.isFiller === isFiller).map((stem) => `- ${stem.name}`).join("\n") || "(none)";
+  return `Allowed list.\nFlowers:\n${names(false)}\nFillers:\n${names(true)}`;
 }
 
 /** The shop's row with this name, ignoring capital letters and outer spaces. */

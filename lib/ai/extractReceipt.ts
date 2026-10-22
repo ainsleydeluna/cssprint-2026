@@ -16,7 +16,7 @@ Return one line per purchase written on the receipt.
 - stem: the shop's row this line is, copied exactly from the allowed list, or null if no row fits or you cannot tell which.
 - quantity, unit, bundleSize, unitPrice, totalPaid: as written; null when not written. Never compute a missing number.
 - unit: the unit written on this line, not the flower's usual unit. "dz" or "doz" is dozen, "per 10" is per10, "bndl" or "bdl" is bundle, "pc" or "pcs" is piece. "20pc @15" is 20 piece at 15 each.
-- A filler (marked "(filler)" in the list) sold per bundle is one bunch: use unit bunch and bundleSize null.
+- A filler (listed under Fillers) sold per bundle is one bunch: use unit bunch and bundleSize null.
 - bundleSize: stems per bundle, only for unit bundle and only if written.
 - unitPrice: the price of one unit, such as "@150". totalPaid: the line total. Pesos as plain numbers, no ₱ or commas.
 - confidence: high when every field is clear, medium when one is a guess, low when the line is hard to read.
@@ -59,7 +59,7 @@ export async function extractReceipt(
     "extractReceipt",
     {
       system: SYSTEM,
-      content: [photoBlock(input.photo), { type: "text", text: `Allowed list:\n${stemList(input.stems)}` }],
+      content: [photoBlock(input.photo), { type: "text", text: stemList(input.stems) }],
       schema: SCHEMA,
     },
     api,
