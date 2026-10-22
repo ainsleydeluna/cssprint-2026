@@ -4,7 +4,7 @@
 // supabase/migrations, so a bad value answers invalid_request, not a database error.
 
 import type { AddStemRequest, SaveReceiptRequest, UpdateShopRequest, UpdateStemRequest } from "../contract";
-import { costPerStem } from "../money";
+import { costPerStem, roundMoney } from "../money";
 import type { ManilaDate, Money, Stem, Unit } from "../types";
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; code: "invalid_request" | "invalid_bundle_size"; error: string };
@@ -186,6 +186,8 @@ export function parseSaveReceipt(
   const { photoPath, purchaseDate = null, lines } = body;
   if (!isShopPhotoPath(photoPath, shopId)) return invalid("Invalid photoPath");
   if (purchaseDate !== null && !isCalendarDate(purchaseDate)) return invalid("Invalid purchaseDate");
+  // "YYYY-MM-DD" dates compare correctly as strings.
+  if (purchaseDate !== null && purchaseDate > today) return invalid("The purchase date is after today");
   if (!Array.isArray(lines) || lines.length === 0) return invalid("A receipt needs at least one line");
   if (lines.length > MAX_RECEIPT_LINES) return invalid(`A receipt has at most ${MAX_RECEIPT_LINES} lines`);
 
@@ -199,7 +201,13 @@ export function parseSaveReceipt(
     const missing = Object.keys(RECEIPT_LINE_FIELDS).find((field) => !Object.hasOwn(picked.value, field));
     if (missing) return invalid(`Invalid ${missing} on line ${n}`);
     const fields = picked.value as Omit<SaveReceiptLine, "stemId" | "costPerStem">;
-    const batch = { ...fields, stemId: line.stemId, bundleSize: fields.unit === "bundle" ? fields.bundleSize : null };
+    const batch = {
+      ...fields,
+      stemId: line.stemId,
+      // numeric(10,2) in receipt_lines, so the cost per stem is computed on the stored quantity.
+      quantity: roundMoney(fields.quantity),
+      bundleSize: fields.unit === "bundle" ? fields.bundleSize : null,
+    };
     const cost = costPerStem(batch);
     if (cost === null) return invalid(`Line ${n} has no cost per stem`);
     checked.push({ ...batch, costPerStem: cost });

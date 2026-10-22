@@ -148,6 +148,16 @@ describe("parseSaveReceipt", () => {
     expect(parse({ purchaseDate: undefined })).toMatchObject({ ok: true, value: { purchaseDate: today } });
   });
 
+  test("accepts today as the purchase date", () => {
+    expect(parse({ purchaseDate: today })).toMatchObject({ ok: true, value: { purchaseDate: today } });
+  });
+
+  test("rounds the quantity to two decimals, as the database stores it, before the cost per stem", () => {
+    // 1.005 bunches is stored as 1.01: ₱101 ÷ 1.01 = ₱100, not ₱100.50 for 1.005.
+    const line = { ...roses, quantity: 1.005, unit: "bunch", totalPaid: 101 };
+    expect(parse({ lines: [line] })).toMatchObject({ ok: true, value: { lines: [{ quantity: 1.01, costPerStem: 100 }] } });
+  });
+
   test("stores no bundle size on a line that is not a bundle", () => {
     expect(parse({ lines: [{ ...roses, bundleSize: 10 }] })).toMatchObject({
       ok: true,
@@ -164,6 +174,7 @@ describe("parseSaveReceipt", () => {
     ["no lines", { lines: [] }, "A receipt needs at least one line"],
     ["another shop's photo", { photoPath: `f0000000-0000-4000-8000-000000000009/${photoPath.split("/")[1]}` }, "Invalid photoPath"],
     ["a purchase date that is not a date", { purchaseDate: "Oct 21" }, "Invalid purchaseDate"],
+    ["a purchase date after today in Manila", { purchaseDate: "2026-10-24" }, "The purchase date is after today"],
     ["a photo path with no file", { photoPath: shopId }, "Invalid photoPath"],
     ["more than 100 lines", { lines: Array(101).fill(roses) }, "A receipt has at most 100 lines"],
   ])("refuses %s with invalid_request", (_case, body, error) => {
