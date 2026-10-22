@@ -142,6 +142,21 @@ describe.skipIf(!testAccountsReady)("photo and receipt routes", () => {
     expect(listed.filter((item) => item.receipt.photoPath === photoPath)).toEqual([]);
   });
 
+  test("saving the same photo twice answers 400 invalid_request and keeps one receipt", async () => {
+    const photoPath = await upload();
+    const body = { photoPath, lines: [{ stemId: roseId, quantity: 2, unit: "dozen", bundleSize: null, totalPaid: 540 }] };
+    const first = (await (await receiptsRoute.POST(json("POST", body))).json()) as SaveReceiptResponse;
+    try {
+      const second = await receiptsRoute.POST(json("POST", body));
+
+      expect([second.status, await second.json()]).toEqual([400, { code: "invalid_request", error: "This photo is already saved as a receipt" }]);
+      const listed = ((await (await receiptsRoute.GET()).json()) as ReceiptListResponse).receipts;
+      expect(listed.filter((item) => item.receipt.photoPath === photoPath)).toHaveLength(1);
+    } finally {
+      await receiptRoute.DELETE(json("DELETE"), idContext(first.receipt.id));
+    }
+  });
+
   describe("save and delete, with the margin alarm", () => {
     let quoteId: string;
 

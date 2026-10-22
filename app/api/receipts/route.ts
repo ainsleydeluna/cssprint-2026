@@ -1,7 +1,7 @@
 import type { ReceiptListResponse, SaveReceiptResponse } from "@/lib/contract";
 import { requireShop } from "@/lib/server/auth";
 import { parseSaveReceipt } from "@/lib/server/fields";
-import { errorResponse, readJson } from "@/lib/server/http";
+import { DUPLICATE_NAME, errorResponse, readJson } from "@/lib/server/http";
 import { latestCosts, recheckUnderwater } from "@/lib/server/margin-alarm";
 import { readReceipts, todayInManila } from "@/lib/server/receipts";
 
@@ -31,6 +31,8 @@ export async function POST(request: Request) {
 
   const before = await latestCosts(supabase, stemIds);
   const saved = await supabase.rpc("save_receipt", { purchase_date: purchaseDate, photo_path: photoPath, lines });
+  // A second save of the same photo, such as a double tap on Save (receipts_photo_path_key).
+  if (saved.error?.code === DUPLICATE_NAME) return errorResponse("invalid_request", "This photo is already saved as a receipt");
   if (saved.error) throw new Error(`Saving the receipt failed: ${saved.error.message}`);
   const [{ receipt, batches }] = await readReceipts(supabase, String(saved.data));
 
