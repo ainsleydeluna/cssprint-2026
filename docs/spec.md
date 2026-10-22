@@ -51,14 +51,14 @@ Numbered as asked in the kickoff so the answers can be traced.
 | 9 | `Other` with a `closestStem` becomes a line priced at the closest stem's latest cost, highlighted, with the real flower name in the note. `Other` with no closest stem becomes a "pick a flower" line at ₱0 that blocks copying the reply until the florist picks a row. |
 | 10 | Tests run on Vitest. Money math and count clamping get tests before code. One test signs in as Shop A and asserts zero rows of Shop B. |
 | 11 | On stage, demo mode keeps `draftReply` live. The demo video is recorded with demo mode off, showing a real live photo analysis. |
-| 12 | Counting design is C, the safe one: only `high` confidence lines get a prefilled count; `medium` and `low` lines start blank. A blank count blocks copying the reply until filled. The vision result is pending; the bake-off on Ian's 20 photos confirms or changes this. |
+| 12 | Counting design is A: every line gets a prefilled count from its count range. The prefill rule lives in config as `countPrefill`, set to `"middle"` (middle of the range, rounded up). A blank count (a line the florist cleared) still blocks copying the reply until filled. Chosen after the vision test (section 11). |
 | 13 | One extra table, `ai_calls`, logs every AI call: shop, call name, model, seconds, input and output tokens, the quote or receipt it belonged to, success or short error text. Cost per quote is computed from tokens and a price-per-token table in config. |
 | 14 | On first sign-in the app creates the user's shop automatically, seeds the starter list from `fixtures/seed`, and sends them to shop setup. |
 | 15 | New quotes get an automatic label "Inquiry N". The florist can rename it later; the rename box shows the hint "No customer names or numbers." Nothing is asked before the camera opens. |
 | 16 | Cropped, shrunken photos stay in the shop's private storage, attached to the quote or receipt. Deleting a quote or receipt deletes its photo. Storage rules let each shop read only its own files. |
 | 17 | Each filler is its own stem row with its own latest cost. There is no shop-level filler price setting. Starting costs come from Zach's seed file. |
 | 18 | "Other" in the shop's list means "add your own row with a typed name". Stems are never deleted, only hidden, so old quotes and batches keep their lines. |
-| 19 | Starter units: roses, gerbera, dendrobium orchid and anthurium per dozen; carnations per 10; chrysanthemum and Malaysian mums per bundle; sunflower, stargazer lily and tulip per piece; fillers per bunch. Sample prices and a source note per row come from Zach's seed file. |
+| 19 | Starter units: roses, gerbera, dendrobium orchid and anthurium per dozen; carnations per 10; chrysanthemum, Malaysian mums and alstroemeria (Dangwa calls it "astro") per bundle; sunflower, stargazer lily and tulip per piece; fillers per bunch. Sample prices and a source note per row come from Zach's seed file. |
 | 20 | Each stock batch stores its own quantity, unit, bundle size and total paid; cost per stem is computed from the batch, not the row's unit. A receipt line the AI could not match must be matched or deleted before the receipt can be saved. |
 | 21 | Screens call route handlers under `app/api` for every AI call and database write. No server actions. |
 | 22 | All money math lives in `lib/money.ts`, a pure module (no database, no network) owned by Ice and imported by both server and screens. Drafts save to the database on every edit, debounced. |
@@ -66,7 +66,7 @@ Numbered as asked in the kickoff so the answers can be traced.
 | 24 | The Shop A / Shop B test runs against the `cssprint-dev` project with two test accounts made once by a seed script, keys from `.env.local`; the test is skipped when the keys are absent. If the seed script needs the Supabase secret key, it lives only in Ice's `.env.local` as `SUPABASE_SECRET_KEY`: never `NEXT_PUBLIC_`, never committed, not in Vercel; the script and test say so in a comment. |
 | 25 | The AI returns one line per filler it sees, from the shop's filler rows, with a count range in bunches clamped to 1–5; the line starts at the middle, rounded up. No filler seen, no line. |
 | 26 | The crop screen always appears with the whole photo preselected (one tap accepts). The photo is shrunk so its longer side is at most the configured maximum, default 1600 px, saved as JPEG at 80%. Re-drawing it drops location data. The same file goes to the AI and to storage. The maximum lives in config so the bake-off can compare 1280 and 1600. |
-| 27 | Bake-off candidates: Claude Haiku 5.5, Sonnet 5.5, Opus 5.5. Config starts with Sonnet 5.5 for both photo calls. Pass marks: `analyzeBouquet` right row on ≥ 90% of lines, counts within ±2 on ≥ 80% of lines, total within ±10% on ≥ 80% of photos; `extractReceipt` stem, quantity and price right on ≥ 95% of lines; both under 15 seconds. Cheapest passing model wins; if none passes, the most accurate, and the accuracy page says so. |
+| 27 | Bake-off candidates: Claude Haiku 5.5, Sonnet 5.5, Opus 5.5. Config starts with Opus 5.5, thinking off, for `analyzeBouquet` (vision test, section 11) and Sonnet 5.5 for `extractReceipt`, until the bake-off measures speed on the 20-photo set. Pass marks: `analyzeBouquet` right row on ≥ 90% of lines, counts within ±2 on ≥ 80% of lines, total within ±10% on ≥ 80% of photos; `extractReceipt` stem, quantity and price right on ≥ 95% of lines; both under 15 seconds. Cheapest passing model wins; if none passes, the most accurate, and the accuracy page says so. |
 | 28 | A saved receipt is read-only. To fix one, delete it (its photo and batches go too, and latest cost falls back to the previous batch) and scan again. |
 
 ## 4. Defaults we chose
@@ -110,7 +110,7 @@ These were not asked in the kickoff. Review them here; tell Ice to change any.
 - IDs are UUIDs. Every table has `shop_id` and `created_at`. Row-level security: a row is visible when its shop's `owner_id` equals the signed-in user.
 - Storage: two private buckets, `bouquets` and `receipts`; object path `<shop_id>/<uuid>.jpg`; the storage rule checks the first path segment against the caller's shop.
 - Sign-in: the middleware protects everything under `app/(app)`; the magic link lands on the quote list.
-- AI config (`lib/ai/config.ts`): model per call, max photo size, token prices, a 30-second timeout and one retry. Every call, including failures, writes an `ai_calls` row.
+- AI config (`lib/ai/config.ts`): model per call (thinking off), `countPrefill`, max photo size, token prices, a 30-second timeout and one retry. Every call, including failures, writes an `ai_calls` row.
 - A shop has an optional `name`, used only in the reply.
 - The spec lives here, in `docs/spec.md`; `docs/` is Zach's folder, but spec edits go through Ice.
 - Environment variables: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `ANTHROPIC_API_KEY` (server only), `NEXT_PUBLIC_DEMO_MODE`, `NEXT_PUBLIC_MARGIN_ALARM`, `NEXT_PUBLIC_MAX_PHOTO_PX`; `SUPABASE_SECRET_KEY` only in Ice's local file.
@@ -227,6 +227,12 @@ type PriceUpdateResult = { message: string; note: string };
 
 Clamps applied in code after every answer: flower counts 1–100 per line, 200 per bouquet; filler bunches 1–5; names matched to rows ignoring capital letters; unknown names become `Other`.
 
+Rules written into the `analyzeBouquet` prompt:
+
+1. A flower's own leaves and stems are not Greenery. Only a separate filler counts as a filler line.
+2. For `Other`, choose `closestStem` by price and size, not by name.
+3. Count stems, not individual blooms. For flowers that grow in clusters, such as alstroemeria and spray roses, estimate the number of stems.
+
 ## 7. Money rules (`lib/money.ts`)
 
 - `costPerStem(batch)`: `totalPaid ÷ stems in the batch`, where a dozen is 12, `per10` is 10, a bundle is `bundleSize`, a bunch or piece is 1 (a bunch is priced whole).
@@ -261,10 +267,18 @@ Screen questions deliberately not decided here. Prototype on fake data, then sho
 - The accuracy page.
 - The banner and badge for underwater quotes.
 
-## 11. Open items
+## 11. Vision test and open items
 
-- The vision test result. Decision 12 stays at C until the bake-off on Ian's 20 photos says counts are strong (then A) or weak (then B).
-- The bake-off itself: run it before the 4 AM checkpoint if time allows; otherwise Sonnet 5.5 stays.
+Vision test, Thursday: 3 photos (tulips; red roses with eucalyptus; stargazer lilies with 37 roses and alstroemeria), Sonnet 5.5 versus Opus 5.5, thinking off.
+
+- Flower types: both models 10 of 10.
+- Counts within 2 of our hand counts: Opus 6 of 6; Sonnet 3 of 6 (it undercounted the big bouquet).
+- Opus with thinking on, and Fable 5.1, were no better than Opus with thinking off.
+- On the big bouquet, the middle of Opus's ranges matched our counts almost exactly, which set `countPrefill` to `"middle"`.
+
+Open items:
+
+- The bake-off on Ian's 20 photos: measures speed and confirms Opus 5.5 for `analyzeBouquet`. Run it before the 4 AM checkpoint if time allows; otherwise the config defaults stay.
 
 ## 12. Not in this build
 
