@@ -20,16 +20,17 @@ export function pricedStems(rows: SeedStem[]): StemWithCost[] {
   });
 }
 
-/** One photo's hand count. `stem` is the row name, or the closest stem for "Other". */
-export type BouquetTruth = { photo: string; lines: Array<{ stem: string; count: number }> };
+/** One photo's hand count. `stem` is a row name or "Other"; closestStem is set only for "Other". */
+export type BouquetTruth = { photo: string; lines: Array<{ stem: string; closestStem: string | null; count: number }> };
 
 /**
  * One photo's score. Rows: a hand-counted row the answer also has; out of the
  * hand count's rows or the answer's rows, whichever is more, so extra lines
- * count against it. Counts: the quote's starting count within 2 of the hand
- * count, out of the hand count's rows. Total: the answer's recipe cost within
- * 10% of the hand count's, at sample prices; "unscored" when a hand-counted row
- * has no price.
+ * count against it. "Other" matches only "Other" with the same closest stem;
+ * "Other" with no closest stem never matches. Counts: the quote's starting
+ * count within 2 of the hand count, out of the hand count's rows. Total: the
+ * answer's recipe cost within 10% of the hand count's, at sample prices, with
+ * "Other" at its closest stem; "unscored" when a hand-counted row has no price.
  */
 export type BouquetScore = {
   rowLines: number;
@@ -42,10 +43,19 @@ export type BouquetScore = {
 
 const key = (name: string) => name.trim().toLowerCase();
 
-/** Counts per row name, adding up repeated rows. */
-function countsByRow(lines: Array<{ stem: string; count: number }>): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const line of lines) counts.set(key(line.stem), (counts.get(key(line.stem)) ?? 0) + line.count);
+/** A line's row for matching: the row name, "other: <closest stem>", or null for Other with no closest stem. */
+function rowKey(stem: string, closestStem: string | null): string | null {
+  if (key(stem) !== "other") return key(stem);
+  return closestStem ? `other: ${key(closestStem)}` : null;
+}
+
+/** Counts per row, adding up repeated rows. A line with no row is a row of its own that nothing matches. */
+function countsByRow(lines: Array<{ row: string | null; count: number }>): Map<string | symbol, number> {
+  const counts = new Map<string | symbol, number>();
+  for (const line of lines) {
+    const row = line.row ?? Symbol("no row");
+    counts.set(row, (counts.get(row) ?? 0) + line.count);
+  }
   return counts;
 }
 
@@ -54,10 +64,13 @@ export function scoreBouquet(
   outcome: AiOutcome<AnalyzeBouquetResult>,
   stems: StemWithCost[],
 ): BouquetScore {
-  // The answer as the quote screen would start it: stemId is the row name here.
+  // The answer as the quote screen would start it, in the answer's line order.
   const lines = outcome.ok ? bouquetToLines(outcome.result, stems) : [];
-  const answer = countsByRow(lines.map((line) => ({ stem: line.stemId ?? "Other", count: line.count ?? 0 })));
-  const wanted = countsByRow(truth.lines);
+  const answerLines = outcome.ok ? outcome.result.lines : [];
+  const answer = countsByRow(
+    answerLines.map((line, i) => ({ row: rowKey(line.stem, line.closestStem), count: lines[i].count ?? 0 })),
+  );
+  const wanted = countsByRow(truth.lines.map((line) => ({ row: rowKey(line.stem, line.closestStem), count: line.count })));
 
   let rightRows = 0;
   let countsWithin2 = 0;
@@ -68,16 +81,11 @@ export function scoreBouquet(
     if (Math.abs(answered - count) <= 2) countsWithin2++;
   }
 
-  const cost = (counts: Map<string, number>) => {
-    let sum = 0;
-    for (const [row, count] of counts) {
-      const stem = findStem(stems, row);
-      if (!stem) return null;
-      sum += count * stem.latestCost;
-    }
-    return sum;
-  };
-  const wantedCost = cost(wanted);
+  let wantedCost: number | null = 0;
+  for (const line of truth.lines) {
+    const stem = findStem(stems, key(line.stem) === "other" ? line.closestStem : line.stem);
+    wantedCost = stem && wantedCost !== null ? wantedCost + line.count * stem.latestCost : null;
+  }
   const answerCost = lines.reduce((sum, line) => sum + (line.count ?? 0) * line.costPerStem, 0);
   const total =
     wantedCost === null || wantedCost <= 0
@@ -99,13 +107,21 @@ export function scoreBouquet(
 /** One receipt's answer key, from fixtures/receipts/receipt_ground_truth_answers.csv. */
 export type ReceiptTruth = {
   receipt: string;
-  lines: Array<{ stem: string; quantity: number | null; unit: Unit | null; unitPrice: number | null; totalPaid: number | null }>;
+  lines: Array<{
+    stem: string;
+    quantity: number | null;
+    unit: Unit | null;
+    bundleSize: number | null;
+    unitPrice: number | null;
+    totalPaid: number | null;
+  }>;
 };
 
 /**
- * One receipt's score. A line is right when an answer line has its stem, its
- * quantity and its price (the total paid, or quantity × unit price when no
- * total is written). Out of the answer key's lines or the answer's lines,
+ * One receipt's score. A line is right when an answer line has its stem,
+ * quantity, unit (and bundle size, for a bundle) and total paid; a missing
+ * total paid is quantity × unit price, as the app computes it. Out of the
+ * answer key's lines or the answer's lines,
  * whichever is more, so extra lines count against it.
  */
 export type ReceiptScore = { lines: number; rightLines: number; seconds: number };
@@ -121,6 +137,8 @@ export function scoreReceipt(truth: ReceiptTruth, outcome: AiOutcome<ExtractRece
         line.stem !== null &&
         key(line.stem) === key(wanted.stem) &&
         line.quantity === wanted.quantity &&
+        line.unit === wanted.unit &&
+        (wanted.unit !== "bundle" || line.bundleSize === wanted.bundleSize) &&
         sameMoney(receiptLineTotal(line), wantedTotal),
     );
     if (i === -1) continue;
@@ -227,18 +245,21 @@ export function parseCsv(text: string): Array<Record<string, string>> {
   });
 }
 
-/** Bouquet hand counts. A photo with any count of 0 is not counted yet: skipped and listed. */
-export function parseLabels(csv: string): { photos: BouquetTruth[]; skipped: string[] } {
+/**
+ * Bouquet hand counts. A photo with any count of 0 is not counted yet: it is
+ * still returned, so its answer is saved, and listed in `uncounted` so it is
+ * left out of scoring.
+ */
+export function parseLabels(csv: string): { photos: BouquetTruth[]; uncounted: string[] } {
   const byPhoto = new Map<string, BouquetTruth["lines"]>();
-  const skipped = new Set<string>();
+  const uncounted = new Set<string>();
   for (const row of parseCsv(csv)) {
     const count = Number(row.count) || 0;
-    if (count <= 0) skipped.add(row.photo);
-    const stem = row.stem.toLowerCase() === "other" ? row.closest_stem || "Other" : row.stem;
-    byPhoto.set(row.photo, [...(byPhoto.get(row.photo) ?? []), { stem, count }]);
+    if (count <= 0) uncounted.add(row.photo);
+    const closestStem = key(row.stem) === "other" ? row.closest_stem || null : null;
+    byPhoto.set(row.photo, [...(byPhoto.get(row.photo) ?? []), { stem: row.stem, closestStem, count }]);
   }
-  const photos = [...byPhoto].filter(([photo]) => !skipped.has(photo)).map(([photo, lines]) => ({ photo, lines }));
-  return { photos, skipped: [...skipped] };
+  return { photos: [...byPhoto].map(([photo, lines]) => ({ photo, lines })), uncounted: [...uncounted] };
 }
 
 const numberOrNull = (cell: string) => (cell === "" ? null : Number(cell));
@@ -250,6 +271,7 @@ export function parseReceiptAnswers(csv: string): ReceiptTruth[] {
       stem: row.stem,
       quantity: numberOrNull(row.quantity),
       unit: (row.unit || null) as Unit | null,
+      bundleSize: numberOrNull(row.bundle_size),
       unitPrice: numberOrNull(row.unit_price),
       totalPaid: numberOrNull(row.total_paid),
     };

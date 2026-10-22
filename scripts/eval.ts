@@ -8,12 +8,14 @@
 //   npm run eval -- --rescore        scores the saved answers again, no calls
 //   npm run eval -- --limit 2 --model claude-haiku-5-5 --px 1600
 //
-// Every answer is saved under fixtures/eval/answers/<model>/<px>/<photo>.json.
-// A run limited by --limit, --model or --px writes results-partial.json instead.
+// Every answer is saved under fixtures/eval/answers/<model>/<px>/<photo>.json,
+// including bouquets with a count of 0, which are scored once counted. A run
+// that left anything out (--limit, --model or --px, a missing or unreadable
+// photo, an uncounted bouquet, a missing saved answer, or nothing scored in a
+// category) writes results-partial.json and lists what it left out.
 // Photos are shrunk like the app does (decision 26): longer side at most the
-// size, JPEG at 80%. Receipt photos are read from fixtures/receipts, or the repo
-// root until they move there. The Claude key is read from .env.local only, and
-// never printed.
+// size, JPEG at 80%. The Claude key is read from .env.local only, and never
+// printed.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -41,12 +43,13 @@ import {
   type Run,
   type SeedStem,
 } from "./evalScore";
+import { missingParts, pool, type Coverage } from "./evalRun";
 
 const MODELS: ModelId[] = ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5"];
 const SIZES = [1280, 1600];
 const CONCURRENCY = 4;
 const EVAL_DIR = "fixtures/eval";
-const RECEIPT_DIRS = ["fixtures/receipts", "."];
+const RECEIPT_DIR = "fixtures/receipts";
 const RECEIPT_ANSWERS = "fixtures/receipts/receipt_ground_truth_answers.csv";
 
 type Options = { dryRun: boolean; rescore: boolean; limit: number; models: ModelId[]; sizes: number[] };
@@ -89,8 +92,13 @@ function readIfExists(file: string): string | null {
   return null;
 }
 
-function receiptPath(file: string): string | undefined {
-  return RECEIPT_DIRS.map((dir) => path.join(dir, file)).find((candidate) => existsSync(candidate));
+/** The items whose photo file exists; the others' file names go in `missing`. */
+function withPhotos<T>(items: T[], file: (item: T) => string, missing: string[]): T[] {
+  return items.filter((item) => {
+    if (existsSync(file(item))) return true;
+    missing.push(path.basename(file(item)));
+    return false;
+  });
 }
 
 const shrunk = new Map<string, Promise<Photo>>();
@@ -120,7 +128,7 @@ function fakeAnswer(job: Job): AnalyzeBouquetResult | ExtractReceiptResult {
       countLow: Math.max(1, line.count - 1),
       countHigh: line.count + 1,
       confidence: "high" as const,
-      closestStem: null,
+      closestStem: line.closestStem,
       note: "",
     }));
     return { lines, note: "Dry run" };
@@ -130,21 +138,13 @@ function fakeAnswer(job: Job): AnalyzeBouquetResult | ExtractReceiptResult {
     stem: line.stem,
     quantity: line.quantity,
     unit: line.unit,
-    bundleSize: null,
+    bundleSize: line.bundleSize,
     unitPrice: line.unitPrice,
     totalPaid: line.totalPaid,
     confidence: "high" as const,
     note: "",
   }));
   return { purchaseDate: null, lines, note: "Dry run" };
-}
-
-async function pool<T>(items: T[], size: number, work: (item: T) => Promise<void>) {
-  let next = 0;
-  const worker = async () => {
-    while (next < items.length) await work(items[next++]);
-  };
-  await Promise.all(Array.from({ length: Math.min(size, items.length) }, worker));
 }
 
 function costUsd(model: ModelId, outcomes: AiOutcome<unknown>[]): number {
@@ -163,27 +163,20 @@ async function main() {
   const seed = JSON.parse(readFileSync("fixtures/seed/stems.json", "utf8")) as SeedStem[];
   const stems = pricedStems(seed);
 
+  const missingPhotos: string[] = [];
   const labels = readIfExists(path.join(EVAL_DIR, "labels.csv"));
-  const { photos, skipped } = labels ? parseLabels(labels) : { photos: [], skipped: [] };
-  if (skipped.length) console.warn(`Not counted yet (a count of 0), skipped: ${skipped.join(", ")}`);
-  const bouquets = photos.filter((truth) => {
-    const found = existsSync(path.join(EVAL_DIR, truth.photo));
-    if (!found) console.warn(`Missing photo ${truth.photo}, skipped`);
-    return found;
-  });
-
+  // Uncounted photos are still run, so a --rescore after they are counted needs no new calls.
+  const { photos, uncounted } = labels ? parseLabels(labels) : { photos: [], uncounted: [] };
+  const bouquets = withPhotos(photos, (truth) => path.join(EVAL_DIR, truth.photo), missingPhotos);
   const answerKey = readIfExists(RECEIPT_ANSWERS);
-  const receipts = (answerKey ? parseReceiptAnswers(answerKey) : []).filter((truth) => {
-    const found = receiptPath(truth.receipt) !== undefined;
-    if (!found) console.warn(`Missing receipt photo ${truth.receipt}, skipped`);
-    return found;
-  });
+  const receiptKeys = answerKey ? parseReceiptAnswers(answerKey) : [];
+  const receipts = withPhotos(receiptKeys, (truth) => path.join(RECEIPT_DIR, truth.receipt), missingPhotos);
 
   // Rows the AI cannot pick: they always score wrong until the seed or the labels change.
   const unknown = new Set(
     [...bouquets.flatMap((t) => t.lines), ...receipts.flatMap((t) => t.lines)]
-      .map((line) => line.stem)
-      .filter((stem) => stem !== "Other" && !findStem(stems, stem)),
+      .map((line) => ("closestStem" in line && line.stem.toLowerCase() === "other" ? line.closestStem : line.stem))
+      .filter((stem): stem is string => stem !== null && stem.toLowerCase() !== "other" && !findStem(stems, stem)),
   );
   if (unknown.size) console.warn(`Not in fixtures/seed/stems.json (always scored wrong): ${[...unknown].join(", ")}`);
 
@@ -195,26 +188,27 @@ async function main() {
   );
 
   const outcomes = new Map<Job, AiOutcome<unknown>>();
+  const missingAnswers: string[] = [];
+  const unreadable = new Set<string>();
   if (options.rescore) {
     for (const job of jobs) {
       const file = answerPath(job);
       if (existsSync(file)) outcomes.set(job, (JSON.parse(readFileSync(file, "utf8")) as SavedAnswer).outcome);
+      else missingAnswers.push(`${job.model}/${job.px}/${job.file}`);
     }
-    const missing = jobs.length - outcomes.size;
-    if (missing) console.warn(`${missing} of ${jobs.length} answers not saved; scoring the rest`);
   } else {
     if (!options.dryRun) loadKey();
     console.log(`${jobs.length} photos to run, ${CONCURRENCY} at a time${options.dryRun ? " (dry run)" : ""}`);
     let done = 0;
-    const unreadable = new Set<string>();
+    // A failed save rejects the pool at once; main's catch then exits, stopping the calls still running.
     await pool(jobs, CONCURRENCY, async (job) => {
-      const file = job.kind === "bouquet" ? path.join(EVAL_DIR, job.file) : receiptPath(job.file)!;
+      const file = path.join(job.kind === "bouquet" ? EVAL_DIR : RECEIPT_DIR, job.file);
       let photo: Photo;
       try {
         photo = await shrink(file, job.px);
       } catch {
-        // Such as an iPhone HEIC photo named .png: sharp's prebuilt binary cannot decode it.
-        unreadable.add(file);
+        // Such as an iPhone HEIC photo with a .png name: sharp's prebuilt binary cannot decode it.
+        unreadable.add(job.file);
         return;
       }
       const api = options.dryRun ? fakeApi(fakeMessage(fakeAnswer(job))).api : undefined;
@@ -228,16 +222,18 @@ async function main() {
       const status = outcome.ok ? "ok" : `failed: ${outcome.error}`;
       console.log(`[${done}/${jobs.length}] ${job.model} ${job.px}px ${job.file} ${outcome.seconds}s ${status}`);
     });
-    if (unreadable.size) console.warn(`Could not read, not scored (save as real JPEG or PNG): ${[...unreadable].join(", ")}`);
   }
 
   const runs: Run[] = [];
+  const scored: Coverage["runs"] = [];
   for (const model of options.models) {
     for (const px of options.sizes) {
       const mine = jobs.filter((job) => job.model === model && job.px === px && outcomes.has(job));
       if (mine.length === 0) continue;
       const bouquetScores = mine.flatMap((job) =>
-        job.kind === "bouquet" ? [scoreBouquet(job.truth, outcomes.get(job) as AiOutcome<AnalyzeBouquetResult>, stems)] : [],
+        job.kind === "bouquet" && !uncounted.includes(job.file)
+          ? [scoreBouquet(job.truth, outcomes.get(job) as AiOutcome<AnalyzeBouquetResult>, stems)]
+          : [],
       );
       const receiptScores = mine.flatMap((job) =>
         job.kind === "receipt" ? [scoreReceipt(job.truth, outcomes.get(job) as AiOutcome<ExtractReceiptResult>)] : [],
@@ -248,15 +244,24 @@ async function main() {
         result: summarize(model, px, bouquetScores, receiptScores),
         costUsd: costUsd(model, mine.map((job) => outcomes.get(job)!)),
       });
+      scored.push({ model, photoPx: px, bouquets: bouquetScores, receipts: receiptScores });
     }
   }
 
   const results: EvalResult[] = runs.map((run) => run.result);
   mkdirSync(outDir, { recursive: true });
-  // Only a run over every model, size and photo replaces results.json, the file the accuracy page reads.
-  const partial = options.limit !== Infinity || options.models.length < MODELS.length || options.sizes.length < SIZES.length;
-  const resultsPath = path.join(outDir, partial ? "results-partial.json" : "results.json");
+  // Only a run that left nothing out replaces results.json, the file the accuracy page reads.
+  const missing = missingParts({
+    limited: options.limit !== Infinity || options.models.length < MODELS.length || options.sizes.length < SIZES.length,
+    missingPhotos,
+    unreadable: [...unreadable],
+    uncounted,
+    missingAnswers,
+    runs: scored,
+  });
+  const resultsPath = path.join(outDir, missing.length ? "results-partial.json" : "results.json");
   writeFileSync(resultsPath, `${JSON.stringify(results, null, 2)}\n`);
+  if (missing.length) console.warn(`Left out, so results.json is unchanged:\n- ${missing.join("\n- ")}`);
 
   console.table(
     runs.map(({ result, costUsd }) => ({
@@ -281,7 +286,7 @@ async function main() {
     console.log(`No run passes every mark. Most accurate: ${winner.result.model} at ${winner.result.photoPx} px.`);
 }
 
+// Exits at once, so a failed save also stops the calls other workers still have running.
 main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
+  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`, () => process.exit(1));
 });

@@ -21,40 +21,62 @@ function bouquet(lines: AnalyzeBouquetResult["lines"], seconds = 8): AiOutcome<A
 
 describe("scoreBouquet", () => {
   it("scores a right answer: every row, every count and the total", () => {
-    const truth = { photo: "photo-01.jpg", lines: [{ stem: "Rose - red", count: 12 }, { stem: "Baby's breath - white", count: 2 }] };
+    const truth = { photo: "photo-01.jpg", lines: [{ stem: "Rose - red", closestStem: null, count: 12 }, { stem: "Baby's breath - white", closestStem: null, count: 2 }] };
     const score = scoreBouquet(truth, bouquet([line("Rose - red", 11, 13), line("Baby's breath - white", 2, 2)]), stems);
     expect(score).toEqual({ rowLines: 2, rightRows: 2, countLines: 2, countsWithin2: 2, total: "within", seconds: 8 });
   });
 
   it("counts an extra line against rows, and a count 3 off as wrong", () => {
-    const truth = { photo: "photo-02.jpg", lines: [{ stem: "Rose - red", count: 12 }] };
+    const truth = { photo: "photo-02.jpg", lines: [{ stem: "Rose - red", closestStem: null, count: 12 }] };
     // Truth costs 12 × ₱20 = ₱240; the answer costs 15 × ₱20 + 9 × ₱120 = ₱1,380.
     const score = scoreBouquet(truth, bouquet([line("Rose - red", 15, 15), line("Tulip - pink", 9, 9)]), stems);
     expect(score).toMatchObject({ rowLines: 2, rightRows: 1, countLines: 1, countsWithin2: 0, total: "outside" });
   });
 
   it("uses the middle of the range, rounded up, as the count", () => {
-    const truth = { photo: "photo-03.jpg", lines: [{ stem: "Rose - red", count: 10 }] };
+    const truth = { photo: "photo-03.jpg", lines: [{ stem: "Rose - red", closestStem: null, count: 10 }] };
     // Middle of 10–15 is 12.5, rounded up to 13: 3 off.
     expect(scoreBouquet(truth, bouquet([line("Rose - red", 10, 15)]), stems).countsWithin2).toBe(0);
     // Middle of 10–14 is 12: 2 off.
     expect(scoreBouquet(truth, bouquet([line("Rose - red", 10, 14)]), stems).countsWithin2).toBe(1);
   });
 
-  it("matches an Other line by its closest stem, and rows ignore case", () => {
-    const truth = { photo: "photo-04.jpg", lines: [{ stem: "tulip - PINK", count: 5 }] };
-    const score = scoreBouquet(truth, bouquet([line("Other", 5, 5, "Tulip - pink")]), stems);
+  it("rows ignore case", () => {
+    const truth = { photo: "photo-04.jpg", lines: [{ stem: "tulip - PINK", closestStem: null, count: 5 }] };
+    const score = scoreBouquet(truth, bouquet([line("Tulip - pink", 5, 5)]), stems);
     expect(score).toMatchObject({ rightRows: 1, countsWithin2: 1, total: "within" });
   });
 
+  it("matches an Other line only to an Other label with the same closest stem", () => {
+    const truth = { photo: "photo-04.jpg", lines: [{ stem: "Other", closestStem: "tulip - PINK", count: 5 }] };
+    const score = scoreBouquet(truth, bouquet([line("Other", 5, 5, "Tulip - pink")]), stems);
+    // Other is priced at its closest stem: 5 × ₱120 on both sides.
+    expect(score).toMatchObject({ rowLines: 1, rightRows: 1, countsWithin2: 1, total: "within" });
+
+    const otherClosest = scoreBouquet(truth, bouquet([line("Other", 5, 5, "Rose - red")]), stems);
+    expect(otherClosest).toMatchObject({ rowLines: 1, rightRows: 0, countsWithin2: 0 });
+  });
+
+  it("never matches an Other line to a named row", () => {
+    const truth = { photo: "photo-04.jpg", lines: [{ stem: "Tulip - pink", closestStem: null, count: 5 }] };
+    const score = scoreBouquet(truth, bouquet([line("Other", 5, 5, "Tulip - pink")]), stems);
+    expect(score).toMatchObject({ rowLines: 1, rightRows: 0, countsWithin2: 0 });
+  });
+
+  it("never counts an Other with no closest stem as a right row", () => {
+    const truth = { photo: "photo-04.jpg", lines: [{ stem: "Other", closestStem: null, count: 2 }] };
+    const score = scoreBouquet(truth, bouquet([line("Other", 2, 2)]), stems);
+    expect(score).toMatchObject({ rowLines: 1, rightRows: 0, countLines: 1, countsWithin2: 0, total: "unscored" });
+  });
+
   it("adds up an answer's lines for the same row", () => {
-    const truth = { photo: "photo-05.jpg", lines: [{ stem: "Rose - red", count: 12 }] };
+    const truth = { photo: "photo-05.jpg", lines: [{ stem: "Rose - red", closestStem: null, count: 12 }] };
     const score = scoreBouquet(truth, bouquet([line("Rose - red", 6, 6), line("Rose - red", 6, 6)]), stems);
     expect(score).toMatchObject({ rowLines: 1, rightRows: 1, countsWithin2: 1, total: "within" });
   });
 
   it("scores a failed call as all wrong but keeps its seconds", () => {
-    const truth = { photo: "photo-06.jpg", lines: [{ stem: "Rose - red", count: 12 }] };
+    const truth = { photo: "photo-06.jpg", lines: [{ stem: "Rose - red", closestStem: null, count: 12 }] };
     const failed: AiOutcome<AnalyzeBouquetResult> = {
       ok: false,
       error: "Timed out",
@@ -74,7 +96,7 @@ describe("scoreBouquet", () => {
   });
 
   it("leaves the total unscored when a hand-counted row has no price", () => {
-    const truth = { photo: "photo-07.jpg", lines: [{ stem: "Hydrangea - white", count: 4 }] };
+    const truth = { photo: "photo-07.jpg", lines: [{ stem: "Hydrangea - white", closestStem: null, count: 4 }] };
     expect(scoreBouquet(truth, bouquet([line("Other", 4, 4, "Rose - white")]), stems).total).toBe("unscored");
   });
 });
@@ -99,12 +121,12 @@ describe("scoreReceipt", () => {
   const truth = {
     receipt: "receipt-01.1.png",
     lines: [
-      { stem: "Rose - red", quantity: 2, unit: "dozen" as const, unitPrice: null, totalPaid: 300 },
-      { stem: "Carnation - pink", quantity: 10, unit: "piece" as const, unitPrice: null, totalPaid: 200 },
+      { stem: "Rose - red", quantity: 2, unit: "dozen" as const, bundleSize: null, unitPrice: null, totalPaid: 300 },
+      { stem: "Carnation - pink", quantity: 10, unit: "piece" as const, bundleSize: null, unitPrice: null, totalPaid: 200 },
     ],
   };
 
-  it("needs the stem, quantity and price right on a line", () => {
+  it("needs the stem, quantity, unit and total paid right on a line", () => {
     const score = scoreReceipt(
       truth,
       receipt([
@@ -115,7 +137,29 @@ describe("scoreReceipt", () => {
     expect(score).toEqual({ lines: 2, rightLines: 1, seconds: 5 });
   });
 
-  it("takes quantity × unit price as the price when no total is written", () => {
+  it("scores a line with the wrong unit as wrong", () => {
+    const score = scoreReceipt(truth, receipt([{ stem: "Rose - red", quantity: 2, unit: "bunch", totalPaid: 300 }]));
+    expect(score.rightLines).toBe(0);
+  });
+
+  it("needs the bundle size on a bundle line, and only there", () => {
+    const tulips = {
+      receipt: "receipt-02.1.jpg",
+      lines: [
+        { stem: "Tulip - pink", quantity: 2, unit: "bundle" as const, bundleSize: 10, unitPrice: null, totalPaid: 250 },
+        { stem: "Rose - red", quantity: 2, unit: "dozen" as const, bundleSize: null, unitPrice: null, totalPaid: 300 },
+      ],
+    };
+    const wrongSize = receipt([
+      { stem: "Tulip - pink", quantity: 2, unit: "bundle", bundleSize: 12, totalPaid: 250 },
+      { stem: "Rose - red", quantity: 2, unit: "dozen", bundleSize: 12, totalPaid: 300 },
+    ]);
+    expect(scoreReceipt(tulips, wrongSize).rightLines).toBe(1);
+    const rightSize = receipt([{ stem: "Tulip - pink", quantity: 2, unit: "bundle", bundleSize: 10, totalPaid: 250 }]);
+    expect(scoreReceipt(tulips, rightSize).rightLines).toBe(1);
+  });
+
+  it("takes quantity × unit price as the total paid when none is written, as the app does", () => {
     const score = scoreReceipt(
       truth,
       receipt([
@@ -201,7 +245,7 @@ describe("summarize, passes and pickWinner", () => {
 });
 
 describe("parseLabels", () => {
-  it("strips the BOM, uses the closest stem for Other, and skips uncounted photos", () => {
+  it("strips the BOM, keeps Other with its closest stem, and keeps uncounted photos but lists them", () => {
     const csv = [
       '﻿"photo","stem","closest_stem","count","is_filler","counted_by","recount","note","source_url"',
       '"photo-01.jpg","Rose - red","","12","false","Ian","","",""',
@@ -214,13 +258,14 @@ describe("parseLabels", () => {
         {
           photo: "photo-01.jpg",
           lines: [
-            { stem: "Rose - red", count: 12 },
-            { stem: "Tulip - pink", count: 3 },
-            { stem: "Other", count: 2 },
+            { stem: "Rose - red", closestStem: null, count: 12 },
+            { stem: "Other", closestStem: "Tulip - pink", count: 3 },
+            { stem: "Other", closestStem: null, count: 2 },
           ],
         },
+        { photo: "photo-02.jpg", lines: [{ stem: "Rose - red", closestStem: null, count: 0 }] },
       ],
-      skipped: ["photo-02.jpg"],
+      uncounted: ["photo-02.jpg"],
     });
   });
 
@@ -229,7 +274,7 @@ describe("parseLabels", () => {
       '"photo","stem","count","is_filler","closest_stem","note","counted_by","source_url"',
       '"photo-07.jpg,Rose - pink,7,false,,,Ian,https://example.com/a"',
     ].join("\n");
-    expect(parseLabels(csv).photos).toEqual([{ photo: "photo-07.jpg", lines: [{ stem: "Rose - pink", count: 7 }] }]);
+    expect(parseLabels(csv).photos).toEqual([{ photo: "photo-07.jpg", lines: [{ stem: "Rose - pink", closestStem: null, count: 7 }] }]);
   });
 });
 
@@ -244,8 +289,8 @@ describe("parseReceiptAnswers", () => {
       {
         receipt: "receipt-01.1.png",
         lines: [
-          { stem: "Rose - red", quantity: 2, unit: "dozen", unitPrice: null, totalPaid: 300 },
-          { stem: "Tulip - yellow", quantity: 2, unit: "bundle", unitPrice: 125, totalPaid: null },
+          { stem: "Rose - red", quantity: 2, unit: "dozen", bundleSize: null, unitPrice: null, totalPaid: 300 },
+          { stem: "Tulip - yellow", quantity: 2, unit: "bundle", bundleSize: 10, unitPrice: 125, totalPaid: null },
         ],
       },
     ]);
