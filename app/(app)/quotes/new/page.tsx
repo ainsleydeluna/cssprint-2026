@@ -1,10 +1,11 @@
+import { NewQuote } from "@/components/quote/NewQuote";
+import { t } from "@/lib/strings";
+
 export default function NewQuotePage() {
   return (
-    <section>
-      <h1 className="text-2xl font-bold">Bagong quote</h1>
-      <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-        Dito ilalagay ang photo ng customer para gawing quote. (Placeholder)
-      </p>
+    <section className="flex flex-col gap-4">
+      <h1 className="text-2xl font-bold">{t("newQuote", "title")}</h1>
+      <NewQuote />
     </section>
   );
 }
