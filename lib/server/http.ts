@@ -5,6 +5,9 @@ export function errorResponse(code: ApiErrorCode, error: string): Response {
   return Response.json({ code, error } satisfies ApiError, { status: ERROR_STATUS[code] });
 }
 
+/** Row ids are UUIDs; anything else is not found, without asking the database. */
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Postgres unique_violation; on stems, the shop already has a row with this name (stems_name_key). */
 export const DUPLICATE_NAME = "23505";
 

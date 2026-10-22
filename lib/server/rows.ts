@@ -1,7 +1,7 @@
 // Database rows ↔ lib/types.ts shapes. Columns are the type's fields in
 // snake_case (docs/spec.md section 8).
 
-import type { Shop, Stem } from "../types";
+import type { Quote, QuoteLine, Shop, Stem } from "../types";
 
 export const SHOP_COLUMNS =
   "id, owner_id, name, wrap_fee, labor_fee, markup_percent, minimum_margin_percent, valid_for_days, created_at";
@@ -46,5 +46,45 @@ export function toStem(row: Row): Stem {
     samplePrice: Number(row.sample_price),
     sampleSource: String(row.sample_source),
     hidden: Boolean(row.hidden),
+  };
+}
+
+export const QUOTE_COLUMNS =
+  "id, shop_id, label, status, photo_path, budget, price, reply_text, valid_until, underwater_at, created_at, sent_at";
+export const LINE_COLUMNS =
+  "id, quote_id, shop_id, stem_id, count, count_low, count_high, confidence, note, cost_per_stem";
+
+const money = (value: unknown) => (value === null ? null : Number(value));
+const text = (value: unknown) => (value === null ? null : String(value));
+
+export function toQuote(row: Row): Quote {
+  return {
+    id: String(row.id),
+    shopId: String(row.shop_id),
+    label: String(row.label),
+    status: row.status as Quote["status"],
+    photoPath: String(row.photo_path),
+    budget: money(row.budget),
+    price: money(row.price),
+    replyText: String(row.reply_text),
+    validUntil: text(row.valid_until),
+    underwaterAt: text(row.underwater_at),
+    createdAt: String(row.created_at),
+    sentAt: text(row.sent_at),
+  };
+}
+
+export function toQuoteLine(row: Row): QuoteLine {
+  return {
+    id: String(row.id),
+    quoteId: String(row.quote_id),
+    shopId: String(row.shop_id),
+    stemId: text(row.stem_id),
+    count: row.count === null ? null : Number(row.count),
+    countLow: Number(row.count_low),
+    countHigh: Number(row.count_high),
+    confidence: row.confidence as QuoteLine["confidence"],
+    note: String(row.note),
+    costPerStem: Number(row.cost_per_stem),
   };
 }

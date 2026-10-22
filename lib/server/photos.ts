@@ -14,3 +14,16 @@ export async function uploadPhoto(supabase: SupabaseClient, shopId: string, kind
   if (error) throw new Error(`Uploading the photo failed: ${error.message}`);
   return photoPath;
 }
+
+/** A stored photo's bytes, or null when the shop has no photo at that path. */
+export async function downloadPhoto(supabase: SupabaseClient, kind: PhotoKind, photoPath: string): Promise<Uint8Array | null> {
+  const { data, error } = await supabase.storage.from(kind).download(photoPath);
+  if (error) return null;
+  return new Uint8Array(await data.arrayBuffer());
+}
+
+/** Deletes a stored photo (decision 16: deleting a quote or receipt deletes its photo). A missing photo is not an error. */
+export async function deletePhoto(supabase: SupabaseClient, kind: PhotoKind, photoPath: string): Promise<void> {
+  const { error } = await supabase.storage.from(kind).remove([photoPath]);
+  if (error) throw new Error(`Deleting the photo failed: ${error.message}`);
+}
