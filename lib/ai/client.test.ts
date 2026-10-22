@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { BetaMessage } from "@anthropic-ai/sdk/resources/beta/messages";
+import type { Message } from "@anthropic-ai/sdk/resources/messages";
 import { describe, expect, test } from "vitest";
 import { askClaude } from "./client";
 import { fakeApi, fakeMessage } from "./fakeApi";
@@ -39,17 +39,28 @@ describe("askClaude", () => {
     expect(requests[1]).not.toHaveProperty("thinking");
   });
 
-  test("reports the model that answered, which a fallback may change", async () => {
-    const { api } = fakeApi(fakeMessage({}, { model: "claude-opus-5-5" }));
+  test("asks one model only, with no fallback, and logs the configured model", async () => {
+    const { api, requests } = fakeApi(fakeMessage({}, { model: "claude-opus-5-5" }));
 
-    expect(await askClaude("extractReceipt", request, api)).toMatchObject({ ok: true, model: "claude-opus-5-5" });
+    expect(await askClaude("extractReceipt", request, api)).toMatchObject({ ok: true, model: "claude-sonnet-5-5" });
+    expect(requests[0]).not.toHaveProperty("fallbacks");
+    expect(requests[0]).not.toHaveProperty("betas");
+  });
+
+  test("says it gave up after one retry when the request times out", async () => {
+    const { api } = fakeApi(new Anthropic.APIConnectionTimeoutError());
+
+    expect(await askClaude("extractReceipt", request, api)).toMatchObject({
+      ok: false,
+      error: "Timed out; gave up after one retry (about 60 seconds)",
+    });
   });
 
   test("turns a refusal into a short error that keeps the tokens", async () => {
     const { api } = fakeApi(
       fakeMessage("", {
         stop_reason: "refusal",
-        stop_details: { type: "refusal", category: "cyber" } as BetaMessage["stop_details"],
+        stop_details: { type: "refusal", category: "cyber" } as Message["stop_details"],
       }),
     );
 

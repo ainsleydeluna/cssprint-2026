@@ -1,7 +1,7 @@
 // Pieces the AI calls share: the shop's rows as the AI sees them, photos, and
 // name matching (docs/spec.md section 6: names match rows ignoring capitals).
 
-import type { BetaContentBlockParam } from "@anthropic-ai/sdk/resources/beta/messages";
+import type { ContentBlockParam } from "@anthropic-ai/sdk/resources/messages";
 import type { StemWithCost } from "../contract";
 
 /** One of the shop's visible rows, as an AI call needs it. */
@@ -10,7 +10,7 @@ export type AllowedStem = Pick<StemWithCost, "name" | "isFiller">;
 /** The cropped, shrunken photo, as stored. */
 export type Photo = { data: Uint8Array; mediaType: "image/jpeg" | "image/png" | "image/webp" };
 
-export function photoBlock(photo: Photo): BetaContentBlockParam {
+export function photoBlock(photo: Photo): ContentBlockParam {
   return {
     type: "image",
     source: { type: "base64", media_type: photo.mediaType, data: Buffer.from(photo.data).toString("base64") },
