@@ -16,7 +16,7 @@
 ## Team rules
 - Contract first: ticket 1 sets our shared data shapes, AI answer formats and database tables in lib/types.ts and lib/contract.ts. Fake data must match them. Only Ice changes them, and he tells everyone when he does.
 - One ticket = one branch = one small pull request (under about 300 lines). Pull main first.
-- Ice merges only when npm run build and npx tsc --noEmit pass, tests pass, the Vercel preview is Ready, and Ian has tested it on a phone. Merge with gh pr merge <n> --merge.
+- Ice merges only when npm run build and npm run typecheck pass, tests pass, the Vercel preview is Ready, and Ian has tested it on a phone. Merge with gh pr merge <n> --merge.
 - The margin alarm and demo mode can be switched on and off in features.ts.
 - Tag a known-good commit at each checkpoint (git tag checkpoint-10pm). Never edit an old database migration. Ask before adding a library.
 
