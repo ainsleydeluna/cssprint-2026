@@ -111,12 +111,17 @@ describe.skipIf(!testAccountsReady)("photo and receipt routes", () => {
     await client.storage.from("receipts").remove([photoPath]);
   });
 
-  test("a failed extract still writes its ai_calls row", async () => {
+  test("a failed extract answers 502 ai_failed and still writes its ai_calls row", async () => {
     const photoPath = await upload();
     const call = usage();
     ai.outcome = { ok: false, error: "Answer was cut off", ...call };
 
-    await expect(extractRoute.POST(json("POST", { photoPath }))).rejects.toThrow("Answer was cut off");
+    const response = await extractRoute.POST(json("POST", { photoPath }));
+
+    expect([response.status, await response.json()]).toEqual([
+      502,
+      { code: "ai_failed", error: "Reading the receipt failed: Answer was cut off" },
+    ]);
     expect(await loggedCall(client, call.seconds)).toEqual([
       { call: "extractReceipt", model: "claude-sonnet-5-5", ok: false, error: "Answer was cut off" },
     ]);

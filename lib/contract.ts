@@ -87,7 +87,8 @@ export type ApiErrorCode =
   | "not_found"
   | "incomplete_quote"
   | "invalid_bundle_size"
-  | "rate_limited";
+  | "rate_limited"
+  | "ai_failed";
 
 /** Screens check `code`, which never changes; `error` is a short English message for logs. */
 export type ApiError = { code: ApiErrorCode; error: string };
@@ -104,6 +105,8 @@ export const ERROR_STATUS: Record<ApiErrorCode, number> = {
   invalid_bundle_size: 422,
   /** Too many sign-in emails: Supabase's email rate limit. Wait and try again. */
   rate_limited: 429,
+  /** An AI call failed after its retry. */
+  ai_failed: 502,
 };
 
 /** A stem row with its latest cost. Per bunch for fillers. */
@@ -154,7 +157,8 @@ export type UpdateStemRequest = Partial<
 >;
 export type UpdateStemResponse = StemWithCost;
 
-// POST /api/receipts/extract — reads the photo; saves nothing.
+// POST /api/receipts/extract — reads the photo; saves nothing. Answers ai_failed
+// when the AI call fails after its retry.
 export type ExtractReceiptRequest = { photoPath: string };
 export type ReceiptDraftLine = {
   rawText: string;

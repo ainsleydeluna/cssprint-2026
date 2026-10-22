@@ -37,8 +37,7 @@ export async function POST(request: Request) {
     ok: outcome.ok,
     error: outcome.ok ? "" : outcome.error,
   });
-  // lib/contract.ts has no error code for a failed AI call yet, so this answers 500.
-  if (!outcome.ok) throw new Error(`Reading the receipt failed: ${outcome.error}`);
+  if (!outcome.ok) return errorResponse("ai_failed", `Reading the receipt failed: ${outcome.error}`);
 
   const draft = toReceiptDraft(outcome.result, stems, todayInManila());
   return Response.json({ ...draft, demo: false } satisfies ExtractReceiptResponse);
