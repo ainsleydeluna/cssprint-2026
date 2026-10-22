@@ -4,8 +4,15 @@
 // supabase/migrations, so a bad value answers invalid_request, not a database error.
 
 import { isManilaDate } from "../ai/shared";
-import type { AddStemRequest, UpdateQuoteRequest, UpdateShopRequest, UpdateStemRequest } from "../contract";
-import type { Stem, Unit } from "../types";
+import type {
+  AddStemRequest,
+  UpdateQuoteLinesRequest,
+  UpdateQuoteRequest,
+  UpdateShopRequest,
+  UpdateStemRequest,
+} from "../contract";
+import { COUNT_LIMITS } from "../money";
+import type { Confidence, Stem, Unit } from "../types";
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; code: "invalid_request" | "invalid_bundle_size"; error: string };
 
@@ -146,4 +153,59 @@ const QUOTE_UPDATE_FIELDS: Record<keyof UpdateQuoteRequest, Check> = {
 /** PATCH /api/quotes/[id]. */
 export function parseQuoteUpdate(body: unknown): Parsed<UpdateQuoteRequest> {
   return pick<UpdateQuoteRequest>(body, QUOTE_UPDATE_FIELDS);
+}
+
+/** More lines than any bouquet needs; keeps one request's writes small. */
+const MAX_LINES = 50;
+
+const CONFIDENCES: readonly Confidence[] = ["low", "medium", "high"];
+
+const LINE_FIELDS: Record<keyof Omit<QuoteLineInput, "id">, Check> = {
+  stemId: nullable(text(36)),
+  count: nullable(number(1, COUNT_LIMITS.stemsPerLine, { whole: true })),
+  countLow: number(0, 1000, { whole: true }),
+  countHigh: number(0, 1000, { whole: true }),
+  confidence: (value) => (CONFIDENCES.includes(value as Confidence) ? value : undefined),
+  note: text(500),
+};
+
+type QuoteLineInput = UpdateQuoteLinesRequest["lines"][number];
+
+/**
+ * PUT /api/quotes/[id]/lines: the florist's whole recipe. Counts are kept as
+ * typed, never clamped: a line outside 1–100 stems or 1–5 filler bunches is
+ * refused (the 200-stem bouquet limit applies only to AI answers). Each stem
+ * must be one of the shop's rows, and each line id one of this quote's lines.
+ */
+export function parseQuoteLines(
+  body: unknown,
+  context: { stems: Pick<Stem, "id" | "isFiller">[]; lineIds: string[] },
+): Parsed<QuoteLineInput[]> {
+  if (!isRecord(body) || !Array.isArray(body.lines)) return invalid("lines must be a list");
+  if (body.lines.length > MAX_LINES) return invalid(`At most ${MAX_LINES} lines`);
+  const seen = new Set<string>();
+  const lines: QuoteLineInput[] = [];
+  for (const item of body.lines) {
+    const picked = pick<QuoteLineInput>(item, LINE_FIELDS);
+    if (!picked.ok) return picked;
+    const missing = Object.keys(LINE_FIELDS).find((field) => !Object.hasOwn(picked.value, field));
+    if (missing) return invalid(`Missing ${missing}`);
+    const line = picked.value as QuoteLineInput;
+
+    if (line.countHigh < line.countLow) return invalid("countHigh is below countLow");
+    const stem = line.stemId === null ? undefined : context.stems.find((row) => row.id === line.stemId);
+    if (line.stemId !== null && !stem) return invalid("Invalid stemId");
+    if (stem?.isFiller && line.count !== null && line.count > COUNT_LIMITS.bunchesPerLine) {
+      return invalid(`A filler line holds at most ${COUNT_LIMITS.bunchesPerLine} bunches`);
+    }
+
+    const id = (item as Record<string, unknown>).id;
+    if (id !== undefined) {
+      if (typeof id !== "string" || !context.lineIds.includes(id) || seen.has(id)) return invalid("Invalid line id");
+      seen.add(id);
+      line.id = id;
+    }
+    lines.push(line);
+  }
+  return { ok: true, value: lines };
 }

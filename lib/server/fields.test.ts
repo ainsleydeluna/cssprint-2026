@@ -3,7 +3,7 @@
 
 import { describe, expect, test } from "vitest";
 import type { Stem } from "../types";
-import { parseNewStem, parseQuoteUpdate, parseShopUpdate, parseStemUpdate } from "./fields";
+import { parseNewStem, parseQuoteLines, parseQuoteUpdate, parseShopUpdate, parseStemUpdate } from "./fields";
 
 describe("parseShopUpdate", () => {
   test("keeps the shop settings and drops every other field", () => {
@@ -139,5 +139,57 @@ describe("parseQuoteUpdate", () => {
     ["reply text that is not text", { replyText: 5 }],
   ])("refuses %s with invalid_request", (_case, body) => {
     expect(parseQuoteUpdate(body)).toMatchObject({ ok: false, code: "invalid_request" });
+  });
+});
+
+describe("parseQuoteLines", () => {
+  const rose = { id: "5e000000-0000-4000-8000-000000000001", isFiller: false };
+  const gypsophila = { id: "5e000000-0000-4000-8000-000000000002", isFiller: true };
+  const savedLineId = "1e000000-0000-4000-8000-000000000001";
+  const context = { stems: [rose, gypsophila], lineIds: [savedLineId] };
+  const roseLine = { id: savedLineId, stemId: rose.id, count: 12, countLow: 10, countHigh: 14, confidence: "high", note: "" };
+  const fillerLine = { stemId: gypsophila.id, count: 2, countLow: 1, countHigh: 3, confidence: "medium", note: "white" };
+  const lines = (...items: unknown[]) => ({ lines: items });
+
+  test("keeps each line's fields, and drops every other field", () => {
+    const body = lines({ ...roseLine, costPerStem: 1, quoteId: "x", shopId: "x" }, fillerLine);
+    expect(parseQuoteLines(body, context)).toEqual({ ok: true, value: [roseLine, fillerLine] });
+  });
+
+  test("keeps the florist's counts as they are, even past 200 stems in the bouquet", () => {
+    const body = lines({ ...roseLine, count: 100 }, { ...roseLine, id: undefined, count: 100 }, { ...roseLine, id: undefined, count: 100 });
+    const parsed = parseQuoteLines(body, context);
+    expect(parsed.ok && parsed.value.map((line) => line.count)).toEqual([100, 100, 100]);
+  });
+
+  test('accepts a blank count and a "pick a flower" line', () => {
+    const body = lines({ ...roseLine, count: null }, { ...fillerLine, stemId: null, count: 100 });
+    expect(parseQuoteLines(body, context)).toMatchObject({ ok: true });
+  });
+
+  test("accepts an empty recipe", () => {
+    expect(parseQuoteLines(lines(), context)).toEqual({ ok: true, value: [] });
+  });
+
+  test.each([
+    ["no stems", { ...roseLine, count: 0 }],
+    ["more than 100 stems", { ...roseLine, count: 101 }],
+    ["more than 5 filler bunches", { ...fillerLine, count: 6 }],
+    ["part of a stem", { ...roseLine, count: 2.5 }],
+    ["another shop's stem", { ...roseLine, stemId: "5e000000-0000-4000-8000-000000000099" }],
+    ["a line id that is not this quote's", { ...roseLine, id: "1e000000-0000-4000-8000-000000000099" }],
+    ["a count range high below its low", { ...roseLine, countLow: 10, countHigh: 9 }],
+    ["an unknown confidence", { ...roseLine, confidence: "sure" }],
+    ["a missing field", { stemId: rose.id, count: 12, countLow: 10, countHigh: 14, confidence: "high" }],
+  ])("refuses a line with %s with invalid_request", (_case, line) => {
+    expect(parseQuoteLines(lines(line), context)).toMatchObject({ ok: false, code: "invalid_request" });
+  });
+
+  test("refuses the same line id twice", () => {
+    expect(parseQuoteLines(lines(roseLine, roseLine), context)).toMatchObject({ ok: false, code: "invalid_request" });
+  });
+
+  test("refuses lines that are not a list", () => {
+    expect(parseQuoteLines({ lines: roseLine }, context)).toMatchObject({ ok: false, code: "invalid_request" });
   });
 });
