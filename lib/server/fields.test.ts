@@ -3,7 +3,7 @@
 
 import { describe, expect, test } from "vitest";
 import type { Stem } from "../types";
-import { parseNewStem, parseShopUpdate, parseStemUpdate } from "./fields";
+import { parseNewStem, parseSaveReceipt, parseShopUpdate, parseStemUpdate } from "./fields";
 
 describe("parseShopUpdate", () => {
   test("keeps the shop settings and drops every other field", () => {
@@ -113,5 +113,46 @@ describe("parseStemUpdate", () => {
     ["an empty flower name", { flower: "" }],
   ])("refuses %s with invalid_request", (_case, body) => {
     expect(parseStemUpdate(body, roseRed)).toMatchObject({ ok: false, code: "invalid_request" });
+  });
+});
+
+describe("parseSaveReceipt", () => {
+  const shopId = "5a000000-0000-4000-8000-000000000001";
+  const stemId = "5e000000-0000-4000-8000-000000000001";
+  const photoPath = `${shopId}/f0000000-0000-4000-8000-000000000002.jpg`;
+  const today = "2026-10-23";
+  const roses = { stemId, quantity: 2, unit: "dozen", bundleSize: null, totalPaid: 540 };
+  const parse = (body: Record<string, unknown>) =>
+    parseSaveReceipt({ photoPath, purchaseDate: "2026-10-21", lines: [roses], ...body }, { shopId, today });
+
+  test("keeps the receipt fields, computes each line's cost per stem and drops other fields", () => {
+    expect(parse({ id: "x", shopId: "other", lines: [{ ...roses, costPerStem: 1, receiptId: "x" }] })).toEqual({
+      ok: true,
+      value: { photoPath, purchaseDate: "2026-10-21", lines: [{ ...roses, costPerStem: 22.5 }] },
+    });
+  });
+
+  test("uses today in Manila when there is no purchase date", () => {
+    expect(parse({ purchaseDate: undefined })).toMatchObject({ ok: true, value: { purchaseDate: today } });
+  });
+
+  test("stores no bundle size on a line that is not a bundle", () => {
+    expect(parse({ lines: [{ ...roses, bundleSize: 10 }] })).toMatchObject({
+      ok: true,
+      value: { lines: [{ bundleSize: null, costPerStem: 22.5 }] },
+    });
+  });
+
+  test.each([
+    ["an unmatched line", { lines: [{ ...roses, stemId: null }] }, "Line 1 has no stem"],
+    ["a bundle line without a bundle size", { lines: [{ ...roses, unit: "bundle" }] }, "Line 1 has no cost per stem"],
+    ["a quantity of zero", { lines: [{ ...roses, quantity: 0 }] }, "Invalid quantity on line 1"],
+    ["a missing total", { lines: [{ ...roses, totalPaid: undefined }] }, "Invalid totalPaid on line 1"],
+    ["an unknown unit", { lines: [{ ...roses, unit: "box" }] }, "Invalid unit on line 1"],
+    ["no lines", { lines: [] }, "A receipt needs at least one line"],
+    ["another shop's photo", { photoPath: `f0000000-0000-4000-8000-000000000009/${photoPath.split("/")[1]}` }, "Invalid photoPath"],
+    ["a purchase date that is not a date", { purchaseDate: "Oct 21" }, "Invalid purchaseDate"],
+  ])("refuses %s with invalid_request", (_case, body, error) => {
+    expect(parse(body)).toEqual({ ok: false, code: "invalid_request", error });
   });
 });
