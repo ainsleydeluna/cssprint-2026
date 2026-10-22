@@ -3,7 +3,7 @@
 // in and $20 out per million tokens, Sonnet 5.5 $2 and $10.
 
 import { describe, expect, test } from "vitest";
-import { liveStats } from "./accuracy";
+import { liveStats, parseEvalResults } from "./accuracy";
 
 const opus = (seconds: number, inputTokens: number, outputTokens: number, quoteId: string | null = null) =>
   ({ call: "analyzeBouquet", model: "claude-opus-5-5", seconds, inputTokens, outputTokens, quoteId }) as const;
@@ -46,5 +46,39 @@ describe("liveStats", () => {
 
   test("no calls yet: no live rows and no cost per quote", () => {
     expect(liveStats([])).toEqual({ live: [], averageCostPerQuoteUsd: null });
+  });
+});
+
+describe("parseEvalResults", () => {
+  const row = {
+    model: "claude-sonnet-5-5",
+    photoPx: 1600,
+    stemRowAccuracy: 0.92,
+    countsWithin2: 0.85,
+    totalsWithin10Percent: 0.8,
+    receiptLineAccuracy: 0.97,
+    medianSeconds: 6.4,
+  };
+
+  test("keeps well-formed rows, with only the fields the page shows", () => {
+    expect(parseEvalResults([{ ...row, notes: "first run" }])).toEqual([row]);
+  });
+
+  test.each([
+    ["a missing field", { ...row, medianSeconds: undefined }],
+    ["a model that is not text", { ...row, model: 5 }],
+    ["an empty model", { ...row, model: "" }],
+    ["a share as text", { ...row, countsWithin2: "85%" }],
+    ["a share above 1", { ...row, stemRowAccuracy: 92 }],
+    ["a negative median", { ...row, medianSeconds: -1 }],
+    ["a photo size of 0", { ...row, photoPx: 0 }],
+    ["a row that is not an object", "claude-sonnet-5-5"],
+    ["null", null],
+  ])("skips a row with %s and keeps the rest", (_case, bad) => {
+    expect(parseEvalResults([bad, row])).toEqual([row]);
+  });
+
+  test("answers no rows when the file is not a list", () => {
+    expect(parseEvalResults({ results: [row] })).toEqual([]);
   });
 });

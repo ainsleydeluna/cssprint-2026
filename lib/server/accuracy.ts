@@ -52,6 +52,37 @@ export function liveStats(rows: CallRow[]): Pick<AccuracyResponse, "live" | "ave
   return { live, averageCostPerQuoteUsd: averageKnown([...perQuote.values()]) };
 }
 
+const isNumber = (value: unknown, min: number, max: number) =>
+  typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
+
+/** One row as EvalResult, or null when a field is missing or out of range. Shares are 0 to 1. */
+function evalRow(value: unknown): EvalResult | null {
+  if (typeof value !== "object" || value === null) return null;
+  const row = value as Record<string, unknown>;
+  const shares = [row.stemRowAccuracy, row.countsWithin2, row.totalsWithin10Percent, row.receiptLineAccuracy];
+  if (typeof row.model !== "string" || row.model === "") return null;
+  if (!isNumber(row.photoPx, 1, Infinity) || !isNumber(row.medianSeconds, 0, Infinity)) return null;
+  if (!shares.every((share) => isNumber(share, 0, 1))) return null;
+  return {
+    model: row.model,
+    photoPx: row.photoPx as number,
+    stemRowAccuracy: row.stemRowAccuracy as number,
+    countsWithin2: row.countsWithin2 as number,
+    totalsWithin10Percent: row.totalsWithin10Percent as number,
+    receiptLineAccuracy: row.receiptLineAccuracy as number,
+    medianSeconds: row.medianSeconds as number,
+  };
+}
+
+/** The well-formed rows of results.json; malformed rows are skipped, and anything but a list gives none. */
+export function parseEvalResults(json: unknown): EvalResult[] {
+  if (!Array.isArray(json)) return [];
+  return json.flatMap((value) => {
+    const row = evalRow(value);
+    return row ? [row] : [];
+  });
+}
+
 /** fixtures/eval/results.json; empty until scripts/eval.ts writes it, or when it cannot be read. */
 export async function readEvalResults(): Promise<EvalResult[]> {
   let text: string;
@@ -60,12 +91,14 @@ export async function readEvalResults(): Promise<EvalResult[]> {
   } catch {
     return [];
   }
+  let json: unknown;
   try {
-    const results: unknown = JSON.parse(text);
-    if (Array.isArray(results)) return results as EvalResult[];
-    console.error("fixtures/eval/results.json is not a list");
+    json = JSON.parse(text);
   } catch {
     console.error("fixtures/eval/results.json is not valid JSON");
+    return [];
   }
-  return [];
+  const results = parseEvalResults(json);
+  if (!Array.isArray(json) || results.length < json.length) console.error("fixtures/eval/results.json has malformed rows; skipped them");
+  return results;
 }
