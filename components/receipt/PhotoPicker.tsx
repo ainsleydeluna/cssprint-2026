@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { t } from "@/lib/strings";
 import { Button } from "./kit";
-import { type CropRect, decodePhoto, processPhoto } from "./process-photo";
+import { type CropRect, decodePreview, processPhoto, readSize, type Size } from "./process-photo";
 
 // The on-screen preview only needs to be sharp, not full size.
 const PREVIEW_LONG_EDGE_PX = 1600;
@@ -34,6 +34,9 @@ export function PhotoPicker({ onPhoto, source = "camera", label }: Props) {
   const previewRef = useRef<HTMLCanvasElement>(null);
   // Where the current drag started, and the box before it (restored if the drag was just a tap).
   const drag = useRef<{ start: Point; before: CropRect | null } | null>(null);
+  // The picked file and its upright size; the full-size image is never decoded.
+  const [photo, setPhoto] = useState<{ file: File; size: Size } | null>(null);
+  // Preview-size decode, at most PREVIEW_LONG_EDGE_PX on its long edge.
   const [bitmap, setBitmap] = useState<ImageBitmap | null>(null);
   // Crop box as fractions (0–1) of the photo, so it survives layout changes.
   const [box, setBox] = useState<CropRect | null>(null);
@@ -44,10 +47,9 @@ export function PhotoPicker({ onPhoto, source = "camera", label }: Props) {
   useEffect(() => {
     const canvas = previewRef.current;
     if (!bitmap || !canvas) return;
-    const scale = Math.min(1, PREVIEW_LONG_EDGE_PX / Math.max(bitmap.width, bitmap.height));
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
     return () => bitmap.close();
   }, [bitmap]);
 
@@ -56,9 +58,12 @@ export function PhotoPicker({ onPhoto, source = "camera", label }: Props) {
     setBusy(true);
     setError(null);
     try {
-      setBitmap(await decodePhoto(file));
+      const size = await readSize(file);
+      setBitmap(await decodePreview(file, size, PREVIEW_LONG_EDGE_PX));
+      setPhoto({ file, size });
       setBox(WHOLE);
-    } catch {
+    } catch (e) {
+      console.error("Photo could not be decoded", e);
       setError(t("photo", "unreadable"));
     } finally {
       setBusy(false);
@@ -66,24 +71,17 @@ export function PhotoPicker({ onPhoto, source = "camera", label }: Props) {
   }
 
   async function finish() {
-    if (!bitmap) return;
+    if (!photo) return;
     setBusy(true);
     setError(null);
     try {
-      const crop =
-        box && box !== WHOLE
-          ? {
-              x: Math.round(box.x * bitmap.width),
-              y: Math.round(box.y * bitmap.height),
-              width: Math.max(1, Math.round(box.width * bitmap.width)),
-              height: Math.max(1, Math.round(box.height * bitmap.height)),
-            }
-          : null;
-      const photo = await processPhoto(bitmap, crop);
+      const processed = await processPhoto(photo.file, photo.size, box && box !== WHOLE ? box : null);
       setBitmap(null);
+      setPhoto(null);
       setBox(null);
-      onPhoto(photo);
-    } catch {
+      onPhoto(processed);
+    } catch (e) {
+      console.error("Photo could not be prepared", e);
       setError(t("photo", "failed"));
     } finally {
       setBusy(false);
