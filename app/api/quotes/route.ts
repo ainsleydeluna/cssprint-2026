@@ -38,6 +38,10 @@ export async function POST(request: Request) {
   if (!parsed.ok) return errorResponse(parsed.code, parsed.error);
   const { photoPath } = parsed.value;
 
+  // One photo per quote: deleting a quote deletes its photo.
+  const used = await supabase.from("quotes").select("id").eq("photo_path", photoPath).limit(1);
+  if (used.error) throw new Error(`Checking the photo failed: ${used.error.message}`);
+  if (used.data.length > 0) return errorResponse("invalid_request", "Another quote already has this photo");
   const photo = await downloadPhoto(supabase, "bouquets", photoPath);
   if (!photo) return errorResponse("invalid_request", "No bouquet photo at photoPath");
   const stems = (await stemsWithCost(supabase)).filter((stem) => !stem.hidden);
@@ -47,7 +51,7 @@ export async function POST(request: Request) {
   try {
     if (!outcome.ok) {
       // No quote to attach it to: the florist picks the photo again.
-      await deletePhoto(supabase, "bouquets", photoPath);
+      await deletePhoto(supabase, "bouquets", photoPath).catch((error) => console.error(error));
       throw new Error(`analyzeBouquet failed: ${outcome.error}`);
     }
     const lines = bouquetToLines(outcome.result, stems);
