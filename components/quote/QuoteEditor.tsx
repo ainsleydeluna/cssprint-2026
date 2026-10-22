@@ -2,25 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/receipt/kit";
-import type { QuoteDetail, StemWithCost, UpdateQuoteLinesRequest, UpdateQuoteLinesResponse } from "@/lib/contract";
+import type { QuoteDetail, StemWithCost, UpdateQuoteLinesResponse } from "@/lib/contract";
 import { COUNT_LIMITS, price, recipeCost } from "@/lib/money";
 import { t } from "@/lib/strings";
 import type { Shop } from "@/lib/types";
 import { updateLines } from "./api";
 import { Autosave, type SaveState } from "./autosave";
+import { editLine, toRequest } from "./edit";
 import { type EditLine, QuoteLineRow } from "./QuoteLineRow";
 
 const SAVE_DELAY_MS = 600;
 const peso = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
 type Props = { detail: QuoteDetail; shop: Shop; stems: StemWithCost[]; demo: boolean };
-
-const toRequest = (lines: EditLine[]): UpdateQuoteLinesRequest => ({
-  lines: lines.map(({ id, stemId, count, countLow, countHigh, confidence, note }) => ({
-    ...(id ? { id } : {}),
-    stemId, count, countLow, countHigh, confidence, note,
-  })),
-});
 
 /**
  * Folds a save's answer into the newest lines. The route answers the lines in the order sent:
@@ -59,7 +53,8 @@ export function QuoteEditor({ detail, shop, stems, demo }: Props) {
   const edit = (next: EditLine[]) => autosave.edit(next);
   const flush = () => void autosave.flush();
 
-  const update = (key: string, patch: Partial<EditLine>) => edit(lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  // An edited line is now checked by the florist: it saves as confidence "high", so it stays un-highlighted after a reload.
+  const update = (key: string, patch: Partial<EditLine>) => edit(editLine(lines, key, patch));
   // A new line is a "pick a flower" line of 1, sure of itself once a flower is picked.
   const addLine = () =>
     edit([...lines, { key: crypto.randomUUID(), stemId: null, count: 1, countLow: 1, countHigh: 1, confidence: "high", note: "", costPerStem: 0 }]);
