@@ -11,7 +11,6 @@ export const units: Record<Unit, string> = {
 
 export const scan = {
   title: "I-scan ang resibo",
-  takePhoto: "Kunan ang resibo",
   uploading: "Ina-upload ang photo…",
   reading: "Binabasa ang resibo…",
   saving: "Sine-save ang resibo…",

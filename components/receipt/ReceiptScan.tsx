@@ -84,7 +84,7 @@ export function ReceiptScan() {
   if (state.step === "pick") {
     return (
       <div className="flex flex-col gap-3">
-        <PhotoPicker source="camera" label={t.takePhoto} onPhoto={handlePhoto} />
+        <PhotoPicker source="both" onPhoto={handlePhoto} />
         {error && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{error}</p>}
       </div>
     );
