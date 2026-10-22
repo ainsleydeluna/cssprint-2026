@@ -108,7 +108,8 @@ export function scoreBouquet(
 export type ReceiptTruth = {
   receipt: string;
   lines: Array<{
-    stem: string;
+    /** null when the right answer is "unmatched": the flower is not on the shop's list. */
+    stem: string | null;
     quantity: number | null;
     unit: Unit | null;
     bundleSize: number | null;
@@ -120,7 +121,8 @@ export type ReceiptTruth = {
 /**
  * One receipt's score. A line is right when an answer line has its stem,
  * quantity, unit (and bundle size, for a bundle) and total paid; a missing
- * total paid is quantity × unit price, as the app computes it. Out of the
+ * total paid is quantity × unit price, as the app computes it. An answer-key
+ * line with no stem is right when the answer line has no stem either. Out of the
  * answer key's lines or the answer's lines,
  * whichever is more, so extra lines count against it.
  */
@@ -134,8 +136,7 @@ export function scoreReceipt(truth: ReceiptTruth, outcome: AiOutcome<ExtractRece
     const wantedTotal = receiptLineTotal(wanted);
     const i = answer.findIndex(
       (line) =>
-        line.stem !== null &&
-        key(line.stem) === key(wanted.stem) &&
+        (wanted.stem === null ? line.stem === null : line.stem !== null && key(line.stem) === key(wanted.stem)) &&
         line.quantity === wanted.quantity &&
         line.unit === wanted.unit &&
         (wanted.unit !== "bundle" || line.bundleSize === wanted.bundleSize) &&
@@ -268,7 +269,7 @@ export function parseReceiptAnswers(csv: string): ReceiptTruth[] {
   const byReceipt = new Map<string, ReceiptTruth["lines"]>();
   for (const row of parseCsv(csv)) {
     const line = {
-      stem: row.stem,
+      stem: row.stem || null,
       quantity: numberOrNull(row.quantity),
       unit: (row.unit || null) as Unit | null,
       bundleSize: numberOrNull(row.bundle_size),

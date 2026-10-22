@@ -137,6 +137,19 @@ describe("scoreReceipt", () => {
     expect(score).toEqual({ lines: 2, rightLines: 1, seconds: 5 });
   });
 
+  it("scores an unmatched line (no stem in the answer key) as right only when the answer has no stem", () => {
+    const petunia = {
+      receipt: "receipt-03.1.jpg",
+      lines: [{ stem: null, quantity: 1, unit: "bundle" as const, bundleSize: null, unitPrice: null, totalPaid: 100 }],
+    };
+    const unmatched = receipt([{ stem: null, quantity: 1, unit: "bundle", totalPaid: 100 }]);
+    expect(scoreReceipt(petunia, unmatched).rightLines).toBe(1);
+    const guessed = receipt([{ stem: "Rose - red", quantity: 1, unit: "bundle", totalPaid: 100 }]);
+    expect(scoreReceipt(petunia, guessed).rightLines).toBe(0);
+    const wrongTotal = receipt([{ stem: null, quantity: 1, unit: "bundle", totalPaid: 120 }]);
+    expect(scoreReceipt(petunia, wrongTotal).rightLines).toBe(0);
+  });
+
   it("scores a line with the wrong unit as wrong", () => {
     const score = scoreReceipt(truth, receipt([{ stem: "Rose - red", quantity: 2, unit: "bunch", totalPaid: 300 }]));
     expect(score.rightLines).toBe(0);
@@ -279,11 +292,12 @@ describe("parseLabels", () => {
 });
 
 describe("parseReceiptAnswers", () => {
-  it("groups lines by receipt, with blanks as null", () => {
+  it("groups lines by receipt, with blanks as null, an empty stem included", () => {
     const csv = [
       "receipt,stem,quantity,unit,bundle_size,unit_price,total_paid,purchase_date",
       "receipt-01.1.png,Rose - red,2,dozen,,,300,2026-10-23",
       "receipt-01.1.png,Tulip - yellow,2,bundle,10,125,,2026-10-23",
+      "receipt-01.1.png,,1,bundle,,,100,2026-10-23",
     ].join("\n");
     expect(parseReceiptAnswers(csv)).toEqual([
       {
@@ -291,6 +305,7 @@ describe("parseReceiptAnswers", () => {
         lines: [
           { stem: "Rose - red", quantity: 2, unit: "dozen", bundleSize: null, unitPrice: null, totalPaid: 300 },
           { stem: "Tulip - yellow", quantity: 2, unit: "bundle", bundleSize: 10, unitPrice: 125, totalPaid: null },
+          { stem: null, quantity: 1, unit: "bundle", bundleSize: null, unitPrice: null, totalPaid: 100 },
         ],
       },
     ]);

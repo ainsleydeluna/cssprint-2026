@@ -134,7 +134,7 @@ function fakeAnswer(job: Job): AnalyzeBouquetResult | ExtractReceiptResult {
     return { lines, note: "Dry run" };
   }
   const lines = job.truth.lines.map((line) => ({
-    rawText: line.stem,
+    rawText: line.stem ?? "unlisted flower",
     stem: line.stem,
     quantity: line.quantity,
     unit: line.unit,
