@@ -4,8 +4,11 @@ import { type NextRequest, NextResponse } from "next/server";
 import starter from "@/fixtures/seed/stems.json";
 import { createClient } from "@/lib/server/supabase";
 
-/** Shop setup (Pat's T7 screen), where a florist lands after the first sign-in. */
-const SHOP_SETUP_PATH = "/shop";
+/**
+ * Where a florist lands after the first sign-in. Spec decision 14 says shop
+ * setup; set this to "/shop" when Pat's T7 screen merges. Until then /shop is a 404.
+ */
+const SHOP_SETUP_PATH = "/quotes";
 
 // The magic link lands here. A token_hash link is verified on the server, so
 // it works when a phone opens it in its email app's own browser; a code link
