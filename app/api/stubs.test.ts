@@ -1,8 +1,12 @@
 // Every stub route the screens call exists and answers JSON (issue #4). Calls the
 // route handlers directly, the way Next.js does, without starting a server.
 // The shop and stem routes are real now; app/api/routes.test.ts covers them.
+// The swap to real stem ids needs a session, so here it passes the fake answer
+// through; lib/fake/real-stems.test.ts covers the swap.
 
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
+
+vi.mock("@/lib/fake/real-stems", () => ({ withRealStemIds: async (body: unknown) => Response.json(body) }));
 import type { QuoteDetail, UpdateQuoteLinesRequest } from "@/lib/contract";
 import { createQuote, quoteList } from "@/lib/fake/responses";
 import * as accuracy from "./accuracy/route";
