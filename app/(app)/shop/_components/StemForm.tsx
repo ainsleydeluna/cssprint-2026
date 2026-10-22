@@ -4,8 +4,7 @@ import type { AddStemRequest, StemWithCost } from "@/lib/contract";
 import { t } from "@/lib/strings";
 import type { Unit } from "@/lib/types";
 import { ApiFailure } from "./api";
-
-const UNITS: Unit[] = ["dozen", "per10", "bundle", "bunch", "piece"];
+import { UNITS, unitName } from "./units";
 
 /** Add a typed row (no `stem`) or edit one. Sends the full set of editable fields. */
 export function StemForm({
@@ -71,7 +70,7 @@ export function StemForm({
         >
           {UNITS.map((u) => (
             <option key={u} value={u}>
-              {t("units", u)}
+              {unitName(u)}
             </option>
           ))}
         </Select>

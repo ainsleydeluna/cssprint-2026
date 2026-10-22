@@ -42,13 +42,6 @@
     "matchLine": "I-match ang linyang ito",
     "purchaseDate": "Petsa ng bili"
   },
-  "units": {
-    "dozen": "Dosena",
-    "per10": "Per 10",
-    "bundle": "Bundle",
-    "bunch": "Bunch",
-    "piece": "Piraso"
-  },
   "shop": {
     "title": "Setup ng shop",
     "wrapFee": "Wrap fee",
@@ -82,6 +75,11 @@
     "color": "Kulay",
     "isFiller": "Filler ito (binibili per bunch)",
     "unit": "Unit",
+    "unitDozen": "Dosena",
+    "unitPer10": "Per 10",
+    "unitBundle": "Bundle",
+    "unitBunch": "Bunch",
+    "unitPiece": "Piraso",
     "bundleSize": "Stem bawat bundle",
     "bundleSizeNeeded": "Ilagay kung ilang stem bawat bundle.",
     "samplePrice": "Sample na presyo bawat unit (₱)"

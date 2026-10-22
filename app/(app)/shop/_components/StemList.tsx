@@ -6,6 +6,7 @@ import { type AddStemRequest, type StemWithCost, stemName } from "@/lib/contract
 import { t } from "@/lib/strings";
 import { addStem, listStems, updateStem } from "./api";
 import { StemForm } from "./StemForm";
+import { unitName } from "./units";
 
 const peso = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
@@ -53,7 +54,7 @@ export function StemList() {
         </span>
       </div>
       <p className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-        {t("units", stem.unit)}
+        {unitName(stem.unit)}
         {stem.unit === "bundle" && stem.bundleSize ? ` (${stem.bundleSize})` : ""}
         {stem.isSample && (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-900 dark:text-amber-100">
