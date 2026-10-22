@@ -1,11 +1,20 @@
-// Request bodies for the shop, stem and receipt routes. Only the fields named in the
+// Request bodies for the shop, stem, receipt and quote routes. Only the fields named in the
 // lib/contract.ts request type get through; anything else (id, shopId, price,
 // status, …) is ignored, never copied onto the row. Ranges match the checks in
 // supabase/migrations, so a bad value answers invalid_request, not a database error.
 
-import type { AddStemRequest, SaveReceiptRequest, UpdateShopRequest, UpdateStemRequest } from "../contract";
-import { costPerStem, roundMoney } from "../money";
-import type { ManilaDate, Money, Stem, Unit } from "../types";
+import type {
+  AddStemRequest,
+  CopiedRequest,
+  CreateQuoteRequest,
+  SaveReceiptRequest,
+  UpdateQuoteLinesRequest,
+  UpdateQuoteRequest,
+  UpdateShopRequest,
+  UpdateStemRequest,
+} from "../contract";
+import { COUNT_LIMITS, costPerStem, roundMoney } from "../money";
+import type { Confidence, ManilaDate, Money, Stem, Unit } from "../types";
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; code: "invalid_request" | "invalid_bundle_size"; error: string };
 
@@ -42,6 +51,15 @@ function name(maxLength: number): Check {
     return trimmed === "" ? undefined : trimmed;
   };
 }
+
+const date: Check = (value) => (isCalendarDate(value) ? value : undefined);
+
+function nullable(check: Check): Check {
+  return (value) => (value === null ? null : check(value));
+}
+
+/** Long enough for a Taglish reply many times over. */
+const replyText = text(2000);
 
 /** " - " joins flower and color in a row's name ("Rose - red"), so it may not appear inside either. */
 function namePart(check: Check): Check {
@@ -213,4 +231,85 @@ export function parseSaveReceipt(
     checked.push({ ...batch, costPerStem: cost });
   }
   return { ok: true, value: { photoPath, purchaseDate: purchaseDate ?? today, lines: checked } };
+}
+
+const QUOTE_UPDATE_FIELDS: Record<keyof UpdateQuoteRequest, Check> = {
+  label: name(80),
+  budget: nullable(money),
+  // A sent quote always has a valid-until date (quotes_sent_complete), so it is never cleared.
+  validUntil: date,
+  replyText,
+};
+
+/** PATCH /api/quotes/[id]. */
+export function parseQuoteUpdate(body: unknown): Parsed<UpdateQuoteRequest> {
+  return pick<UpdateQuoteRequest>(body, QUOTE_UPDATE_FIELDS);
+}
+
+/** More lines than any bouquet needs; keeps one request's writes small. */
+const MAX_LINES = 50;
+
+const CONFIDENCES: readonly Confidence[] = ["low", "medium", "high"];
+
+const LINE_FIELDS: Record<keyof Omit<QuoteLineInput, "id">, Check> = {
+  stemId: nullable(text(36)),
+  count: nullable(number(1, COUNT_LIMITS.stemsPerLine, { whole: true })),
+  countLow: number(0, 1000, { whole: true }),
+  countHigh: number(0, 1000, { whole: true }),
+  confidence: (value) => (CONFIDENCES.includes(value as Confidence) ? value : undefined),
+  note: text(500),
+};
+
+type QuoteLineInput = UpdateQuoteLinesRequest["lines"][number];
+
+/**
+ * PUT /api/quotes/[id]/lines: the florist's whole recipe. Counts are kept as
+ * typed, never clamped: a line outside 1–100 stems or 1–5 filler bunches is
+ * refused (the 200-stem bouquet limit applies only to AI answers). Each stem
+ * must be one of the shop's rows, and each line id one of this quote's lines.
+ */
+export function parseQuoteLines(
+  body: unknown,
+  context: { stems: Pick<Stem, "id" | "isFiller">[]; lineIds: string[] },
+): Parsed<QuoteLineInput[]> {
+  if (!isRecord(body) || !Array.isArray(body.lines)) return invalid("lines must be a list");
+  if (body.lines.length > MAX_LINES) return invalid(`At most ${MAX_LINES} lines`);
+  const seen = new Set<string>();
+  const lines: QuoteLineInput[] = [];
+  for (const item of body.lines) {
+    const picked = pick<QuoteLineInput>(item, LINE_FIELDS);
+    if (!picked.ok) return picked;
+    const missing = Object.keys(LINE_FIELDS).find((field) => !Object.hasOwn(picked.value, field));
+    if (missing) return invalid(`Missing ${missing}`);
+    const line = picked.value as QuoteLineInput;
+
+    if (line.countHigh < line.countLow) return invalid("countHigh is below countLow");
+    const stem = line.stemId === null ? undefined : context.stems.find((row) => row.id === line.stemId);
+    if (line.stemId !== null && !stem) return invalid("Invalid stemId");
+    if (stem?.isFiller && line.count !== null && line.count > COUNT_LIMITS.bunchesPerLine) {
+      return invalid(`A filler line holds at most ${COUNT_LIMITS.bunchesPerLine} bunches`);
+    }
+
+    const id = (item as Record<string, unknown>).id;
+    if (id !== undefined) {
+      if (typeof id !== "string" || !context.lineIds.includes(id) || seen.has(id)) return invalid("Invalid line id");
+      seen.add(id);
+      line.id = id;
+    }
+    lines.push(line);
+  }
+  return { ok: true, value: lines };
+}
+
+/** POST /api/quotes/[id]/copied: the text as copied, never empty. */
+export function parseCopied(body: unknown): Parsed<CopiedRequest> {
+  const picked = pick<CopiedRequest>(body, { replyText: name(2000) });
+  if (!picked.ok) return picked;
+  return picked.value.replyText === undefined ? invalid("Missing replyText") : { ok: true, value: { replyText: picked.value.replyText } };
+}
+
+/** POST /api/quotes: a bouquet photo in the shop's own folder. */
+export function parseCreateQuote(body: unknown, shopId: string): Parsed<CreateQuoteRequest> {
+  if (!isRecord(body) || !isShopPhotoPath(body.photoPath, shopId)) return invalid("Invalid photoPath");
+  return { ok: true, value: { photoPath: body.photoPath } };
 }
