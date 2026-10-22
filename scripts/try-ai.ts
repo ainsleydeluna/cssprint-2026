@@ -1,8 +1,8 @@
 // Runs one AI call on a sample input and prints the answer, model, seconds and
 // tokens. Uses the fake shop's visible rows from lib/fake/data.ts.
 //
-//   npx jiti scripts/try-ai.ts receipt [photo.jpg]
-//   npx jiti scripts/try-ai.ts bouquet [photo.jpg]
+//   npm run try-ai -- receipt [photo.jpg]
+//   npm run try-ai -- bouquet [photo.jpg]
 //
 // Without a photo it takes the first one in fixtures/receipts or fixtures/eval.
 // The Claude key is read from .env.local only, and never printed.
@@ -56,7 +56,7 @@ async function main() {
       return;
     }
     default:
-      console.log("Usage: npx jiti scripts/try-ai.ts receipt|bouquet [photo]");
+      console.log("Usage: npm run try-ai -- receipt|bouquet [photo]");
       process.exitCode = 1;
   }
 }
