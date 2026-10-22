@@ -81,12 +81,21 @@ export type PriceUpdateResult = { message: string; note: string };
 // `demo: true` when they come from saved demo answers, so screens can show the
 // "Demo" label.
 
-export type ApiErrorCode = "not_found" | "incomplete_quote" | "invalid_bundle_size";
+export type ApiErrorCode =
+  | "unauthorized"
+  | "invalid_request"
+  | "not_found"
+  | "incomplete_quote"
+  | "invalid_bundle_size";
 
 /** Screens check `code`, which never changes; `error` is a short English message for logs. */
 export type ApiError = { code: ApiErrorCode; error: string };
 
 export const ERROR_STATUS: Record<ApiErrorCode, number> = {
+  /** Signed out, or the session expired: the screen sends the florist to sign-in. */
+  unauthorized: 401,
+  /** A field has the wrong type or is out of range. Unknown fields are ignored, not refused. */
+  invalid_request: 400,
   not_found: 404,
   /** Copying the reply of a quote with a blank count or a "pick a flower" line. */
   incomplete_quote: 422,
@@ -109,6 +118,11 @@ export function stemName(stem: Pick<Stem, "flower" | "color">): string {
 }
 
 export type QuoteDetail = { quote: Quote; lines: QuoteLine[] };
+
+// POST /api/auth/sign-in — emails a magic link that returns to the address the
+// form was opened on. Answers invalid_request for a malformed email.
+export type SignInRequest = { email: string };
+export type SignInResponse = { sent: true };
 
 // POST /api/photos — multipart form with fields `kind` ("bouquets" or
 // "receipts") and `photo` (the cropped, shrunken JPEG).

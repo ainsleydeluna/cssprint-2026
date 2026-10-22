@@ -7,6 +7,16 @@
     "retry": "Subukan ulit",
     "error": "May problema. Subukan ulit."
   },
+  "signIn": {
+    "title": "Mag-sign in",
+    "email": "Email",
+    "send": "Ipadala ang sign-in link",
+    "sending": "Ipinapadala…",
+    "checkEmail": "Tingnan ang email mo",
+    "sentTo": "Pinadala namin ang sign-in link sa {email}. Buksan ito para makapasok.",
+    "useAnotherEmail": "Ibang email",
+    "linkFailed": "Hindi gumana ang link. Humingi ng bago."
+  },
   "nav": {
     "menu": "Pangunahing menu",
     "newQuote": "Bagong quote",
