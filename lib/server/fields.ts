@@ -5,6 +5,8 @@
 
 import type {
   AddStemRequest,
+  ApplyPriceUpdateRequest,
+  BudgetOptionsRequest,
   CopiedRequest,
   CreateQuoteRequest,
   SaveReceiptRequest,
@@ -312,4 +314,25 @@ export function parseCopied(body: unknown): Parsed<CopiedRequest> {
 export function parseCreateQuote(body: unknown, shopId: string): Parsed<CreateQuoteRequest> {
   if (!isRecord(body) || !isShopPhotoPath(body.photoPath, shopId)) return invalid("Invalid photoPath");
   return { ok: true, value: { photoPath: body.photoPath } };
+}
+
+/** POST /api/quotes/[id]/budget-options: the customer's budget, required. */
+export function parseBudgetOptions(body: unknown): Parsed<BudgetOptionsRequest> {
+  const picked = pick<BudgetOptionsRequest>(body, { budget: money });
+  if (!picked.ok) return picked;
+  return picked.value.budget === undefined ? invalid("Missing budget") : { ok: true, value: { budget: picked.value.budget } };
+}
+
+const APPLY_FIELDS: Record<keyof ApplyPriceUpdateRequest, Check> = { message: name(2000), newPrice: money, validUntil: date };
+
+/**
+ * POST /api/quotes/[id]/price-update/apply: the draft as copied, every field
+ * required. The message, never empty, becomes the reply text.
+ */
+export function parseApplyPriceUpdate(body: unknown): Parsed<ApplyPriceUpdateRequest> {
+  const picked = pick<ApplyPriceUpdateRequest>(body, APPLY_FIELDS);
+  if (!picked.ok) return picked;
+  const missing = Object.keys(APPLY_FIELDS).find((field) => !Object.hasOwn(picked.value, field));
+  if (missing) return invalid(`Missing ${missing}`);
+  return { ok: true, value: picked.value as ApplyPriceUpdateRequest };
 }

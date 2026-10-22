@@ -21,6 +21,10 @@ const quote = await import("./quotes/[id]/route");
 const { PUT: putLines } = await import("./quotes/[id]/lines/route");
 const { POST: draftReply } = await import("./quotes/[id]/reply/route");
 const { POST: copied } = await import("./quotes/[id]/copied/route");
+const { POST: budgetOptions } = await import("./quotes/[id]/budget-options/route");
+const { POST: priceUpdate } = await import("./quotes/[id]/price-update/route");
+const { POST: applyPriceUpdate } = await import("./quotes/[id]/price-update/apply/route");
+const { GET: accuracy } = await import("./accuracy/route");
 
 const request = (body?: unknown) =>
   new Request("http://localhost/api", { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
@@ -43,6 +47,10 @@ test.each([
   ["PUT /api/quotes/[id]/lines", () => putLines(request({ lines: [] }), quoteContext)],
   ["POST /api/quotes/[id]/reply", () => draftReply(request(), quoteContext)],
   ["POST /api/quotes/[id]/copied", () => copied(request({ replyText: "Hi po!" }), quoteContext)],
+  ["POST /api/quotes/[id]/budget-options", () => budgetOptions(request({ budget: 1000 }), quoteContext)],
+  ["POST /api/quotes/[id]/price-update", () => priceUpdate(request(), quoteContext)],
+  ["POST /api/quotes/[id]/price-update/apply", () => applyPriceUpdate(request({ message: "Hi po" }), quoteContext)],
+  ["GET /api/accuracy", () => accuracy()],
 ])("%s answers 401 unauthorized when signed out", async (_route, call) => {
   const response = await call();
   expect([response.status, await response.json()]).toEqual([401, { code: "unauthorized", error: "Sign in first" }]);
