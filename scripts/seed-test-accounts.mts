@@ -1,6 +1,6 @@
 // Creates the two test accounts for the Shop A / Shop B test
 // (supabase/shop-isolation.test.ts), once, on cssprint-dev (spec decision 24).
-// Safe to run again: an account that already exists is left alone.
+// Safe to run again: an account that already exists only gets its password reset.
 //
 // Reads from .env.local: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY,
 // TEST_SHOP_A_EMAIL, TEST_SHOP_B_EMAIL and TEST_ACCOUNTS_PASSWORD.
@@ -33,8 +33,17 @@ for (const email of [emailA, emailB]) {
   // email_confirm: the account can sign in with its password without a magic link.
   const { error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (!error) console.log(`Created ${email}`);
-  else if (error.code === "email_exists" || error.code === "user_already_exists") console.log(`${email} already exists`);
-  else {
+  else if (error.code === "email_exists" || error.code === "user_already_exists") {
+    // Reset the password so the test still signs in after TEST_ACCOUNTS_PASSWORD changes.
+    const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
+    const user = data.users.find((u) => u.email === email.toLowerCase());
+    const reset = user && (await admin.auth.admin.updateUserById(user.id, { password }));
+    if (reset && !reset.error) console.log(`${email} already exists; password reset`);
+    else {
+      console.error(`${email} already exists but its password could not be reset`);
+      process.exitCode = 1;
+    }
+  } else {
     console.error(`Could not create ${email}: ${error.message}`);
     process.exitCode = 1;
   }

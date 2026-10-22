@@ -45,37 +45,23 @@ function must<T>(result: { data: T; error: { message: string } | null }): NonNul
   return result.data as NonNullable<T>;
 }
 
-/** Gives Shop B a row in every table and a photo in each bucket. Adds nothing on later runs. */
+/** The id of the shop's first row in `table`, inserting `row` only when the table has none. */
+async function ensureRow(client: SupabaseClient, table: string, row: Record<string, unknown>): Promise<string> {
+  const existing = must(await client.from(table).select("id").limit(1));
+  if (existing.length > 0) return existing[0].id;
+  return must(await client.from(table).insert(row).select("id").single()).id;
+}
+
+/** Gives Shop B a row in every table and a photo in each bucket. Adds nothing on later runs, even after a failed one. */
 async function fillShop(client: SupabaseClient, shopId: string): Promise<Record<string, string>> {
-  const quotes = must(await client.from("quotes").select("id"));
-  if (quotes.length === 0) {
-    const photoPath = `${shopId}/${crypto.randomUUID()}.jpg`;
-    const stem = must(await client.from("stems").select("id").limit(1).single());
-    const receipt = must(
-      await client.from("receipts").insert({ shop_id: shopId, purchase_date: "2026-10-22", photo_path: photoPath }).select("id").single(),
-    );
-    must(
-      await client
-        .from("receipt_lines")
-        .insert({ receipt_id: receipt.id, shop_id: shopId, stem_id: stem.id, quantity: 2, unit: "dozen", total_paid: 540, cost_per_stem: 22.5 })
-        .select("id"),
-    );
-    const quote = must(
-      await client.from("quotes").insert({ shop_id: shopId, label: "Inquiry 1", photo_path: photoPath }).select("id").single(),
-    );
-    must(
-      await client
-        .from("quote_lines")
-        .insert({ quote_id: quote.id, shop_id: shopId, stem_id: stem.id, count: 12, count_low: 11, count_high: 13, confidence: "high", cost_per_stem: 22.5 })
-        .select("id"),
-    );
-    must(
-      await client
-        .from("ai_calls")
-        .insert({ shop_id: shopId, call: "draftReply", model: "test", seconds: 1, ok: true, quote_id: quote.id })
-        .select("id"),
-    );
-  }
+  const shop_id = shopId;
+  const photo_path = `${shopId}/${crypto.randomUUID()}.jpg`;
+  const stem_id = must(await client.from("stems").select("id").limit(1).single()).id;
+  const receipt_id = await ensureRow(client, "receipts", { shop_id, purchase_date: "2026-10-22", photo_path });
+  await ensureRow(client, "receipt_lines", { receipt_id, shop_id, stem_id, quantity: 2, unit: "dozen", total_paid: 540, cost_per_stem: 22.5 });
+  const quote_id = await ensureRow(client, "quotes", { shop_id, label: "Inquiry 1", photo_path });
+  await ensureRow(client, "quote_lines", { quote_id, shop_id, stem_id, count: 12, count_low: 11, count_high: 13, confidence: "high", cost_per_stem: 22.5 });
+  await ensureRow(client, "ai_calls", { shop_id, call: "draftReply", model: "test", seconds: 1, ok: true, quote_id });
 
   const photos: Record<string, string> = {};
   for (const bucket of BUCKETS) {
