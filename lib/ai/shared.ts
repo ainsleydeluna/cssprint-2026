@@ -3,6 +3,8 @@
 
 import type { ContentBlockParam } from "@anthropic-ai/sdk/resources/messages";
 import type { StemWithCost } from "../contract";
+import type { ManilaDate, Money } from "../types";
+import type { AiOutcome } from "./client";
 
 /** One of the shop's rows, as an AI call needs it. Hidden rows are never offered or matched. */
 export type AllowedStem = Pick<StemWithCost, "name" | "isFiller" | "hidden">;
@@ -21,11 +23,11 @@ export function photoBlock(photo: Photo): ContentBlockParam {
  * The allowed list as the prompt shows it. Fillers get their own heading, not
  * a marker after the name, which the model copied into its answers.
  */
-export function stemList(stems: AllowedStem[]): string {
+export function stemList<S extends AllowedStem>(stems: S[], describe: (stem: S) => string = (stem) => stem.name): string {
   const names = (isFiller: boolean) =>
     stems
       .filter((stem) => !stem.hidden && stem.isFiller === isFiller)
-      .map((stem) => `- ${stem.name}`)
+      .map((stem) => `- ${describe(stem)}`)
       .join("\n") || "(none)";
   return `Allowed list.\nFlowers:\n${names(false)}\nFillers:\n${names(true)}`;
 }
@@ -41,6 +43,43 @@ export function findStem<S extends AllowedStem>(stems: S[], name: string | null)
 export function findFlower<S extends AllowedStem>(stems: S[], name: string | null): S | undefined {
   const stem = findStem(stems, name);
   return stem?.isFiller ? undefined : stem;
+}
+
+/** "12 stems", "1 bunch": flowers are counted in stems, fillers in bunches. */
+export function countText(count: number, isFiller: boolean): string {
+  if (isFiller) return `${count} ${count === 1 ? "bunch" : "bunches"}`;
+  return `${count} ${count === 1 ? "stem" : "stems"}`;
+}
+
+/** "₱1,220", or "₱22.50" when there are centavos. */
+export function pesos(amount: Money): string {
+  const digits = Number.isInteger(amount) ? 0 : 2;
+  return `₱${amount.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** A Manila calendar date as the reply writes it: "2026-10-25" is "Oct 25". */
+export function shortDate(date: ManilaDate): string {
+  const [, month, day] = date.split("-").map(Number);
+  return `${MONTHS[month - 1]} ${day}`;
+}
+
+/**
+ * Passes a drafted message through only if it carries each text exactly, so a
+ * customer never gets a wrong price or date.
+ */
+export function requireTexts(
+  outcome: AiOutcome<{ message: string; note: string }>,
+  texts: string[],
+  what: string,
+): AiOutcome<{ message: string; note: string }> {
+  if (!outcome.ok) return outcome;
+  // Not followed by more digits, so "Oct 2" does not pass inside "Oct 20".
+  const has = (text: string) =>
+    new RegExp(`${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?!\\d|,\\d)`).test(outcome.result.message);
+  const missing = texts.find((text) => !has(text));
+  return missing === undefined ? outcome : { ...outcome, ok: false, error: `${what} is missing ${missing}` };
 }
 
 /** JSON schema pieces for structured outputs. */
