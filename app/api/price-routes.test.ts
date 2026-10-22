@@ -215,35 +215,59 @@ describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", 
     expect([response.status, (await response.json()).code]).toEqual([400, "invalid_request"]);
   });
 
-  test("applying sets the new price, resets valid-until, clears the flag, saves the message and keeps the sent time", async () => {
-    const { sent, newPrice } = await underwater();
-    const response = await applyRoute.POST(json("POST", { message: "Pasensya na po", price: 1, sentAt: null }), ctx(sent.id));
+  /** The price-update route's draft for the quote, as the screen would send it to apply. */
+  async function drafted(id: string) {
+    answer({ message: "Pasensya na po, {price} na po ito, valid until {validUntil}. Salamat po!", note: "" });
+    const { message, newPrice, validUntil }: PriceUpdateResponse = await (await priceUpdateRoute.POST(json("POST"), ctx(id))).json();
+    return { message, newPrice, validUntil };
+  }
+
+  test("applying saves the draft as sent, clears the flag and keeps the sent time", async () => {
+    const { sent } = await underwater();
+    const draft = await drafted(sent.id);
+    const response = await applyRoute.POST(json("POST", { ...draft, price: 1, sentAt: null }), ctx(sent.id));
     expect(response.status).toBe(200);
-    // Sent today with 2 valid-for days, so the reset date is the one the first copy stamped.
-    const applied = { ...sent, price: newPrice, underwaterAt: null, replyText: "Pasensya na po" };
+    const applied = { ...sent, price: draft.newPrice, validUntil: draft.validUntil, replyText: draft.message, underwaterAt: null };
     expect(await response.json()).toEqual(applied);
 
-    // A second copy of the same message changes nothing; a different one is refused.
-    const again = await applyRoute.POST(json("POST", { message: "Pasensya na po" }), ctx(sent.id));
+    // A second copy of the same draft changes nothing; a different message is refused.
+    const again = await applyRoute.POST(json("POST", draft), ctx(sent.id));
     expect([again.status, await again.json()]).toEqual([200, applied]);
-    const other = await applyRoute.POST(json("POST", { message: "Iba po" }), ctx(sent.id));
+    const other = await applyRoute.POST(json("POST", { ...draft, message: "Iba po" }), ctx(sent.id));
     expect([other.status, (await other.json()).code]).toEqual([400, "invalid_request"]);
   });
 
-  test("budget options for a recipe with no complete line answer no options and make no AI call", async () => {
-    const { quote, lines } = await create();
-    const blank = lines.map(({ id, stemId, countLow, countHigh, confidence, note }) => ({ id, stemId, count: null, countLow, countHigh, confidence, note }));
-    expect((await linesRoute.PUT(json("PUT", { lines: blank }), ctx(quote.id))).status).toBe(200);
-    const response = await budgetRoute.POST(json("POST", { budget: 500 }), ctx(quote.id));
-    expect(await response.json()).toEqual({ options: [], demo: false });
-    const logged = await client.from("ai_calls").select("call").eq("quote_id", quote.id).eq("call", "fitToBudget");
-    expect(logged.data).toEqual([]);
+  test("applying a price still below the minimum margin at latest costs keeps the flag", async () => {
+    const { sent } = await underwater();
+    // ₱500 is below the recipe cost at latest costs, so the margin is negative.
+    const low = { message: "Pasensya na po, ₱500 pa rin po.", newPrice: 500, validUntil: sent.validUntil };
+    const response = await applyRoute.POST(json("POST", low), ctx(sent.id));
+    expect(response.status).toBe(200);
+    const body: Quote = await response.json();
+    expect([body.price, body.replyText, body.underwaterAt]).toEqual([500, low.message, expect.any(String)]);
   });
 
-  test("applying refuses an empty message", async () => {
+  test.each([
+    ["an empty message", { message: "" }],
+    ["a message without the new price", { message: "Pasensya na po, mas mahal na po." }],
+    ["a valid-until date in the past", { validUntil: "2026-01-01" }],
+  ])("applying refuses %s", async (_case, change) => {
     const { sent } = await underwater();
-    const response = await applyRoute.POST(json("POST", { message: "" }), ctx(sent.id));
+    const draft = await drafted(sent.id);
+    const response = await applyRoute.POST(json("POST", { ...draft, ...change }), ctx(sent.id));
     expect([response.status, (await response.json()).code]).toEqual([400, "invalid_request"]);
+  });
+
+  test("budget options for a quote with a blank count answer incomplete_quote and make no AI call", async () => {
+    const { quote, lines } = await create();
+    const oneBlank = lines.map(({ id, stemId, count, countLow, countHigh, confidence, note }, i) => ({
+      id, stemId, count: i === 0 ? null : count, countLow, countHigh, confidence, note,
+    }));
+    expect((await linesRoute.PUT(json("PUT", { lines: oneBlank }), ctx(quote.id))).status).toBe(200);
+    const response = await budgetRoute.POST(json("POST", { budget: 500 }), ctx(quote.id));
+    expect([response.status, (await response.json()).code]).toEqual([422, "incomplete_quote"]);
+    const logged = await client.from("ai_calls").select("call").eq("quote_id", quote.id).eq("call", "fitToBudget");
+    expect(logged.data).toEqual([]);
   });
 
   test("accuracy answers the bake-off results and live numbers from the shop's AI calls", async () => {

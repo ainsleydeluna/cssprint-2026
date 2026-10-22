@@ -7,13 +7,15 @@ import { stemsWithCost } from "@/lib/server/costs";
 import { parseBudgetOptions } from "@/lib/server/fields";
 import { errorResponse, readJson } from "@/lib/server/http";
 import { priceBudgetOptions } from "@/lib/server/price-rules";
+import { cannotSend } from "@/lib/server/quote-rules";
 import { readQuote } from "@/lib/server/quotes";
 
 // Saves the budget on the quote, asks fitToBudget for up to 3 cheaper recipes,
 // prices each at latest costs and keeps those within budget and minimum margin;
 // when none fit, only the cheapest, with overBudgetBy set. Choosing an option
-// sends its lines to PUT /api/quotes/[id]/lines. Blank counts and "pick a
-// flower" lines are left out of the recipe the AI sees.
+// sends its lines to PUT /api/quotes/[id]/lines, replacing every line, so a
+// quote with no lines, a blank count or a "pick a flower" line answers
+// incomplete_quote first: no line is ever dropped without the florist seeing it.
 export async function POST(request: Request, ctx: RouteContext<"/api/quotes/[id]/budget-options">) {
   const session = await requireShop();
   if (session instanceof Response) return session;
@@ -22,6 +24,9 @@ export async function POST(request: Request, ctx: RouteContext<"/api/quotes/[id]
   if (!detail) return errorResponse("not_found", "Quote not found");
   const parsed = parseBudgetOptions(await readJson(request));
   if (!parsed.ok) return errorResponse(parsed.code, parsed.error);
+  if (cannotSend(detail.lines)) {
+    return errorResponse("incomplete_quote", "The quote has no lines, or a line has a blank count or no flower picked");
+  }
   const { budget } = parsed.value;
 
   const [saved, stems] = await Promise.all([
@@ -31,12 +36,8 @@ export async function POST(request: Request, ctx: RouteContext<"/api/quotes/[id]
   if (saved.error) throw new Error(`Saving the budget failed: ${saved.error.message}`);
 
   const byId = new Map(stems.map((stem) => [stem.id, stem]));
-  const recipe = detail.lines.flatMap((line) => {
-    const stem = line.stemId === null ? undefined : byId.get(line.stemId);
-    return stem && line.count !== null ? [{ stem, count: line.count }] : [];
-  });
-  // Nothing to fit yet: no AI call.
-  if (recipe.length === 0) return Response.json({ options: [], demo: false } satisfies BudgetOptionsResponse);
+  // Every line has a stem and a count (cannotSend above), and stems are never deleted.
+  const recipe = detail.lines.map((line) => ({ stem: byId.get(line.stemId!)!, count: line.count! }));
   const currentPrice = price(recipeCost(recipe.map(({ stem, count }) => ({ stemId: stem.id, count, costPerStem: stem.latestCost }))).cost, shop);
 
   const outcome = await fitToBudget({ recipe: recipe.map(({ stem, count }) => ({ stem: stem.name, count })), budget, currentPrice, stems });
