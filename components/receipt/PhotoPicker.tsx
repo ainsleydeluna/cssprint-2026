@@ -1,6 +1,7 @@
 // No "use client" here: onPhoto is a function, so the picker must be rendered
 // from a Client Component (like the scan page), which makes it client code too.
 import { useEffect, useRef, useState } from "react";
+import { Button } from "./kit";
 import { type CropRect, decodePhoto, processPhoto } from "./process-photo";
 
 // The on-screen preview only needs to be sharp, not full size.
@@ -17,10 +18,14 @@ type Props = {
 
 type Point = { x: number; y: number };
 
+// Spec decision 26: the crop screen opens with the whole photo selected, so one tap accepts it.
+const WHOLE: CropRect = { x: 0, y: 0, width: 1, height: 1 };
+
 export function PhotoPicker({ onPhoto, source = "camera", label = "Kumuha ng photo" }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLCanvasElement>(null);
-  const dragStart = useRef<Point | null>(null);
+  // Where the current drag started, and the box before it (restored if the drag was just a tap).
+  const drag = useRef<{ start: Point; before: CropRect | null } | null>(null);
   const [bitmap, setBitmap] = useState<ImageBitmap | null>(null);
   // Crop box as fractions (0–1) of the photo, so it survives layout changes.
   const [box, setBox] = useState<CropRect | null>(null);
@@ -42,9 +47,9 @@ export function PhotoPicker({ onPhoto, source = "camera", label = "Kumuha ng pho
     if (!file) return;
     setBusy(true);
     setError(null);
-    setBox(null);
     try {
       setBitmap(await decodePhoto(file));
+      setBox(WHOLE);
     } catch {
       setError("Hindi mabasa ang photo na ito. Subukan ang JPG o PNG.");
     } finally {
@@ -52,13 +57,13 @@ export function PhotoPicker({ onPhoto, source = "camera", label = "Kumuha ng pho
     }
   }
 
-  async function finish(useBox: boolean) {
+  async function finish() {
     if (!bitmap) return;
     setBusy(true);
     setError(null);
     try {
       const crop =
-        useBox && box
+        box && box !== WHOLE
           ? {
               x: Math.round(box.x * bitmap.width),
               y: Math.round(box.y * bitmap.height),
@@ -86,12 +91,11 @@ export function PhotoPicker({ onPhoto, source = "camera", label = "Kumuha ng pho
   function onPointerDown(e: React.PointerEvent<HTMLElement>) {
     if (busy) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    dragStart.current = pointAt(e);
-    setBox(null);
+    drag.current = { start: pointAt(e), before: box };
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLElement>) {
-    const start = dragStart.current;
+    const start = drag.current?.start;
     if (!start) return;
     const p = pointAt(e);
     setBox({
@@ -103,11 +107,10 @@ export function PhotoPicker({ onPhoto, source = "camera", label = "Kumuha ng pho
   }
 
   function onPointerUp() {
-    dragStart.current = null;
-    setBox((b) => (b && b.width > MIN_BOX_FRACTION && b.height > MIN_BOX_FRACTION ? b : null));
+    const before = drag.current?.before ?? WHOLE;
+    drag.current = null;
+    setBox((b) => (b && b.width > MIN_BOX_FRACTION && b.height > MIN_BOX_FRACTION ? b : before));
   }
-
-  const button = "min-h-12 rounded-xl px-4 font-semibold disabled:opacity-50";
 
   return (
     <div className="flex flex-col gap-3" aria-busy={busy}>
@@ -149,34 +152,23 @@ export function PhotoPicker({ onPhoto, source = "camera", label = "Kumuha ng pho
             )}
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={busy || !box}
-              onClick={() => finish(true)}
-              className={`${button} bg-green-800 text-white`}
-            >
-              I-crop at gamitin
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => finish(false)}
-              className={`${button} border border-zinc-300 dark:border-zinc-700`}
-            >
+            <Button disabled={busy} onClick={finish}>
+              Gamitin ang photo
+            </Button>
+            <Button variant="secondary" disabled={busy || box === WHOLE} onClick={() => setBox(WHOLE)}>
               Buong photo
-            </button>
+            </Button>
           </div>
         </>
       )}
 
-      <button
-        type="button"
+      <Button
+        variant={bitmap ? "secondary" : "primary"}
         disabled={busy}
         onClick={() => inputRef.current?.click()}
-        className={`${button} ${bitmap ? "border border-zinc-300 dark:border-zinc-700" : "bg-green-800 text-white"}`}
       >
         {bitmap ? "Ibang photo" : label}
-      </button>
+      </Button>
 
       <p role="status" className="text-sm">
         {busy && "Inihahanda ang photo…"}

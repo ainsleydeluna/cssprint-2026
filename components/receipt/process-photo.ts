@@ -1,6 +1,15 @@
-// Long edge of the photo we hand on, in pixels. Our model test may change this.
-export const MAX_LONG_EDGE_PX = 2000;
-export const JPEG_QUALITY = 0.85;
+/**
+ * Long edge of the photo we hand on, in pixels (spec decision 26). Set by NEXT_PUBLIC_MAX_PHOTO_PX
+ * so the bake-off can compare sizes; lib/ai/config.ts reads the same variable.
+ * Falls back to 1600 when the variable is missing or not a positive whole number.
+ */
+export const MAX_LONG_EDGE_PX = parseMaxPhotoPx(process.env.NEXT_PUBLIC_MAX_PHOTO_PX);
+export const JPEG_QUALITY = 0.8;
+
+export function parseMaxPhotoPx(value: string | undefined): number {
+  const px = Number(value);
+  return value?.trim() && Number.isInteger(px) && px > 0 ? px : 1600;
+}
 
 /** A rectangle in the decoded photo's own pixels. */
 export type CropRect = { x: number; y: number; width: number; height: number };
