@@ -3,7 +3,15 @@
 
 import { describe, expect, test } from "vitest";
 import type { Stem } from "../types";
-import { parseNewStem, parseQuoteLines, parseQuoteUpdate, parseShopUpdate, parseStemUpdate } from "./fields";
+import {
+  parseCopied,
+  parseCreateQuote,
+  parseNewStem,
+  parseQuoteLines,
+  parseQuoteUpdate,
+  parseShopUpdate,
+  parseStemUpdate,
+} from "./fields";
 
 describe("parseShopUpdate", () => {
   test("keeps the shop settings and drops every other field", () => {
@@ -191,5 +199,35 @@ describe("parseQuoteLines", () => {
 
   test("refuses lines that are not a list", () => {
     expect(parseQuoteLines({ lines: roseLine }, context)).toMatchObject({ ok: false, code: "invalid_request" });
+  });
+});
+
+describe("parseCopied", () => {
+  test("keeps the reply text", () => {
+    expect(parseCopied({ replyText: "Hi po!", status: "sent" })).toEqual({ ok: true, value: { replyText: "Hi po!" } });
+  });
+
+  test.each([
+    ["no reply text", {}],
+    ["empty reply text", { replyText: "  " }],
+  ])("refuses %s with invalid_request", (_case, body) => {
+    expect(parseCopied(body)).toMatchObject({ ok: false, code: "invalid_request" });
+  });
+});
+
+describe("parseCreateQuote", () => {
+  const shopId = "a0000000-0000-4000-8000-000000000001";
+  const photoPath = `${shopId}/b0000000-0000-4000-8000-000000000001.jpg`;
+
+  test("keeps a photo path in the shop's own folder", () => {
+    expect(parseCreateQuote({ photoPath }, shopId)).toEqual({ ok: true, value: { photoPath } });
+  });
+
+  test.each([
+    ["no photo path", {}],
+    ["another shop's folder", { photoPath: `a0000000-0000-4000-8000-000000000002/b0000000-0000-4000-8000-000000000001.jpg` }],
+    ["a path that leaves the folder", { photoPath: `${shopId}/../x.jpg` }],
+  ])("refuses %s with invalid_request", (_case, body) => {
+    expect(parseCreateQuote(body, shopId)).toMatchObject({ ok: false, code: "invalid_request" });
   });
 });

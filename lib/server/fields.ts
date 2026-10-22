@@ -6,6 +6,8 @@
 import { isManilaDate } from "../ai/shared";
 import type {
   AddStemRequest,
+  CopiedRequest,
+  CreateQuoteRequest,
   UpdateQuoteLinesRequest,
   UpdateQuoteRequest,
   UpdateShopRequest,
@@ -208,4 +210,24 @@ export function parseQuoteLines(
     lines.push(line);
   }
   return { ok: true, value: lines };
+}
+
+/** POST /api/quotes/[id]/copied: the text as copied, never empty. */
+export function parseCopied(body: unknown): Parsed<CopiedRequest> {
+  const picked = pick<CopiedRequest>(body, { replyText: name(2000) });
+  if (!picked.ok) return picked;
+  return picked.value.replyText === undefined ? invalid("Missing replyText") : { ok: true, value: { replyText: picked.value.replyText } };
+}
+
+/** "<shop_id>/<uuid>.jpg", as POST /api/photos returns it. */
+export function isShopPhotoPath(photoPath: string, shopId: string): boolean {
+  return photoPath.startsWith(`${shopId}/`) && /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.jpg$/.test(photoPath);
+}
+
+/** POST /api/quotes: a bouquet photo in the shop's own folder. */
+export function parseCreateQuote(body: unknown, shopId: string): Parsed<CreateQuoteRequest> {
+  if (!isRecord(body) || typeof body.photoPath !== "string" || !isShopPhotoPath(body.photoPath, shopId)) {
+    return invalid("Invalid photoPath");
+  }
+  return { ok: true, value: { photoPath: body.photoPath } };
 }
