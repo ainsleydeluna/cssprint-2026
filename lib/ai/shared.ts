@@ -3,6 +3,8 @@
 
 import type { BetaContentBlockParam } from "@anthropic-ai/sdk/resources/beta/messages";
 import type { StemWithCost } from "../contract";
+import type { ManilaDate, Money } from "../types";
+import type { AiOutcome } from "./client";
 
 /** One of the shop's visible rows, as an AI call needs it. */
 export type AllowedStem = Pick<StemWithCost, "name" | "isFiller">;
@@ -32,6 +34,34 @@ export function findStem<S extends AllowedStem>(stems: S[], name: string | null)
   if (name === null) return undefined;
   const wanted = name.trim().toLowerCase();
   return stems.find((stem) => stem.name.toLowerCase() === wanted);
+}
+
+/** "₱1,220", or "₱22.50" when there are centavos. */
+export function pesos(amount: Money): string {
+  const digits = Number.isInteger(amount) ? 0 : 2;
+  return `₱${amount.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** A Manila calendar date as the reply writes it: "2026-10-25" is "Oct 25". */
+export function shortDate(date: ManilaDate): string {
+  const [, month, day] = date.split("-").map(Number);
+  return `${MONTHS[month - 1]} ${day}`;
+}
+
+/**
+ * Passes a drafted message through only if it carries each text exactly, so a
+ * customer never gets a wrong price or date.
+ */
+export function requireTexts(
+  outcome: AiOutcome<{ message: string; note: string }>,
+  texts: string[],
+  what: string,
+): AiOutcome<{ message: string; note: string }> {
+  if (!outcome.ok) return outcome;
+  const missing = texts.find((text) => !outcome.result.message.includes(text));
+  return missing === undefined ? outcome : { ...outcome, ok: false, error: `${what} is missing ${missing}` };
 }
 
 /** JSON schema pieces for structured outputs. */
