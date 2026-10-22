@@ -43,10 +43,16 @@ function thinkingOff(model: ModelId): BetaThinkingConfigParam | undefined {
   }
 }
 
+let client: { apiKey: string; api: MessagesApi } | undefined;
+
+/** One SDK client per key, so calls reuse its connections. */
 function realApi(): MessagesApi | null {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
-  return new Anthropic({ apiKey, timeout: TIMEOUT_MS, maxRetries: MAX_RETRIES }).beta.messages;
+  if (client?.apiKey !== apiKey) {
+    client = { apiKey, api: new Anthropic({ apiKey, timeout: TIMEOUT_MS, maxRetries: MAX_RETRIES }).beta.messages };
+  }
+  return client.api;
 }
 
 function errorText(error: unknown): string {
