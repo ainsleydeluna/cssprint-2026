@@ -1,36 +1,40 @@
 "use client";
 
 import { useState } from "react";
-import type { AddStemRequest, ReceiptDraftLine, SaveReceiptRequest, SaveReceiptResponse, StemWithCost } from "@/lib/contract";
-import { receiptLineTotal } from "@/lib/money";
-import { t as label } from "@/lib/strings";
+import {
+  type AddStemRequest,
+  type ReceiptDraftLine,
+  type SaveReceiptRequest,
+  type SaveReceiptResponse,
+  type StemWithCost,
+  stemName,
+} from "@/lib/contract";
+import { t } from "@/lib/strings";
 import { addStem, extractReceipt, listStems, saveReceipt, uploadPhoto } from "./api";
 import { Button, Input, Row } from "./kit";
 import { PhotoPicker } from "./PhotoPicker";
 import { type DraftLine, ReceiptTable } from "./ReceiptTable";
-import { scan as t } from "./strings";
 
 type State =
   | { step: "pick" }
   | { step: "working"; message: string }
-  | { step: "table"; photoPath: string; purchaseDate: string }
+  | { step: "table"; photoPath: string; purchaseDate: string; demo: boolean }
   | { step: "saved"; result: SaveReceiptResponse };
 
 const peso = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 const num = (s: string) => (s.trim() === "" ? NaN : Number(s));
 
 function toDraft(line: ReceiptDraftLine, i: number): DraftLine {
-  // receiptLineTotal keeps the written total, else quantity × unit price when the unit is known;
-  // null means the florist fills it in. The unit price is shown as a hint either way.
-  const total = receiptLineTotal(line);
   return {
     key: String(i),
     rawText: line.rawText,
     stemId: line.stemId,
     quantity: line.quantity?.toString() ?? "",
     unit: line.unit ?? "",
+    unitFromReceipt: line.unit !== null,
     bundleSize: line.bundleSize?.toString() ?? "",
-    totalPaid: total?.toString() ?? "",
+    // The route fills a missing total when it can; null means the florist fills it in.
+    totalPaid: line.totalPaid?.toString() ?? "",
     unitPrice: line.unitPrice,
     confidence: line.confidence,
     note: line.note,
@@ -58,24 +62,25 @@ export function ReceiptScan() {
     try {
       return await task();
     } catch {
-      setError(label("common", "error"));
+      setError(t("common", "error"));
       setState(fallback);
       return null;
     }
   }
 
   async function handlePhoto(photo: File) {
-    const result = await run(t.uploading, async () => {
+    const result = await run(t("scan", "uploading"), async () => {
       const { photoPath } = await uploadPhoto(photo, "receipts");
-      setState({ step: "working", message: t.reading });
+      setState({ step: "working", message: t("scan", "reading") });
       const [extract, stemList] = await Promise.all([extractReceipt(photoPath), listStems()]);
       return { photoPath, extract, stemList };
     }, { step: "pick" });
     if (!result) return;
-    setStems(result.stemList);
-    setLines(result.extract.lines.map(toDraft));
+    const { photoPath, extract, stemList } = result;
+    setStems(stemList);
+    setLines(extract.lines.map(toDraft));
     // The route answers today in Manila when the AI could not read a date.
-    setState({ step: "table", photoPath: result.photoPath, purchaseDate: result.extract.purchaseDate });
+    setState({ step: "table", photoPath, purchaseDate: extract.purchaseDate, demo: extract.demo });
   }
 
   async function handleAddStem(input: AddStemRequest) {
@@ -104,26 +109,26 @@ export function ReceiptScan() {
       <div className="flex flex-col gap-4">
         {underwaterQuoteIds.length > 0 && (
           <p role="alert" className="rounded-xl border border-amber-400 bg-amber-50 p-3 font-semibold text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
-            {label("quotes", "underwaterBanner", { count: underwaterQuoteIds.length })}
+            {t("quotes", "underwaterBanner", { count: underwaterQuoteIds.length })}
           </p>
         )}
-        <p>{t.saved}</p>
+        <p>{t("scan", "saved")}</p>
         <ul className="flex flex-col gap-2">
           {batches.map((b) => {
             const s = byId.get(b.stemId);
             return (
               <Row key={b.id}>
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-medium">{s?.name ?? b.stemId}</span>
+                  <span className="font-medium">{s ? stemName(s) : b.stemId}</span>
                   <span className="shrink-0">
-                    {peso.format(b.costPerStem)} {s?.isFiller ? t.perBunch : t.perStem}
+                    {peso.format(b.costPerStem)} {t("scan", s?.isFiller ? "perBunch" : "perStem")}
                   </span>
                 </div>
               </Row>
             );
           })}
         </ul>
-        <Button onClick={() => setState({ step: "pick" })}>{t.scanAgain}</Button>
+        <Button onClick={() => setState({ step: "pick" })}>{t("scan", "scanAgain")}</Button>
       </div>
     );
   }
@@ -131,11 +136,15 @@ export function ReceiptScan() {
   const inputs = lines.map(toInput);
   const unmatched = lines.filter((l) => !l.stemId).length;
   const incomplete = inputs.filter((x) => x === null).length - unmatched;
-  const blocker = lines.length === 0 ? t.noLines : unmatched ? t.unmatched(unmatched) : incomplete ? t.incomplete(incomplete) : null;
+  const blocker =
+    lines.length === 0 ? t("scan", "noLines")
+    : unmatched ? t("scan", "unmatched", { n: unmatched })
+    : incomplete ? t("scan", "incomplete", { n: incomplete })
+    : null;
   const tableState = state;
 
   async function handleSave() {
-    const result = await run(t.saving, () =>
+    const result = await run(t("scan", "saving"), () =>
       saveReceipt({
         photoPath: tableState.photoPath,
         purchaseDate: tableState.purchaseDate,
@@ -146,8 +155,13 @@ export function ReceiptScan() {
 
   return (
     <div className="flex flex-col gap-4">
+      {state.demo && (
+        <p className="self-start rounded-full bg-zinc-200 px-3 py-1 text-sm font-semibold text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+          {t("common", "demo")}
+        </p>
+      )}
       <Input
-        label={label("scan", "purchaseDate")}
+        label={t("scan", "purchaseDate")}
         type="date"
         value={state.purchaseDate}
         onChange={(e) => setState({ ...tableState, purchaseDate: e.target.value })}
@@ -159,7 +173,7 @@ export function ReceiptScan() {
           <p role="status" className="text-sm text-red-700 dark:text-red-400">{error ?? blocker}</p>
         )}
         <Button disabled={!!blocker || !state.purchaseDate} onClick={handleSave}>
-          {t.save}
+          {t("common", "save")}
         </Button>
       </div>
     </div>
