@@ -1,9 +1,9 @@
 // Runs one AI call on a sample input and prints the answer, model, seconds and
 // tokens. Uses the fake shop's visible rows from lib/fake/data.ts.
 //
-//   npx jiti scripts/try-ai.ts receipt [photo.jpg]
-//   npx jiti scripts/try-ai.ts bouquet [photo.jpg]
-//   npx jiti scripts/try-ai.ts budget | reply | price-update
+//   npm run try-ai -- receipt [photo.jpg]
+//   npm run try-ai -- bouquet [photo.jpg]
+//   npm run try-ai -- budget | reply | price-update
 //
 // Without a photo it takes the first one in fixtures/receipts or fixtures/eval.
 // The text calls use a fixed sample recipe: 24 red roses and 2 bunches of baby's breath.
@@ -76,7 +76,7 @@ async function main() {
     case "price-update":
       return print(await priceUpdate({ oldPrice: 1430, newPrice: 1610, validUntil: "2026-10-26" }));
     default:
-      console.log("Usage: npx jiti scripts/try-ai.ts receipt|bouquet [photo] | budget | reply | price-update");
+      console.log("Usage: npm run try-ai -- receipt|bouquet [photo] | budget | reply | price-update");
       process.exitCode = 1;
   }
 }

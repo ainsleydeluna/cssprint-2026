@@ -39,7 +39,7 @@ const SCHEMA = schema.object({
   note: { type: "string" },
 });
 
-type Row = Pick<StemWithCost, "name" | "isFiller" | "latestCost">;
+type Row = Pick<StemWithCost, "name" | "isFiller" | "hidden" | "latestCost">;
 
 /** The recipe's main flower: its flower line with the most stems. */
 function mainFlower(recipe: Array<{ stem: string; count: number }>, stems: Row[]): Row | undefined {

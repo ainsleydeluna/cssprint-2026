@@ -5,9 +5,10 @@ import { fakeApi, fakeMessage } from "./fakeApi";
 
 const photo = { data: new Uint8Array([0xff, 0xd8, 0xff]), mediaType: "image/jpeg" as const };
 const stems = [
-  { name: "Rose - red", isFiller: false },
-  { name: "Carnation - pink", isFiller: false },
-  { name: "Baby's breath - white", isFiller: true },
+  { name: "Rose - red", isFiller: false, hidden: false },
+  { name: "Carnation - pink", isFiller: false, hidden: false },
+  { name: "Baby's breath - white", isFiller: true, hidden: false },
+  { name: "Sunflower - yellow", isFiller: false, hidden: true },
 ];
 
 type Line = AnalyzeBouquetResult["lines"][number];
@@ -49,6 +50,20 @@ describe("analyzeBouquet", () => {
     const { lines } = await analyze(line({ stem: "Tulip - yellow", closestStem: "carnation - PINK" }));
 
     expect(lines[0]).toMatchObject({ stem: "Other", closestStem: "Carnation - pink" });
+  });
+
+  test("leaves hidden rows out of the list and turns a hidden row's name into Other", async () => {
+    const { lines, request } = await analyze(line({ stem: "Sunflower - yellow", closestStem: "Sunflower - yellow" }));
+
+    expect(JSON.stringify(request.messages[0].content)).not.toContain("Sunflower");
+    expect(lines[0]).toMatchObject({ stem: "Other", closestStem: null });
+  });
+
+  test("asks for a flower row as closest stem and drops a filler one", async () => {
+    const { lines, request } = await analyze(line({ stem: "Tulip - white", closestStem: "Baby's breath - white" }));
+
+    expect(request.system).toContain("a row under Flowers, never a filler");
+    expect(lines[0]).toMatchObject({ stem: "Other", closestStem: null });
   });
 
   test("drops a closest stem that is not one of the shop's rows", async () => {
@@ -113,6 +128,25 @@ describe("bouquetToLines", () => {
     );
 
     expect(other).toMatchObject({ stemId: "carnation", costPerStem: 12, confidence: "medium", note: "Tulip, yellow" });
+  });
+
+  test("treats a hidden row's name as Other and ignores a filler closest stem", () => {
+    const hiddenRows = rows.map((row) => (row.id === "rose" ? { ...row, hidden: true } : row));
+    const lines = bouquetToLines(
+      {
+        lines: [
+          line({ stem: "Rose - red" }),
+          line({ stem: "Other", closestStem: "Baby's breath - white", note: "Statice" }),
+        ],
+        note: "",
+      },
+      hiddenRows,
+    );
+
+    expect(lines.map((l) => [l.stemId, l.costPerStem])).toEqual([
+      [null, 0],
+      [null, 0],
+    ]);
   });
 
   test("makes Other with no closest stem a pick-a-flower line at ₱0", () => {

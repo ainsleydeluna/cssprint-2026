@@ -7,7 +7,7 @@ import { clampBouquet, clampCount, prefillCount } from "../money";
 import type { QuoteLine } from "../types";
 import { askClaude, type AiOutcome, type MessagesApi } from "./client";
 import { COUNT_PREFILL } from "./config";
-import { findStem, photoBlock, schema, stemList, type AllowedStem, type Photo } from "./shared";
+import { findFlower, findStem, photoBlock, schema, stemList, type AllowedStem, type Photo } from "./shared";
 
 const SYSTEM = `You look at a photo of a bouquet that a customer sent to a florist in Manila, and list what is in it so the florist can price it.
 
@@ -16,7 +16,7 @@ Return one line per kind of flower and one line per filler you can see.
 - color: your own words for the color, such as "deep red" or "blush pink".
 - countLow, countHigh: how many the bouquet holds. The low end is what you can see; the high end adds the ones likely hidden. Flowers are counted in stems. A filler (listed under Fillers) is counted in bunches, usually 1 to 3.
 - confidence: high when the row and count are clear, medium when one is a guess, low when both are.
-- closestStem: when stem is "Other", the row from the allowed list a florist would use in its place; otherwise null.
+- closestStem: when stem is "Other", the row a florist would use in its place: a row under Flowers, never a filler. Otherwise null.
 - note: when stem is "Other", start with the flower's real name. Otherwise a few words on anything unsure; "" if nothing.
 
 Rules:
@@ -59,9 +59,10 @@ export async function analyzeBouquet(
 
   const lines = outcome.result.lines.map((line) => {
     const stem = findStem(input.stems, line.stem);
-    const closest = stem ? undefined : findStem(input.stems, line.closestStem);
-    // Other with no closest stem is counted as a flower, like the closest would be.
-    const isFiller = (stem ?? closest)?.isFiller ?? false;
+    // A filler closest stem is dropped, so the line becomes a "pick a flower" line.
+    const closest = stem ? undefined : findFlower(input.stems, line.closestStem);
+    // Other is counted as a flower, like its closest stem.
+    const isFiller = stem?.isFiller ?? false;
     const low = clampCount(Math.min(line.countLow, line.countHigh), isFiller);
     const high = clampCount(Math.max(line.countLow, line.countHigh), isFiller);
     return { ...line, stem: stem?.name ?? "Other", closestStem: closest?.name ?? null, countLow: low, countHigh: high };
@@ -82,7 +83,7 @@ export type DraftQuoteLine = Pick<
  * flower" line at ₱0 (decision 9). Flower lines are then scaled to 200 stems.
  */
 export function bouquetToLines(result: AnalyzeBouquetResult, stems: StemWithCost[]): DraftQuoteLine[] {
-  const rows = result.lines.map((line) => findStem(stems, line.stem) ?? findStem(stems, line.closestStem));
+  const rows = result.lines.map((line) => findStem(stems, line.stem) ?? findFlower(stems, line.closestStem));
   const counts = clampBouquet(
     result.lines.map((line, i) => {
       const isFiller = rows[i]?.isFiller ?? false;

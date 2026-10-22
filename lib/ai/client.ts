@@ -4,35 +4,36 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import type {
-  BetaContentBlockParam,
-  BetaMessage,
-  BetaThinkingConfigParam,
+  ContentBlockParam,
+  Message,
   MessageCreateParamsNonStreaming,
-} from "@anthropic-ai/sdk/resources/beta/messages";
+  ThinkingConfigParam,
+} from "@anthropic-ai/sdk/resources/messages";
 import type { AiCallName } from "../types";
 import { CALLS, MAX_RETRIES, TIMEOUT_MS, type ModelId } from "./config";
+import { shapeError } from "./shape";
 
 /**
  * What every call returns. Failures still carry the model and seconds so the
  * caller can write its ai_calls row; `error` is short English for logs.
  */
-export type AiOutcome<T> = { model: string; seconds: number; inputTokens: number; outputTokens: number } & (
+export type AiOutcome<T> = { model: ModelId; seconds: number; inputTokens: number; outputTokens: number } & (
   | { ok: true; result: T }
   | { ok: false; error: string }
 );
 
 /** The one SDK method we use. Tests pass a fake. */
-export type MessagesApi = { create(body: MessageCreateParamsNonStreaming): Promise<BetaMessage> };
+export type MessagesApi = { create(body: MessageCreateParamsNonStreaming): Promise<Message> };
 
 export type AiRequest = {
   system: string;
-  content: string | BetaContentBlockParam[];
+  content: string | ContentBlockParam[];
   /** JSON schema of the answer; the API enforces it. */
   schema: Record<string, unknown>;
 };
 
 /** Thinking off, per config.ts: Sonnet needs "between_tools", Opus takes no field. */
-function thinkingOff(model: ModelId): BetaThinkingConfigParam | undefined {
+function thinkingOff(model: ModelId): ThinkingConfigParam | undefined {
   switch (model) {
     case "claude-sonnet-5-5":
       return { type: "between_tools" };
@@ -50,20 +51,23 @@ function realApi(): MessagesApi | null {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
   if (client?.apiKey !== apiKey) {
-    client = { apiKey, api: new Anthropic({ apiKey, timeout: TIMEOUT_MS, maxRetries: MAX_RETRIES }).beta.messages };
+    client = { apiKey, api: new Anthropic({ apiKey, timeout: TIMEOUT_MS, maxRetries: MAX_RETRIES }).messages };
   }
   return client.api;
 }
 
 function errorText(error: unknown): string {
-  if (error instanceof Anthropic.APIConnectionTimeoutError) return `Timed out after ${TIMEOUT_MS / 1000} seconds`;
+  if (error instanceof Anthropic.APIConnectionTimeoutError) {
+    const seconds = (TIMEOUT_MS * (MAX_RETRIES + 1)) / 1000;
+    return `Timed out; gave up after one retry (about ${seconds} seconds)`;
+  }
   if (error instanceof Anthropic.APIConnectionError) return "Could not reach Claude";
   if (error instanceof Anthropic.APIError) return `Claude API error ${error.status ?? ""}`.trim();
   return "AI call failed";
 }
 
 /** Reads a finished message: the JSON answer, or why there is none. */
-function readAnswer<T>(message: BetaMessage): { ok: true; result: T } | { ok: false; error: string } {
+function readAnswer<T>(message: Message, schema: AiRequest["schema"]): { ok: true; result: T } | { ok: false; error: string } {
   if (message.stop_reason === "refusal") {
     const category = message.stop_details?.category;
     return { ok: false, error: category ? `Claude declined (${category})` : "Claude declined" };
@@ -71,18 +75,21 @@ function readAnswer<T>(message: BetaMessage): { ok: true; result: T } | { ok: fa
   if (message.stop_reason === "max_tokens") return { ok: false, error: "Answer was cut off" };
   const text = message.content.find((block) => block.type === "text");
   if (!text) return { ok: false, error: "Answer had no text" };
+  let answer: unknown;
   try {
-    return { ok: true, result: JSON.parse(text.text) as T };
+    answer = JSON.parse(text.text);
   } catch {
     return { ok: false, error: "Answer was not valid JSON" };
   }
+  const error = shapeError(answer, schema);
+  return error ? { ok: false, error } : { ok: true, result: answer as T };
 }
 
 /**
  * Sends one request with the call's model and effort from config.ts and the
  * answer format enforced by structured outputs. The SDK times out at 30 seconds
- * and retries once; a server-side fallback model answers if the first declines,
- * and `model` is the one that answered.
+ * and retries once. There is no fallback to another model, so `model` is always
+ * the configured one and the bake-off measures one model per run.
  */
 export async function askClaude<T>(call: AiCallName, request: AiRequest, api?: MessagesApi): Promise<AiOutcome<T>> {
   const { model, effort } = CALLS[call];
@@ -93,15 +100,13 @@ export async function askClaude<T>(call: AiCallName, request: AiRequest, api?: M
   if (!messages) return { ok: false, error: "ANTHROPIC_API_KEY is not set", model, seconds: 0, inputTokens: 0, outputTokens: 0 };
 
   const thinking = thinkingOff(model);
-  let message: BetaMessage;
+  let message: Message;
   try {
     message = await messages.create({
       model,
       max_tokens: 16000,
       ...(thinking && { thinking }),
       output_config: { effort, format: { type: "json_schema", schema: request.schema } },
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
       system: request.system,
       messages: [{ role: "user", content: request.content }],
     });
@@ -110,8 +115,8 @@ export async function askClaude<T>(call: AiCallName, request: AiRequest, api?: M
   }
 
   return {
-    ...readAnswer<T>(message),
-    model: message.model,
+    ...readAnswer<T>(message, request.schema),
+    model,
     seconds: seconds(),
     inputTokens: message.usage.input_tokens,
     outputTokens: message.usage.output_tokens,

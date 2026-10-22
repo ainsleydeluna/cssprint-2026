@@ -1,8 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { BetaMessage } from "@anthropic-ai/sdk/resources/beta/messages";
+import type { Message } from "@anthropic-ai/sdk/resources/messages";
 import { describe, expect, test } from "vitest";
 import { askClaude } from "./client";
 import { fakeApi, fakeMessage } from "./fakeApi";
+import { schema } from "./shared";
 
 const request = { system: "Read the receipt.", content: "hello", schema: { type: "object" } };
 
@@ -39,17 +40,28 @@ describe("askClaude", () => {
     expect(requests[1]).not.toHaveProperty("thinking");
   });
 
-  test("reports the model that answered, which a fallback may change", async () => {
-    const { api } = fakeApi(fakeMessage({}, { model: "claude-opus-5-5" }));
+  test("asks one model only, with no fallback, and logs the configured model", async () => {
+    const { api, requests } = fakeApi(fakeMessage({}, { model: "claude-opus-5-5" }));
 
-    expect(await askClaude("extractReceipt", request, api)).toMatchObject({ ok: true, model: "claude-opus-5-5" });
+    expect(await askClaude("extractReceipt", request, api)).toMatchObject({ ok: true, model: "claude-sonnet-5-5" });
+    expect(requests[0]).not.toHaveProperty("fallbacks");
+    expect(requests[0]).not.toHaveProperty("betas");
+  });
+
+  test("says it gave up after one retry when the request times out", async () => {
+    const { api } = fakeApi(new Anthropic.APIConnectionTimeoutError());
+
+    expect(await askClaude("extractReceipt", request, api)).toMatchObject({
+      ok: false,
+      error: "Timed out; gave up after one retry (about 60 seconds)",
+    });
   });
 
   test("turns a refusal into a short error that keeps the tokens", async () => {
     const { api } = fakeApi(
       fakeMessage("", {
         stop_reason: "refusal",
-        stop_details: { type: "refusal", category: "cyber" } as BetaMessage["stop_details"],
+        stop_details: { type: "refusal", category: "cyber" } as Message["stop_details"],
       }),
     );
 
@@ -73,6 +85,39 @@ describe("askClaude", () => {
     expect(await askClaude("extractReceipt", request, api)).toMatchObject({
       ok: false,
       error: "Answer was not valid JSON",
+    });
+  });
+
+  describe("checks the answer against its schema", () => {
+    const linesRequest = {
+      ...request,
+      schema: schema.object({
+        lines: { type: "array", items: schema.object({ stem: schema.nullable("string"), count: { type: "integer" } }) },
+        note: { type: "string" },
+      }),
+    };
+    const ask = (answer: unknown) => askClaude("analyzeBouquet", linesRequest, fakeApi(fakeMessage(answer)).api);
+
+    test("passes an answer with every field", async () => {
+      expect(await ask({ lines: [{ stem: null, count: 3 }], note: "" })).toMatchObject({ ok: true });
+    });
+
+    test("fails an answer without its lines array", async () => {
+      expect(await ask({ note: "" })).toMatchObject({ ok: false, error: "Answer is missing lines" });
+    });
+
+    test("fails a line without a required field", async () => {
+      expect(await ask({ lines: [{ count: 3 }], note: "" })).toMatchObject({
+        ok: false,
+        error: "Answer is missing lines[0].stem",
+      });
+    });
+
+    test("fails a field of the wrong type", async () => {
+      expect(await ask({ lines: [{ stem: "Rose - red", count: 2.5 }], note: "" })).toMatchObject({
+        ok: false,
+        error: "Answer has a wrong lines[0].count",
+      });
     });
   });
 

@@ -11,9 +11,9 @@ const input = {
   budget: 1000,
   currentPrice: 1430,
   stems: [
-    { name: "Rose - red", isFiller: false, latestCost: 22.5 },
-    { name: "Carnation - red", isFiller: false, latestCost: 12 },
-    { name: "Baby's breath - white", isFiller: true, latestCost: 80 },
+    { name: "Rose - red", isFiller: false, hidden: false, latestCost: 22.5 },
+    { name: "Carnation - red", isFiller: false, hidden: false, latestCost: 12 },
+    { name: "Baby's breath - white", isFiller: true, hidden: false, latestCost: 80 },
   ],
 };
 

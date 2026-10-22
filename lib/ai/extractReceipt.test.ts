@@ -5,8 +5,9 @@ import { fakeApi, fakeMessage } from "./fakeApi";
 
 const photo = { data: new Uint8Array([0xff, 0xd8, 0xff]), mediaType: "image/jpeg" as const };
 const stems = [
-  { name: "Rose - red", isFiller: false },
-  { name: "Baby's breath - white", isFiller: true },
+  { name: "Rose - red", isFiller: false, hidden: false },
+  { name: "Baby's breath - white", isFiller: true, hidden: false },
+  { name: "Tulip - pink", isFiller: false, hidden: true },
 ];
 
 type Line = ExtractReceiptResult["lines"][number];
@@ -44,8 +45,15 @@ describe("extractReceipt", () => {
   });
 
   test("leaves a line unmatched when its name is not one of the shop's rows", async () => {
-    const { outcome } = await extract({ purchaseDate: null, lines: [line({ stem: "Tulip - pink" })], note: "" });
+    const { outcome } = await extract({ purchaseDate: null, lines: [line({ stem: "Lily - white" })], note: "" });
 
+    expect(outcome.ok && outcome.result.lines[0].stem).toBeNull();
+  });
+
+  test("leaves a line unmatched when its name matches only a hidden row", async () => {
+    const { outcome, request } = await extract({ purchaseDate: null, lines: [line({ stem: "Tulip - pink" })], note: "" });
+
+    expect(JSON.stringify(request.messages[0].content)).not.toContain("Tulip");
     expect(outcome.ok && outcome.result.lines[0].stem).toBeNull();
   });
 
@@ -69,6 +77,12 @@ describe("extractReceipt", () => {
     const { outcome } = await extract({ purchaseDate: "2026-13-45", lines: [], note: "" });
 
     expect(outcome.ok && outcome.result.purchaseDate).toBeNull();
+  });
+
+  test("returns an error, not a crash, when the answer has no lines", async () => {
+    const { api } = fakeApi(fakeMessage({ purchaseDate: null, note: "" }));
+
+    expect(await extractReceipt({ photo, stems }, api)).toMatchObject({ ok: false, error: "Answer is missing lines" });
   });
 
   test("passes a failed call through", async () => {
