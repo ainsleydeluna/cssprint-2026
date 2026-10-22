@@ -1,18 +1,31 @@
-import { stemName, type AddStemRequest, type AddStemResponse, type StemListResponse } from "@/lib/contract";
-import { shop, stemList } from "@/lib/fake/responses";
-import { latestCost } from "@/lib/money";
-import { errorResponse } from "@/lib/server/http";
+import type { AddStemResponse, StemListResponse } from "@/lib/contract";
+import { requireShop } from "@/lib/server/auth";
+import { stemsWithCost, withCost } from "@/lib/server/costs";
+import { parseNewStem } from "@/lib/server/fields";
+import { DUPLICATE_NAME, errorResponse, readJson } from "@/lib/server/http";
+import { STEM_COLUMNS, toColumns, toStem } from "@/lib/server/rows";
 
-// Stubs: answer fake data until a backend ticket replaces them.
+// Hidden rows included, so shop setup can unhide them.
 export async function GET() {
-  return Response.json(stemList satisfies StemListResponse);
+  const session = await requireShop();
+  if (session instanceof Response) return session;
+  return Response.json({ stems: await stemsWithCost(session.supabase) } satisfies StemListResponse);
 }
 
+// A typed row ("Other" in the shop's list). Answers invalid_bundle_size for a bundle row without a size.
 export async function POST(request: Request) {
-  const fields: AddStemRequest = await request.json();
-  const stem = { ...fields, id: crypto.randomUUID(), shopId: shop.id, sampleSource: "", hidden: false };
-  // A new stem has no batches, so its cost is null only for a bundle without a size.
-  const { cost, isSample } = latestCost(stem, []);
-  if (cost === null) return errorResponse("invalid_bundle_size", "A bundle stem needs a bundle size above 0");
-  return Response.json({ ...stem, name: stemName(stem), latestCost: cost, isSample } satisfies AddStemResponse);
+  const session = await requireShop();
+  if (session instanceof Response) return session;
+  const parsed = parseNewStem(await readJson(request));
+  if (!parsed.ok) return errorResponse(parsed.code, parsed.error);
+
+  const { data, error } = await session.supabase
+    .from("stems")
+    .insert({ ...toColumns(parsed.value), shop_id: session.shop.id, sample_source: "" })
+    .select(STEM_COLUMNS)
+    .single();
+  if (error?.code === DUPLICATE_NAME) return errorResponse("invalid_request", "The shop already has a row with this name");
+  if (error) throw new Error(`Adding the stem failed: ${error.message}`);
+  // A new row has no stock batches yet, so its latest cost is the sample price.
+  return Response.json(withCost(toStem(data), []) satisfies AddStemResponse);
 }
