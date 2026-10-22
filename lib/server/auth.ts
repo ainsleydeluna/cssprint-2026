@@ -25,12 +25,21 @@ export async function shopSession(supabase: SupabaseClient): Promise<ShopSession
   let row = await readShop(supabase);
   if (!row) {
     // /auth/confirm creates the shop; this covers a sign-in whose create_shop call failed.
-    const created = await supabase.rpc("create_shop", { starter });
-    if (created.error) throw new Error(`Creating the shop failed: ${created.error.message}`);
+    await createShop(supabase);
     row = await readShop(supabase);
   }
   if (!row) return errorResponse("not_found", "Shop not found");
   return { supabase, shop: toShop(row) };
+}
+
+/**
+ * Creates the signed-in user's shop with the starter list (spec decision 14).
+ * True when it created the shop, false when the user already had one.
+ */
+export async function createShop(supabase: SupabaseClient): Promise<boolean> {
+  const { data, error } = await supabase.rpc("create_shop", { starter });
+  if (error) throw new Error(`Creating the shop failed: ${error.message}`);
+  return data === true;
 }
 
 /** Row-level security returns only the caller's own shop. */
