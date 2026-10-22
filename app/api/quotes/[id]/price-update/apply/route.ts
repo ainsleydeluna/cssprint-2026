@@ -1,8 +1,8 @@
 import type { ApplyPriceUpdateResponse } from "@/lib/contract";
 import { requireShop } from "@/lib/server/auth";
-import { stemsWithCost } from "@/lib/server/costs";
 import { parseApplyPriceUpdate } from "@/lib/server/fields";
 import { errorResponse, readJson } from "@/lib/server/http";
+import { latestCosts } from "@/lib/server/margin-alarm";
 import { priceUpdateChanges } from "@/lib/server/price-rules";
 import { readQuote } from "@/lib/server/quotes";
 import { QUOTE_COLUMNS, toColumns, toQuote } from "@/lib/server/rows";
@@ -27,7 +27,8 @@ export async function POST(request: Request, ctx: RouteContext<"/api/quotes/[id]
   }
 
   const stemIds = detail.lines.flatMap((line) => (line.stemId === null ? [] : [line.stemId]));
-  const costs = new Map((await stemsWithCost(supabase, stemIds)).map((stem) => [stem.id, stem.latestCost]));
+  // Read even with MARGIN_ALARM off: a flagged quote's price is checked regardless.
+  const costs = await latestCosts(supabase, stemIds, { enabled: true });
   const applied = priceUpdateChanges(detail.quote, detail.lines, costs, shop, parsed.value.message, new Date());
   if (!applied.ok) return errorResponse("invalid_request", "Only an open, underwater quote gets a price update");
 

@@ -1,18 +1,17 @@
 import type { DraftReplyResponse } from "@/lib/contract";
 import { draftReply } from "@/lib/ai/draftReply";
-import { recipeCost } from "@/lib/money";
 import { logAiCall } from "@/lib/server/ai-calls";
 import { requireShop } from "@/lib/server/auth";
 import { stemsWithCost } from "@/lib/server/costs";
 import { errorResponse } from "@/lib/server/http";
-import { manilaToday, validUntilOnSend } from "@/lib/server/quote-rules";
+import { cannotSend, manilaToday, validUntilOnSend } from "@/lib/server/quote-rules";
 import { readQuote } from "@/lib/server/quotes";
 
 // Drafts the Taglish reply and saves its text on a draft quote; a sent quote
 // keeps the text that was copied. Each press of "Regenerate" is a new live
 // call. A draft is written with the valid-until date its first copy will
-// stamp. Answers incomplete_quote while any line has a blank count or is a
-// "pick a flower" line.
+// stamp. Answers incomplete_quote while the quote has no lines, or any line has
+// a blank count or is a "pick a flower" line.
 export async function POST(_request: Request, ctx: RouteContext<"/api/quotes/[id]/reply">) {
   const session = await requireShop();
   if (session instanceof Response) return session;
@@ -20,9 +19,7 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/quotes/[id
   const detail = await readQuote(supabase, (await ctx.params).id);
   if (!detail) return errorResponse("not_found", "Quote not found");
   const { quote, lines } = detail;
-  if (recipeCost(lines).incomplete) {
-    return errorResponse("incomplete_quote", "A line has a blank count or no flower picked");
-  }
+  if (cannotSend(lines)) return errorResponse("incomplete_quote", "The quote has no lines, or a line has a blank count or no flower picked");
 
   const stems = new Map((await stemsWithCost(supabase, lines.map((line) => line.stemId!))).map((stem) => [stem.id, stem]));
   const outcome = await draftReply({
@@ -47,7 +44,7 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/quotes/[id
     ok: outcome.ok,
     error: outcome.ok ? "" : outcome.error,
   });
-  if (!outcome.ok) throw new Error(`draftReply failed: ${outcome.error}`);
+  if (!outcome.ok) return errorResponse("ai_failed", `Drafting the reply failed: ${outcome.error}`);
 
   if (quote.status === "draft") {
     const { error } = await supabase.from("quotes").update({ reply_text: outcome.result.message }).eq("id", quote.id);

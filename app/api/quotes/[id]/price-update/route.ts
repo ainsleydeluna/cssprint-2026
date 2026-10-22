@@ -2,8 +2,8 @@ import type { PriceUpdateResponse } from "@/lib/contract";
 import { priceUpdate } from "@/lib/ai/priceUpdate";
 import { logAiCall } from "@/lib/server/ai-calls";
 import { requireShop } from "@/lib/server/auth";
-import { stemsWithCost } from "@/lib/server/costs";
 import { errorResponse } from "@/lib/server/http";
+import { latestCosts } from "@/lib/server/margin-alarm";
 import { priceUpdateTerms } from "@/lib/server/price-rules";
 import { readQuote } from "@/lib/server/quotes";
 
@@ -19,7 +19,8 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/quotes/[id
   if (!detail) return errorResponse("not_found", "Quote not found");
 
   const stemIds = detail.lines.flatMap((line) => (line.stemId === null ? [] : [line.stemId]));
-  const costs = new Map((await stemsWithCost(supabase, stemIds)).map((stem) => [stem.id, stem.latestCost]));
+  // Read even with MARGIN_ALARM off: a flagged quote's price is checked regardless.
+  const costs = await latestCosts(supabase, stemIds, { enabled: true });
   const terms = priceUpdateTerms(detail.quote, detail.lines, costs, shop, new Date());
   if (!terms.ok) return errorResponse("invalid_request", "Only an open, underwater quote gets a price update");
 
@@ -35,8 +36,7 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/quotes/[id
     ok: outcome.ok,
     error: outcome.ok ? "" : outcome.error,
   });
-  // TODO(#30): answer errorResponse("ai_failed", ...) (502) once PR #30 adds the code; until then this is a 500.
-  if (!outcome.ok) throw new Error(`priceUpdate failed: ${outcome.error}`);
+  if (!outcome.ok) return errorResponse("ai_failed", `Drafting the price update failed: ${outcome.error}`);
 
   const { oldPrice, newPrice, validUntil } = terms;
   return Response.json({ message: outcome.result.message, oldPrice, newPrice, validUntil, demo: false } satisfies PriceUpdateResponse);

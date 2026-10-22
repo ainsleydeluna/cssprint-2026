@@ -86,7 +86,9 @@ export type ApiErrorCode =
   | "invalid_request"
   | "not_found"
   | "incomplete_quote"
-  | "invalid_bundle_size";
+  | "invalid_bundle_size"
+  | "rate_limited"
+  | "ai_failed";
 
 /** Screens check `code`, which never changes; `error` is a short English message for logs. */
 export type ApiError = { code: ApiErrorCode; error: string };
@@ -101,6 +103,10 @@ export const ERROR_STATUS: Record<ApiErrorCode, number> = {
   incomplete_quote: 422,
   /** Adding or editing a stem with unit "bundle" and no bundle size above 0. */
   invalid_bundle_size: 422,
+  /** Too many sign-in emails: Supabase's email rate limit. Wait and try again. */
+  rate_limited: 429,
+  /** An AI call failed after its retry. */
+  ai_failed: 502,
 };
 
 /** A stem row with its latest cost. Per bunch for fillers. */
@@ -120,7 +126,8 @@ export function stemName(stem: Pick<Stem, "flower" | "color">): string {
 export type QuoteDetail = { quote: Quote; lines: QuoteLine[] };
 
 // POST /api/auth/sign-in — emails a magic link that returns to the address the
-// form was opened on. Answers invalid_request for a malformed email.
+// form was opened on. Answers invalid_request for a malformed email and
+// rate_limited when Supabase's email rate limit is hit.
 export type SignInRequest = { email: string };
 export type SignInResponse = { sent: true };
 
@@ -150,7 +157,8 @@ export type UpdateStemRequest = Partial<
 >;
 export type UpdateStemResponse = StemWithCost;
 
-// POST /api/receipts/extract — reads the photo; saves nothing.
+// POST /api/receipts/extract — reads the photo; saves nothing. Answers ai_failed
+// when the AI call fails after its retry.
 export type ExtractReceiptRequest = { photoPath: string };
 export type ReceiptDraftLine = {
   rawText: string;
@@ -238,7 +246,9 @@ export type CopiedRequest = { replyText: string };
 export type CopiedResponse = Quote;
 
 // POST /api/quotes/[id]/budget-options — fitToBudget, priced and checked by code.
-// Choosing an option sends its lines to PUT /api/quotes/[id]/lines.
+// Saves the budget on the quote. Choosing an option sends its lines to PUT
+// /api/quotes/[id]/lines. Answers no options, with no AI call, while no line is
+// complete, and ai_failed when the AI call fails after its retry.
 export type BudgetOptionsRequest = { budget: Money };
 export type BudgetOption = {
   label: string;
@@ -246,13 +256,17 @@ export type BudgetOption = {
   recipeCost: Money;
   price: Money;
   margin: number;
-  /** 0 when within budget. Set only on the single cheapest option shown when none fit. */
+  /**
+   * 0 when within budget. Set only on the single cheapest option shown when none
+   * fit; still 0 when that option is within budget but below minimum margin.
+   */
   overBudgetBy: Money;
 };
 export type BudgetOptionsResponse = { options: BudgetOption[]; demo: boolean };
 
 // POST /api/quotes/[id]/price-update — drafts the price-update message for an
-// underwater quote.
+// open, underwater quote. Saves nothing. Answers invalid_request for any other
+// quote, and ai_failed when the AI call fails after its retry.
 export type PriceUpdateResponse = {
   message: string;
   oldPrice: Money;
@@ -262,7 +276,9 @@ export type PriceUpdateResponse = {
   demo: boolean;
 };
 // POST /api/quotes/[id]/price-update/apply — on copying the message: sets the
-// new price, resets validUntil, clears underwaterAt, leaves sentAt alone.
+// new price, resets validUntil, clears underwaterAt, saves the message as
+// replyText, leaves sentAt alone. The price is worked out again at latest costs,
+// never taken from the request. Copying the same message again changes nothing.
 export type ApplyPriceUpdateRequest = { message: string };
 export type ApplyPriceUpdateResponse = Quote;
 

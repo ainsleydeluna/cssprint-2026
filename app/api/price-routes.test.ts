@@ -7,14 +7,14 @@
 // The tests set markup 50%, fees ₱50 + ₱100, minimum margin 20% and 2 valid-for
 // days, the same as app/api/quote-routes.test.ts, and price recipes at the stems'
 // latest costs as the stems route reports them: other tests may save receipts
-// for Shop A. Shop A is shared with other test runs; rerun once before treating
-// a failure as real.
+// for Shop A. Shop A is shared with other people's test runs; rerun once before
+// treating a failure as real.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import type { AccuracyResponse, BudgetOptionsResponse, CreateQuoteResponse, PriceUpdateResponse, StemWithCost } from "@/lib/contract";
 import type { AiOutcome } from "@/lib/ai/client";
-import type { Quote } from "@/lib/types";
+import type { Quote, Shop } from "@/lib/types";
 import { signInTestShop, testAccountsReady } from "@/supabase/test-accounts";
 import * as accuracyRoute from "./accuracy/route";
 import * as photoRoute from "./photos/route";
@@ -71,6 +71,7 @@ const bouquet = {
 
 describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", { timeout: 20_000 }, () => {
   let client: SupabaseClient;
+  let before: Shop;
   let stems: Map<string, StemWithCost>;
   const cost = (name: string) => stems.get(name)!.latestCost;
   const made: string[] = [];
@@ -98,14 +99,15 @@ describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", 
   beforeAll(async () => {
     const shopA = await signInTestShop("A");
     signedIn.client = client = shopA.client;
+    before = await (await shopRoute.GET()).json();
     await shopRoute.PATCH(json("PATCH", { markupPercent: 50, wrapFee: 50, laborFee: 100, minimumMarginPercent: 20, validForDays: 2 }));
   }, 30_000);
 
-  // The shop settings are left as set: restoring them while quote-routes.test.ts
-  // still runs would change its prices.
   afterAll(async () => {
     signedIn.client = client;
     for (const id of made) await quoteRoute.DELETE(json("DELETE"), ctx(id));
+    const { markupPercent, wrapFee, laborFee, minimumMarginPercent, validForDays } = before;
+    await shopRoute.PATCH(json("PATCH", { markupPercent, wrapFee, laborFee, minimumMarginPercent, validForDays }));
   }, 30_000);
 
   test("every route answers 401 unauthorized when signed out", async () => {
@@ -171,12 +173,12 @@ describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", 
     expect([unknown.status, (await unknown.json()).code]).toEqual([404, "not_found"]);
   });
 
-  test("a failed budget call is still logged", async () => {
+  test("a failed budget call answers 502 ai_failed and is still logged", async () => {
     const { quote } = await create();
     const error = `Canned failure ${crypto.randomUUID()}`;
     ai.answers.push({ ok: false, error, ...usage });
-    // TODO(#30): expect 502 ai_failed once PR #30 adds the code.
-    await expect(budgetRoute.POST(json("POST", { budget: 500 }), ctx(quote.id))).rejects.toThrow();
+    const response = await budgetRoute.POST(json("POST", { budget: 500 }), ctx(quote.id));
+    expect([response.status, (await response.json()).code]).toEqual([502, "ai_failed"]);
     const logged = await client.from("ai_calls").select("call, ok, quote_id").eq("error", error);
     expect(logged.data).toEqual([{ call: "fitToBudget", ok: false, quote_id: quote.id }]);
   });

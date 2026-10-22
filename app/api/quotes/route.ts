@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     if (!outcome.ok) {
       // No quote to attach it to: the florist picks the photo again.
       await deletePhoto(supabase, "bouquets", photoPath).catch((error) => console.error(error));
-      throw new Error(`analyzeBouquet failed: ${outcome.error}`);
+      return errorResponse("ai_failed", `Reading the bouquet failed: ${outcome.error}`);
     }
     const lines = bouquetToLines(outcome.result, stems);
     const labels = await supabase.from("quotes").select("label");

@@ -11,6 +11,7 @@ import {
   parseNewStem,
   parseQuoteLines,
   parseQuoteUpdate,
+  parseSaveReceipt,
   parseShopUpdate,
   parseStemUpdate,
 } from "./fields";
@@ -75,6 +76,9 @@ describe("parseNewStem", () => {
   test.each([
     ["a missing field", { flower: "Peony", color: "pink", isFiller: false, unit: "piece", bundleSize: null }],
     ["an empty flower name", { ...peony, flower: "  " }],
+    // " - " joins flower and color in the row name ("Rose - red"), so it may not appear inside either.
+    ["\" - \" inside the flower", { ...peony, flower: "Rose - spray" }],
+    ["\" - \" inside the color", { ...peony, color: "pink - white" }],
     ["an unknown unit", { ...peony, unit: "box" }],
     ["isFiller as text", { ...peony, isFiller: "no" }],
     ["a negative sample price", { ...peony, samplePrice: -1 }],
@@ -106,6 +110,14 @@ describe("parseStemUpdate", () => {
     expect(parseStemUpdate({ unit: "bundle", bundleSize: 20 }, roseRed)).toEqual({ ok: true, value: { unit: "bundle", bundleSize: 20 } });
   });
 
+  test.each([
+    ["a bundle size sent for a dozen row", { bundleSize: 5 }],
+    ["a bundle size sent with a change to piece", { unit: "piece", bundleSize: 5 }],
+  ])("never saves %s", (_case, body) => {
+    const parsed = parseStemUpdate(body, roseRed);
+    expect(parsed.ok && parsed.value.bundleSize).toBeNull();
+  });
+
   test("clears the bundle size when a bundle row changes to another unit", () => {
     expect(parseStemUpdate({ unit: "piece" }, mumsWhite)).toEqual({ ok: true, value: { unit: "piece", bundleSize: null } });
   });
@@ -121,8 +133,63 @@ describe("parseStemUpdate", () => {
   test.each([
     ["hidden as text", { hidden: "yes" }],
     ["an empty flower name", { flower: "" }],
+    ["\" - \" inside the color", { color: "red - white" }],
   ])("refuses %s with invalid_request", (_case, body) => {
     expect(parseStemUpdate(body, roseRed)).toMatchObject({ ok: false, code: "invalid_request" });
+  });
+});
+
+describe("parseSaveReceipt", () => {
+  const shopId = "5a000000-0000-4000-8000-000000000001";
+  const stemId = "5e000000-0000-4000-8000-000000000001";
+  const photoPath = `${shopId}/f0000000-0000-4000-8000-000000000002.jpg`;
+  const today = "2026-10-23";
+  const roses = { stemId, quantity: 2, unit: "dozen", bundleSize: null, totalPaid: 540 };
+  const parse = (body: Record<string, unknown>) =>
+    parseSaveReceipt({ photoPath, purchaseDate: "2026-10-21", lines: [roses], ...body }, { shopId, today });
+
+  test("keeps the receipt fields, computes each line's cost per stem and drops other fields", () => {
+    expect(parse({ id: "x", shopId: "other", lines: [{ ...roses, costPerStem: 1, receiptId: "x" }] })).toEqual({
+      ok: true,
+      value: { photoPath, purchaseDate: "2026-10-21", lines: [{ ...roses, costPerStem: 22.5 }] },
+    });
+  });
+
+  test("uses today in Manila when there is no purchase date", () => {
+    expect(parse({ purchaseDate: undefined })).toMatchObject({ ok: true, value: { purchaseDate: today } });
+  });
+
+  test("accepts today as the purchase date", () => {
+    expect(parse({ purchaseDate: today })).toMatchObject({ ok: true, value: { purchaseDate: today } });
+  });
+
+  test("rounds the quantity to two decimals, as the database stores it, before the cost per stem", () => {
+    // 1.005 bunches is stored as 1.01: ₱101 ÷ 1.01 = ₱100, not ₱100.50 for 1.005.
+    const line = { ...roses, quantity: 1.005, unit: "bunch", totalPaid: 101 };
+    expect(parse({ lines: [line] })).toMatchObject({ ok: true, value: { lines: [{ quantity: 1.01, costPerStem: 100 }] } });
+  });
+
+  test("stores no bundle size on a line that is not a bundle", () => {
+    expect(parse({ lines: [{ ...roses, bundleSize: 10 }] })).toMatchObject({
+      ok: true,
+      value: { lines: [{ bundleSize: null, costPerStem: 22.5 }] },
+    });
+  });
+
+  test.each([
+    ["an unmatched line", { lines: [{ ...roses, stemId: null }] }, "Line 1 has no stem"],
+    ["a bundle line without a bundle size", { lines: [{ ...roses, unit: "bundle" }] }, "Line 1 has no cost per stem"],
+    ["a quantity of zero", { lines: [{ ...roses, quantity: 0 }] }, "Invalid quantity on line 1"],
+    ["a missing total", { lines: [{ ...roses, totalPaid: undefined }] }, "Invalid totalPaid on line 1"],
+    ["an unknown unit", { lines: [{ ...roses, unit: "box" }] }, "Invalid unit on line 1"],
+    ["no lines", { lines: [] }, "A receipt needs at least one line"],
+    ["another shop's photo", { photoPath: `f0000000-0000-4000-8000-000000000009/${photoPath.split("/")[1]}` }, "Invalid photoPath"],
+    ["a purchase date that is not a date", { purchaseDate: "Oct 21" }, "Invalid purchaseDate"],
+    ["a purchase date after today in Manila", { purchaseDate: "2026-10-24" }, "The purchase date is after today"],
+    ["a photo path with no file", { photoPath: shopId }, "Invalid photoPath"],
+    ["more than 100 lines", { lines: Array(101).fill(roses) }, "A receipt has at most 100 lines"],
+  ])("refuses %s with invalid_request", (_case, body, error) => {
+    expect(parse(body)).toEqual({ ok: false, code: "invalid_request", error });
   });
 });
 

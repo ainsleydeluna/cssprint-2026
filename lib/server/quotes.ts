@@ -6,7 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { QuoteDetail } from "../contract";
 import { price, recipeCost } from "../money";
 import type { Quote, QuoteLine, Shop } from "../types";
-import { UUID } from "./http";
+import { UUID } from "./fields";
 import { manilaToday, statusOn } from "./quote-rules";
 import { LINE_COLUMNS, QUOTE_COLUMNS, toQuote, toQuoteLine } from "./rows";
 

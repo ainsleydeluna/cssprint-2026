@@ -6,7 +6,8 @@
 //
 // The tests set markup 50% and fees ₱50 + ₱100, and price each recipe at the
 // stems' latest costs as the stems route reports them: other tests may save
-// receipts for Shop A. At the seed's sample prices (Rose - red ₱20.83 a stem,
+// receipts for Shop A (app/api/receipts.test.ts buys Rose - red, so these use
+// Rose - white). At the seed's sample prices (Rose - white ₱20.83 a stem,
 // Carnation - pink ₱15, Baby's breath ₱100 a bunch), the first quote is
 // 12 × 20.83 + 6 × 15 + 2 × 100 = 539.96; × 1.5 + 150 = 959.94, rounded up to ₱960.
 
@@ -60,7 +61,7 @@ async function uploadBouquet(): Promise<string> {
 
 const bouquet = {
   lines: [
-    { stem: "Rose - red", color: "red", countLow: 10, countHigh: 13, confidence: "high", closestStem: null, note: "" },
+    { stem: "Rose - white", color: "white", countLow: 10, countHigh: 13, confidence: "high", closestStem: null, note: "" },
     { stem: "Other", color: "blush", countLow: 5, countHigh: 6, confidence: "high", closestStem: "Carnation - pink", note: "Peony, blush" },
     { stem: "Other", color: "green", countLow: 3, countHigh: 3, confidence: "low", closestStem: null, note: "Unknown pods" },
     { stem: "Baby's breath - white", color: "white", countLow: 1, countHigh: 2, confidence: "medium", closestStem: null, note: "" },
@@ -168,24 +169,25 @@ describe.skipIf(!testAccountsReady)("quote routes", { timeout: 20_000 }, () => {
     expect([quote.status, quote.label]).toEqual(["draft", expect.stringMatching(/^Inquiry \d+$/)]);
     expect(lines).toMatchObject([
       // Middle of 10–13, rounded up.
-      { stemId: stems.get("Rose - red")!.id, count: 12, costPerStem: cost("Rose - red"), confidence: "high" },
+      { stemId: stems.get("Rose - white")!.id, count: 12, costPerStem: cost("Rose - white"), confidence: "high" },
       // Other is priced at its closest stem, highlighted, with the real name in the note.
       { stemId: stems.get("Carnation - pink")!.id, count: 6, costPerStem: cost("Carnation - pink"), confidence: "medium", note: "Peony, blush" },
       // Other with no closest stem: a "pick a flower" line, unpriced.
       { stemId: null, count: 3, costPerStem: 0 },
       { stemId: stems.get("Baby's breath - white")!.id, count: 2, costPerStem: cost("Baby's breath - white") },
     ]);
-    expect(quote.price).toBe(expectedPrice(12 * cost("Rose - red") + 6 * cost("Carnation - pink") + 2 * cost("Baby's breath - white")));
+    expect(quote.price).toBe(expectedPrice(12 * cost("Rose - white") + 6 * cost("Carnation - pink") + 2 * cost("Baby's breath - white")));
 
     const logged = await client.from("ai_calls").select("call, ok, model, input_tokens").eq("quote_id", quote.id);
     expect(logged.data).toEqual([{ call: "analyzeBouquet", ok: true, model: "claude-opus-5-5", input_tokens: 1500 }]);
   });
 
-  test("a failed analysis saves no quote, deletes the photo and still logs the call", async () => {
+  test("a failed analysis answers 502 ai_failed, saves no quote, deletes the photo and still logs the call", async () => {
     const photoPath = await uploadBouquet();
     const error = `Canned failure ${crypto.randomUUID()}`;
     ai.answers.push({ ok: false, error, model: "claude-opus-5-5", seconds: 30, inputTokens: 0, outputTokens: 0 });
-    await expect(quotesRoute.POST(json("POST", { photoPath }))).rejects.toThrow(error);
+    const response = await quotesRoute.POST(json("POST", { photoPath }));
+    expect([response.status, (await response.json()).code]).toEqual([502, "ai_failed"]);
 
     expect((await client.from("quotes").select("id").eq("photo_path", photoPath)).data).toEqual([]);
     expect(await photoStored(photoPath)).toBe(false);
@@ -222,7 +224,7 @@ describe.skipIf(!testAccountsReady)("quote routes", { timeout: 20_000 }, () => {
     ]);
     // At sample prices: 24 × 20.83 + 6 × 80 + 2 × 100 + 120 = 1,299.92; × 1.5 + 150 = 2,099.88, rounded up to ₱2,100.
     expect(quote.price).toBe(
-      expectedPrice(24 * cost("Rose - red") + 6 * cost("Sunflower - yellow") + 2 * cost("Baby's breath - white") + cost("Tulip - pink")),
+      expectedPrice(24 * cost("Rose - white") + 6 * cost("Sunflower - yellow") + 2 * cost("Baby's breath - white") + cost("Tulip - pink")),
     );
   });
 
@@ -257,6 +259,13 @@ describe.skipIf(!testAccountsReady)("quote routes", { timeout: 20_000 }, () => {
     expect(list.averageTimeToQuoteSeconds).not.toBeNull();
   });
 
+  test("copying a quote whose lines were all removed answers incomplete_quote", async () => {
+    const { quote } = await create();
+    expect((await putLines(quote.id, [])).status).toBe(200);
+    const response = await copiedRoute.POST(json("POST", { replyText: "Hi po!" }), ctx(quote.id));
+    expect([response.status, (await response.json()).code]).toEqual([422, "incomplete_quote"]);
+  });
+
   test("a sent quote's lines cannot be edited", async () => {
     const detail = await completed();
     await copiedRoute.POST(json("POST", { replyText: "Hi po!" }), ctx(detail.quote.id));
@@ -279,13 +288,26 @@ describe.skipIf(!testAccountsReady)("quote routes", { timeout: 20_000 }, () => {
     answer({ message: "Hi po! Roses and sunflowers, {price}, valid hanggang {validUntil}.", note: "" });
     const response = await replyRoute.POST(json("POST"), ctx(quote.id));
     const { message, demo } = await response.json();
-    // Sunflower 3 × 80 fills the "pick a flower" line; at sample prices 779.96 × 1.5 + 150 = 1,319.94, rounded up to ₱1,320.
-    const price = expectedPrice(12 * cost("Rose - red") + 6 * cost("Carnation - pink") + 3 * cost("Sunflower - yellow") + 2 * cost("Baby's breath - white"));
-    expect(message).toMatch(new RegExp(`^Hi po! Roses and sunflowers, ₱${price.toLocaleString("en-US")}, valid hanggang \\w{3} \\d{1,2}\\.$`));
+    // The quote's saved price, not one worked out here: another test may change Shop A's costs meanwhile.
+    // The date is the one the first copy will stamp, two days on in Manila ("2026-10-25" is "Oct 25").
+    const [, month, day] = manilaDate(2).split("-").map(Number);
+    const date = `${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][month - 1]} ${day}`;
+    expect(message).toBe(`Hi po! Roses and sunflowers, ₱${quote.price!.toLocaleString("en-US")}, valid hanggang ${date}.`);
     expect(demo).toBe(false);
     expect((await client.from("quotes").select("reply_text").eq("id", quote.id).single()).data?.reply_text).toBe(message);
     const logged = await client.from("ai_calls").select("call, ok").eq("quote_id", quote.id).eq("call", "draftReply");
     expect(logged.data).toEqual([{ call: "draftReply", ok: true }]);
+  });
+
+  test("a failed reply draft answers 502 ai_failed, keeps the saved text and still logs the call", async () => {
+    const { quote } = await completed();
+    const error = `Canned failure ${crypto.randomUUID()}`;
+    ai.answers.push({ ok: false, error, model: "claude-sonnet-5-5", seconds: 30, inputTokens: 0, outputTokens: 0 });
+    const response = await replyRoute.POST(json("POST"), ctx(quote.id));
+    expect([response.status, (await response.json()).code]).toEqual([502, "ai_failed"]);
+    expect((await client.from("quotes").select("reply_text").eq("id", quote.id).single()).data).toEqual({ reply_text: "" });
+    const logged = await client.from("ai_calls").select("call, ok, quote_id").eq("error", error);
+    expect(logged.data).toEqual([{ call: "draftReply", ok: false, quote_id: quote.id }]);
   });
 
   test("renaming changes only the allowed fields", async () => {

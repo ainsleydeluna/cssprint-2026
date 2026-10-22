@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import type { SignInRequest } from "@/lib/contract";
+import type { ApiError, SignInRequest } from "@/lib/contract";
 import { t } from "@/lib/strings";
 
-type State = "idle" | "sending" | "sent" | "failed";
+type State = "idle" | "sending" | "sent" | "failed" | "rateLimited";
 
 /** One email field (spec decision 1); after sending, a "check your email" state. */
 export function SignInForm({ linkFailed }: { linkFailed: boolean }) {
@@ -19,7 +19,9 @@ export function SignInForm({ linkFailed }: { linkFailed: boolean }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email } satisfies SignInRequest),
     }).catch(() => null);
-    setState(response?.ok ? "sent" : "failed");
+    if (response?.ok) return setState("sent");
+    const answer: Partial<ApiError> | null = response ? await response.json().catch(() => null) : null;
+    setState(answer?.code === "rate_limited" ? "rateLimited" : "failed");
   }
 
   if (state === "sent") {
@@ -51,6 +53,7 @@ export function SignInForm({ linkFailed }: { linkFailed: boolean }) {
         />
       </label>
       {state === "failed" && <p className="text-base text-red-700 dark:text-red-400">{t("common", "error")}</p>}
+      {state === "rateLimited" && <p className="text-base text-red-700 dark:text-red-400">{t("signIn", "rateLimited")}</p>}
       <button
         type="submit"
         disabled={state === "sending"}

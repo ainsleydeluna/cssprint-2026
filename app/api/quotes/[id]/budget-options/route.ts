@@ -51,8 +51,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/quotes/[id]
     ok: outcome.ok,
     error: outcome.ok ? "" : outcome.error,
   });
-  // TODO(#30): answer errorResponse("ai_failed", ...) (502) once PR #30 adds the code; until then this is a 500.
-  if (!outcome.ok) throw new Error(`fitToBudget failed: ${outcome.error}`);
+  if (!outcome.ok) return errorResponse("ai_failed", `Fitting the budget failed: ${outcome.error}`);
 
   const options = priceBudgetOptions(outcome.result.options, stems, shop, budget);
   return Response.json({ options, demo: false } satisfies BudgetOptionsResponse);

@@ -1,7 +1,7 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
-import starter from "@/fixtures/seed/stems.json";
+import { createShop } from "@/lib/server/auth";
 import { createClient } from "@/lib/server/supabase";
 
 /**
@@ -29,9 +29,13 @@ export async function GET(request: NextRequest) {
         : { error: new Error("The link has no token") };
   if (error) return redirect(request, "/sign-in/link-failed");
 
-  const created = await supabase.rpc("create_shop", { starter });
-  if (created.error) throw new Error(`Creating the shop failed: ${created.error.message}`);
-  return redirect(request, created.data ? SHOP_SETUP_PATH : "/quotes");
+  // The florist is signed in either way. If creating the shop fails here,
+  // requireShop creates it on their next request.
+  const created = await createShop(supabase).catch((reason: unknown) => {
+    console.error(reason instanceof Error ? reason.message : reason);
+    return false;
+  });
+  return redirect(request, created ? SHOP_SETUP_PATH : "/quotes");
 }
 
 function redirect(request: NextRequest, to: string) {
