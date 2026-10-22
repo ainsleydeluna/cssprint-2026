@@ -1,5 +1,6 @@
 // Rules for one receipt line while the florist checks it. Pure, so lines.test.ts covers them.
 import type { SaveReceiptRequest, StemWithCost } from "@/lib/contract";
+import { t } from "@/lib/strings";
 import type { Confidence, Unit } from "@/lib/types";
 
 /** One receipt line while the florist edits it. Numbers stay as typed until save. */
@@ -54,6 +55,19 @@ export function lineProblems(line: DraftLine, stems: Pick<StemWithCost, "id" | "
   if (line.unit === "bundle" && !(Number.isInteger(bundleSize) && bundleSize > 0)) problems.add("bundleSize");
   if (!(parseAmount(line.totalPaid) >= 0)) problems.add("totalPaid");
   return problems;
+}
+
+/**
+ * Why the receipt can't be saved yet, or null. With no lines, adds the AI's note
+ * (e.g. the photo isn't readable) so the florist knows why.
+ */
+export function saveBlocker(lines: DraftLine[], stems: Pick<StemWithCost, "id" | "hidden">[], note: string): string | null {
+  if (lines.length === 0) return note.trim() ? `${t("scan", "noLines")} ${t("scan", "aiNote", { note: note.trim() })}` : t("scan", "noLines");
+  // A line matched to a hidden stem counts as unmatched.
+  const unmatched = lines.filter((l) => !isMatched(l.stemId, stems)).length;
+  if (unmatched) return t("scan", "unmatched", { n: unmatched });
+  const incomplete = lines.filter((l) => [...lineProblems(l, stems)].some((p) => p !== "stem")).length;
+  return incomplete ? t("scan", "incomplete", { n: incomplete }) : null;
 }
 
 /** The line as the save route takes it, or null while it has a problem. */

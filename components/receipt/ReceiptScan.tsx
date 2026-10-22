@@ -12,14 +12,14 @@ import {
 import { t } from "@/lib/strings";
 import { addStem, extractReceipt, isUnauthorized, listStems, saveReceipt, uploadPhoto } from "./api";
 import { Button, Input, Row } from "./kit";
-import { type DraftLine, isMatched, lineProblems, toInput } from "./lines";
+import { type DraftLine, saveBlocker, toInput } from "./lines";
 import { PhotoPicker } from "./PhotoPicker";
 import { ReceiptTable } from "./ReceiptTable";
 
 type State =
   | { step: "pick" }
   | { step: "working"; message: string }
-  | { step: "table"; photoPath: string; purchaseDate: string; demo: boolean }
+  | { step: "table"; photoPath: string; purchaseDate: string; demo: boolean; note: string }
   | { step: "saved"; result: SaveReceiptResponse };
 
 const peso = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
@@ -55,7 +55,10 @@ export function ReceiptScan() {
       return await task();
     } catch (e) {
       if (isUnauthorized(e)) router.push("/sign-in");
-      else setError(t("common", "error"));
+      else {
+        console.error(e);
+        setError(t("common", "error"));
+      }
       setState(fallback);
       return null;
     }
@@ -73,7 +76,7 @@ export function ReceiptScan() {
     setStems(stemList);
     setLines(extract.lines.map(toDraft));
     // The route answers today in Manila when the AI could not read a date.
-    setState({ step: "table", photoPath, purchaseDate: extract.purchaseDate, demo: extract.demo });
+    setState({ step: "table", photoPath, purchaseDate: extract.purchaseDate, demo: extract.demo, note: extract.note });
   }
 
   async function handleAddStem(input: AddStemRequest) {
@@ -132,14 +135,7 @@ export function ReceiptScan() {
   }
 
   const inputs = lines.map((l) => toInput(l, stems));
-  // A line matched to a hidden stem counts as unmatched.
-  const unmatched = lines.filter((l) => !isMatched(l.stemId, stems)).length;
-  const incomplete = lines.filter((l) => [...lineProblems(l, stems)].some((p) => p !== "stem")).length;
-  const blocker =
-    lines.length === 0 ? t("scan", "noLines")
-    : unmatched ? t("scan", "unmatched", { n: unmatched })
-    : incomplete ? t("scan", "incomplete", { n: incomplete })
-    : null;
+  const blocker = saveBlocker(lines, stems, state.note);
   const tableState = state;
 
   async function handleSave() {

@@ -25,7 +25,8 @@ export function NewQuote() {
       setState({ step: "working", message: t("newQuote", "analyzing") });
       const [created, shop, stems] = await Promise.all([createQuote(photoPath), getShop(), listStems()]);
       setState({ step: "edit", created, shop, stems });
-    } catch {
+    } catch (e) {
+      console.error(e);
       setError(true);
       setState({ step: "pick" });
     }

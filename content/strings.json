@@ -89,6 +89,7 @@
     "unmatched": "{n} linya ang hindi pa naitugma.",
     "incomplete": "{n} linya ang kulang ang dami, unit o bayad.",
     "noLines": "Walang linya na ise-save.",
+    "aiNote": "Sabi ng AI: {note}",
     "saved": "Na-save ang resibo. Bagong cost bawat stem:",
     "perStem": "bawat stem",
     "perBunch": "bawat bunch",

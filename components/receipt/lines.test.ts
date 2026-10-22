@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { StemWithCost } from "@/lib/contract";
-import { type DraftLine, isMatched, lineProblems, parseAmount, sampleFromLine, toInput } from "./lines";
+import { t } from "@/lib/strings";
+import { type DraftLine, isMatched, lineProblems, parseAmount, sampleFromLine, saveBlocker, toInput } from "./lines";
 
 const stem = (id: string, hidden = false) => ({ id, hidden }) as StemWithCost;
 const stems = [stem("rose"), stem("sunflower", true)];
@@ -67,5 +68,22 @@ describe("lineProblems and toInput (fixes 2 and 4)", () => {
   it("treats a line matched to a hidden stem as unmatched", () => {
     expect([...lineProblems(line({ stemId: "sunflower" }), stems)]).toEqual(["stem"]);
     expect(toInput(line({ stemId: "sunflower" }), stems)).toBeNull();
+  });
+});
+
+describe("saveBlocker", () => {
+  it("adds the AI's note when the photo gave no lines, so the florist knows why", () => {
+    const note = "The photo is too blurry to read the items.";
+    expect(saveBlocker([], stems, note)).toBe(`${t("scan", "noLines")} ${t("scan", "aiNote", { note })}`);
+    expect(saveBlocker([], stems, note)).toContain(note);
+  });
+  it("says only that there are no lines when the note is blank", () => {
+    expect(saveBlocker([], stems, "")).toBe(t("scan", "noLines"));
+    expect(saveBlocker([], stems, "  ")).toBe(t("scan", "noLines"));
+  });
+  it("names unmatched, then incomplete lines, and is null when every line is ready", () => {
+    expect(saveBlocker([line({ stemId: null }), line()], stems, "")).toBe(t("scan", "unmatched", { n: 1 }));
+    expect(saveBlocker([line({ totalPaid: "" })], stems, "")).toBe(t("scan", "incomplete", { n: 1 }));
+    expect(saveBlocker([line()], stems, "note")).toBeNull();
   });
 });
