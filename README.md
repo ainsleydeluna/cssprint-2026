@@ -1,4 +1,4 @@
-\# Pitas (working name): Sagot agad sa "hm po?"
+\# Tangkay: Sagot agad sa "hm po?"
 
 
 
