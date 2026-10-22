@@ -9,7 +9,7 @@ import type { ManilaDate, Money, QuoteLine, Shop, Stem, StockBatch, Unit } from 
  * Rounds to two decimals, half up. Trimming to 15 significant digits first drops
  * float error, so 790.005 (stored as 790.00499...) rounds to 790.01.
  */
-function roundMoney(amount: number): Money {
+export function roundMoney(amount: number): Money {
   return Math.round(Number((amount * 100).toPrecision(15))) / 100;
 }
 
