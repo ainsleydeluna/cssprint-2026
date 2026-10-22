@@ -6,6 +6,8 @@
 import { isManilaDate } from "../ai/shared";
 import type {
   AddStemRequest,
+  ApplyPriceUpdateRequest,
+  BudgetOptionsRequest,
   CopiedRequest,
   CreateQuoteRequest,
   UpdateQuoteLinesRequest,
@@ -230,4 +232,18 @@ export function parseCreateQuote(body: unknown, shopId: string): Parsed<CreateQu
     return invalid("Invalid photoPath");
   }
   return { ok: true, value: { photoPath: body.photoPath } };
+}
+
+/** POST /api/quotes/[id]/budget-options: the customer's budget, required. */
+export function parseBudgetOptions(body: unknown): Parsed<BudgetOptionsRequest> {
+  const picked = pick<BudgetOptionsRequest>(body, { budget: money });
+  if (!picked.ok) return picked;
+  return picked.value.budget === undefined ? invalid("Missing budget") : { ok: true, value: { budget: picked.value.budget } };
+}
+
+/** POST /api/quotes/[id]/price-update/apply: the message as copied, never empty. It becomes the reply text. */
+export function parseApplyPriceUpdate(body: unknown): Parsed<ApplyPriceUpdateRequest> {
+  const picked = pick<ApplyPriceUpdateRequest>(body, { message: name(2000) });
+  if (!picked.ok) return picked;
+  return picked.value.message === undefined ? invalid("Missing message") : { ok: true, value: { message: picked.value.message } };
 }

@@ -4,6 +4,8 @@
 import { describe, expect, test } from "vitest";
 import type { Stem } from "../types";
 import {
+  parseApplyPriceUpdate,
+  parseBudgetOptions,
   parseCopied,
   parseCreateQuote,
   parseNewStem,
@@ -229,5 +231,33 @@ describe("parseCreateQuote", () => {
     ["a path that leaves the folder", { photoPath: `${shopId}/../x.jpg` }],
   ])("refuses %s with invalid_request", (_case, body) => {
     expect(parseCreateQuote(body, shopId)).toMatchObject({ ok: false, code: "invalid_request" });
+  });
+});
+
+describe("parseBudgetOptions", () => {
+  test("keeps the budget and drops every other field", () => {
+    expect(parseBudgetOptions({ budget: 1500, price: 1 })).toEqual({ ok: true, value: { budget: 1500 } });
+  });
+
+  test.each([
+    ["no budget", {}],
+    ["a null budget", { budget: null }],
+    ["a budget as text", { budget: "1500" }],
+    ["a budget below zero", { budget: -1 }],
+  ])("refuses %s with invalid_request", (_case, body) => {
+    expect(parseBudgetOptions(body)).toMatchObject({ ok: false, code: "invalid_request" });
+  });
+});
+
+describe("parseApplyPriceUpdate", () => {
+  test("keeps the copied message and drops every other field", () => {
+    expect(parseApplyPriceUpdate({ message: "Pasensya na po", price: 1 })).toEqual({ ok: true, value: { message: "Pasensya na po" } });
+  });
+
+  test.each([
+    ["no message", {}],
+    ["an empty message", { message: " " }],
+  ])("refuses %s with invalid_request", (_case, body) => {
+    expect(parseApplyPriceUpdate(body)).toMatchObject({ ok: false, code: "invalid_request" });
   });
 });
