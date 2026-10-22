@@ -15,7 +15,9 @@
   },
   "newQuote": {
     "title": "Bagong quote",
-    "useDemoPhoto": "Gumamit ng demo photo"
+    "useDemoPhoto": "Gumamit ng demo photo",
+    "uploading": "Ina-upload ang photo…",
+    "analyzing": "Binibilang ang mga bulaklak…"
   },
   "quote": {
     "inquiryLabel": "Inquiry {n}",
@@ -27,7 +29,20 @@
     "copyReply": "Kopyahin ang reply",
     "copied": "Nakopya na",
     "overBudgetBy": "Over budget by ₱{amount}",
-    "draftPriceUpdate": "Draft price update"
+    "draftPriceUpdate": "Draft price update",
+    "stem": "Bulaklak",
+    "countStems": "Bilang (stem)",
+    "countBunches": "Bilang (bunch)",
+    "range": "Tantiya ng AI: {low}–{high}",
+    "less": "Bawasan",
+    "more": "Dagdagan",
+    "remove": "Alisin",
+    "addLine": "+ Magdagdag ng bulaklak",
+    "incomplete": "Kulang pa: may linyang walang bilang o bulaklak.",
+    "tooManyStems": "{n} stem na ang bouquet, lagpas sa {max}. Bawasan muna.",
+    "saving": "Sine-save…",
+    "saved": "Naka-save",
+    "saveFailed": "Hindi na-save ang huling pagbabago."
   },
   "quotes": {
     "title": "Mga quote",
