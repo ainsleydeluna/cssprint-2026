@@ -84,5 +84,17 @@
   },
   "accuracy": {
     "title": "AI accuracy"
+  },
+  "photo": {
+    "take": "Kumuha ng photo",
+    "camera": "Kunan ng photo",
+    "gallery": "Pumili sa gallery",
+    "another": "Ibang photo",
+    "use": "Gamitin ang photo",
+    "whole": "Buong photo",
+    "dragHint": "I-drag sa photo para piliin lang ang resibo o bouquet.",
+    "preparing": "Inihahanda ang photo…",
+    "unreadable": "Hindi mabasa ang photo na ito. Subukan ang JPG o PNG.",
+    "failed": "Hindi naihanda ang photo. Subukan ulit."
   }
 }

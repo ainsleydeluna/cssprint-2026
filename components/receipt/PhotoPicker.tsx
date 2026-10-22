@@ -1,6 +1,7 @@
 // No "use client" here: onPhoto is a function, so the picker must be rendered
 // from a Client Component (like the scan page), which makes it client code too.
 import { useEffect, useRef, useState } from "react";
+import { t } from "@/lib/strings";
 import { Button } from "./kit";
 import { type CropRect, decodePhoto, processPhoto } from "./process-photo";
 
@@ -22,14 +23,12 @@ type Props = {
   label?: string;
 };
 
-const SOURCE_LABELS: Record<Source, string> = { camera: "Kunan ng photo", gallery: "Pumili sa gallery" };
-
 type Point = { x: number; y: number };
 
 // Spec decision 26: the crop screen opens with the whole photo selected, so one tap accepts it.
 const WHOLE: CropRect = { x: 0, y: 0, width: 1, height: 1 };
 
-export function PhotoPicker({ onPhoto, source = "camera", label = "Kumuha ng photo" }: Props) {
+export function PhotoPicker({ onPhoto, source = "camera", label }: Props) {
   const sources: Source[] = source === "both" ? ["camera", "gallery"] : [source];
   const inputs = useRef<Partial<Record<Source, HTMLInputElement | null>>>({});
   const previewRef = useRef<HTMLCanvasElement>(null);
@@ -60,7 +59,7 @@ export function PhotoPicker({ onPhoto, source = "camera", label = "Kumuha ng pho
       setBitmap(await decodePhoto(file));
       setBox(WHOLE);
     } catch {
-      setError("Hindi mabasa ang photo na ito. Subukan ang JPG o PNG.");
+      setError(t("photo", "unreadable"));
     } finally {
       setBusy(false);
     }
@@ -85,7 +84,7 @@ export function PhotoPicker({ onPhoto, source = "camera", label = "Kumuha ng pho
       setBox(null);
       onPhoto(photo);
     } catch {
-      setError("Hindi naihanda ang photo. Subukan ulit.");
+      setError(t("photo", "failed"));
     } finally {
       setBusy(false);
     }
@@ -143,7 +142,7 @@ export function PhotoPicker({ onPhoto, source = "camera", label = "Kumuha ng pho
       {bitmap && (
         <>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            I-drag sa photo para piliin lang ang resibo o bouquet.
+            {t("photo", "dragHint")}
           </p>
           <div
             className="relative touch-none overflow-hidden rounded-xl select-none"
@@ -167,10 +166,10 @@ export function PhotoPicker({ onPhoto, source = "camera", label = "Kumuha ng pho
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Button disabled={busy} onClick={finish}>
-              Gamitin ang photo
+              {t("photo", "use")}
             </Button>
             <Button variant="secondary" disabled={busy || box === WHOLE} onClick={() => setBox(WHOLE)}>
-              Buong photo
+              {t("photo", "whole")}
             </Button>
           </div>
         </>
@@ -183,12 +182,12 @@ export function PhotoPicker({ onPhoto, source = "camera", label = "Kumuha ng pho
           disabled={busy}
           onClick={() => inputs.current[s]?.click()}
         >
-          {sources.length > 1 ? SOURCE_LABELS[s] : bitmap ? "Ibang photo" : label}
+          {sources.length > 1 ? t("photo", s) : bitmap ? t("photo", "another") : (label ?? t("photo", "take"))}
         </Button>
       ))}
 
       <p role="status" className="text-sm">
-        {busy && "Inihahanda ang photo…"}
+        {busy && t("photo", "preparing")}
       </p>
       {error && (
         <p role="alert" className="text-sm text-red-700 dark:text-red-400">

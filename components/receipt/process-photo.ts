@@ -1,5 +1,6 @@
-// Long edge of the photo we hand on, in pixels (spec decision 26). Matches lib/ai/config.ts.
-export const MAX_LONG_EDGE_PX = Number(process.env.NEXT_PUBLIC_MAX_PHOTO_PX) || 1600;
+// Long edge of the photo we hand on: MAX_PHOTO_PX from lib/ai/config.ts (spec decision 26).
+import { MAX_PHOTO_PX } from "@/lib/ai/config";
+
 export const JPEG_QUALITY = 0.8;
 
 /** A rectangle in the decoded photo's own pixels. */
@@ -11,12 +12,12 @@ export function decodePhoto(file: Blob): Promise<ImageBitmap> {
 }
 
 /**
- * Crops, shrinks to MAX_LONG_EDGE_PX and re-encodes as JPEG through a canvas.
+ * Crops, shrinks to MAX_PHOTO_PX and re-encodes as JPEG through a canvas.
  * A canvas export holds pixels only, so EXIF data (including GPS location) is dropped.
  */
 export async function processPhoto(bitmap: ImageBitmap, crop: CropRect | null): Promise<File> {
   const src = crop ?? { x: 0, y: 0, width: bitmap.width, height: bitmap.height };
-  const scale = Math.min(1, MAX_LONG_EDGE_PX / Math.max(src.width, src.height));
+  const scale = Math.min(1, MAX_PHOTO_PX / Math.max(src.width, src.height));
   const width = Math.max(1, Math.round(src.width * scale));
   const height = Math.max(1, Math.round(src.height * scale));
 
