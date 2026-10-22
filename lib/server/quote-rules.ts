@@ -1,7 +1,7 @@
 // Quote rules the routes share (docs/spec.md decisions 5, 15 and section 4).
 // Pure: no database, no network. Dates are Manila calendar dates; timestamps are UTC.
 
-import type { ManilaDate, Quote, QuoteStatus } from "../types";
+import type { ManilaDate, Quote, QuoteLine, QuoteStatus } from "../types";
 
 /** Manila is UTC+8 all year (no daylight saving). */
 const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
@@ -50,4 +50,43 @@ export function nextInquiryLabel(labels: string[]): string {
     if (n) highest = Math.max(highest, Number(n[1]));
   }
   return `Inquiry ${highest + 1}`;
+}
+
+/** Photo upload to first copy, in whole seconds; null until the reply is copied. */
+export function timeToQuoteSeconds(quote: Pick<Quote, "createdAt" | "sentAt">): number | null {
+  if (quote.sentAt === null) return null;
+  return Math.round((Date.parse(quote.sentAt) - Date.parse(quote.createdAt)) / 1000);
+}
+
+/** The average over sent quotes (the non-null times); null when there are none. */
+export function averageTimeToQuote(times: Array<number | null>): number | null {
+  const sent = times.filter((time) => time !== null);
+  if (sent.length === 0) return null;
+  return Math.round(sent.reduce((sum, time) => sum + time, 0) / sent.length);
+}
+
+/**
+ * What copying the reply changes (spec section 4, "Taglish reply"). Refused
+ * while any line has a blank count or is a "pick a flower" line. The first copy
+ * sends the quote: it stamps the sent time and the valid-until date. Later
+ * copies save only the text.
+ */
+export function copyChanges(
+  quote: Pick<Quote, "status" | "validUntil" | "sentAt">,
+  lines: Pick<QuoteLine, "stemId" | "count">[],
+  replyText: string,
+  now: Date,
+  validForDays: number,
+): { ok: true; changes: Partial<Quote> } | { ok: false; code: "incomplete_quote" } {
+  if (lines.some((line) => line.stemId === null || line.count === null)) return { ok: false, code: "incomplete_quote" };
+  if (quote.status !== "draft") return { ok: true, changes: { replyText } };
+  return {
+    ok: true,
+    changes: {
+      status: "sent",
+      sentAt: now.toISOString(),
+      validUntil: validUntilOnSend(quote.validUntil, manilaToday(now), validForDays),
+      replyText,
+    },
+  };
 }
