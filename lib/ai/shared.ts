@@ -65,21 +65,37 @@ export function shortDate(date: ManilaDate): string {
   return `${MONTHS[month - 1]} ${day}`;
 }
 
+/** "₱1,220", "P1,220", "PHP 1220", "1,220 pesos" or "1,220 piso": an amount the model wrote itself. */
+const PESO_AMOUNT = [/₱/, /\bPHP\b/, /\bP ?\d/, /\d[\d,.]*\s*(?:pesos?|piso)\b/i];
+
 /**
- * Passes a drafted message through only if it carries each text exactly, so a
- * customer never gets a wrong price or date.
+ * Fills a drafted message's placeholders, so the model never writes a price or
+ * date. Each required placeholder must appear exactly once, each optional one
+ * at most once, and the model must not write a peso amount of its own.
  */
-export function requireTexts(
+export function fillPlaceholders(
   outcome: AiOutcome<{ message: string; note: string }>,
-  texts: string[],
+  values: { required: Record<string, string>; optional?: Record<string, string> },
   what: string,
 ): AiOutcome<{ message: string; note: string }> {
   if (!outcome.ok) return outcome;
-  // Not followed by more digits, so "Oct 2" does not pass inside "Oct 20".
-  const has = (text: string) =>
-    new RegExp(`${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?!\\d|,\\d)`).test(outcome.result.message);
-  const missing = texts.find((text) => !has(text));
-  return missing === undefined ? outcome : { ...outcome, ok: false, error: `${what} is missing ${missing}` };
+  const draft = outcome.result.message;
+  const fail = (error: string) => ({ ...outcome, ok: false as const, error });
+
+  const uses = (name: string) => draft.split(`{${name}}`).length - 1;
+  for (const name of Object.keys(values.required)) {
+    if (uses(name) !== 1) return fail(`${what} must use {${name}} exactly once`);
+  }
+  for (const name of Object.keys(values.optional ?? {})) {
+    if (uses(name) > 1) return fail(`${what} must use {${name}} at most once`);
+  }
+  if (PESO_AMOUNT.some((pattern) => pattern.test(draft))) return fail(`${what} wrote a peso amount itself`);
+
+  let message = draft;
+  for (const [name, value] of Object.entries({ ...values.required, ...values.optional })) {
+    message = message.split(`{${name}}`).join(value);
+  }
+  return { ...outcome, result: { ...outcome.result, message } };
 }
 
 /** JSON schema pieces for structured outputs. */
