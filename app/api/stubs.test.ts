@@ -72,6 +72,13 @@ describe("stub routes", () => {
     expect([response.status, await response.json()]).toEqual([404, { error: "Quote not found" }]);
   });
 
+  test("editing a sample price answers the new latest cost", async () => {
+    // Rose - white: sample ₱240 a dozen is ₱20 a stem.
+    const roseWhite = stems.find((row) => row.name === "Rose - white")!;
+    const response = await call(stem.PATCH, roseWhite.id, { samplePrice: 240 });
+    expect((await response.json()).latestCost).toBe(20);
+  });
+
   test("saving edited lines answers the quote repriced at latest costs", async () => {
     // Inquiry 3 with one more stargazer: recipe ₱710 + ₱150 = ₱860; × 1.5 + ₱150 fees = ₱1,440.
     const lines: UpdateQuoteLinesRequest["lines"] = createQuote.lines.map(({ id, stemId, count, countLow, countHigh, confidence, note }) => ({

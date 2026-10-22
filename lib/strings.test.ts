@@ -13,3 +13,8 @@ test("a missing key fails the type check, and shows the key instead of crashing"
   // @ts-expect-error: "nope" is not a key of the nav screen.
   expect(t("nav", "nope")).toBe("nav.nope");
 });
+
+test("an unknown screen shows the key instead of crashing", () => {
+  // @ts-expect-error: "nope" is not a screen.
+  expect(t("nope", "title")).toBe("nope.title");
+});

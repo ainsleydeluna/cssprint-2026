@@ -35,6 +35,14 @@ describe("costPerStem", () => {
   test("keeps two decimals", () => {
     expect(costPerStem({ quantity: 1, unit: "dozen", bundleSize: null, totalPaid: 100 })).toBe(8.33);
   });
+
+  test("is null for a bundle without a bundle size", () => {
+    expect(costPerStem({ quantity: 1, unit: "bundle", bundleSize: null, totalPaid: 300 })).toBeNull();
+  });
+
+  test("is null for a quantity of zero", () => {
+    expect(costPerStem({ quantity: 0, unit: "piece", bundleSize: null, totalPaid: 50 })).toBeNull();
+  });
 });
 
 describe("latestCost", () => {
@@ -129,6 +137,11 @@ describe("price", () => {
     expect(price(100, { markupPercent: 10, wrapFee: 0, laborFee: 0 })).toBe(110);
   });
 
+  test("rounds up a half centavo over that floating point stores just under", () => {
+    // 526.67 x 1.5 is exactly 790.005, stored as 790.0049999...
+    expect(price(526.67, { markupPercent: 50, wrapFee: 0, laborFee: 0 })).toBe(800);
+  });
+
   test("rounds up even one centavo over", () => {
     expect(price(100.01, { markupPercent: 0, wrapFee: 0, laborFee: 0 })).toBe(110);
   });
@@ -180,9 +193,15 @@ describe("clampCount", () => {
 
 describe("prefillCount", () => {
   test("starts at the middle of the count range, rounded up", () => {
-    expect([prefillCount(4, 7, "middle"), prefillCount(30, 44, "middle"), prefillCount(3, 3, "middle")]).toEqual([
-      6, 37, 3,
-    ]);
+    expect([
+      prefillCount(4, 7, false, "middle"),
+      prefillCount(30, 44, false, "middle"),
+      prefillCount(3, 3, false, "middle"),
+    ]).toEqual([6, 37, 3]);
+  });
+
+  test("stays within the line limits", () => {
+    expect([prefillCount(4, 7, true, "middle"), prefillCount(120, 160, false, "middle")]).toEqual([5, 100]);
   });
 });
 

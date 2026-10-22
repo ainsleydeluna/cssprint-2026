@@ -12,10 +12,11 @@ export function t<S extends Screen>(
   key: keyof Strings[S] & string,
   vars?: Record<string, string | number>,
 ): string {
-  const text = (strings[screen] as Record<string, string>)[key];
-  if (text === undefined) return `${screen}.${key}`;
+  const labels: Record<string, string> | undefined = strings[screen];
+  if (!labels || !Object.hasOwn(labels, key)) return `${screen}.${key}`;
+  const text = labels[key];
   if (!vars) return text;
   return text.replace(/\{(\w+)\}/g, (placeholder, name: string) =>
-    name in vars ? String(vars[name]) : placeholder,
+    Object.hasOwn(vars, name) ? String(vars[name]) : placeholder,
   );
 }

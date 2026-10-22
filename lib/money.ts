@@ -4,31 +4,40 @@
 import type { CountPrefill } from "./ai/config";
 import type { ManilaDate, Money, QuoteLine, Shop, Stem, StockBatch, Unit } from "./types";
 
-/** Rounds to two decimals. EPSILON keeps 1.005 from rounding down to 1.00. */
+/**
+ * Rounds to two decimals, half up. Trimming to 15 significant digits first drops
+ * float error, so 790.005 (stored as 790.00499...) rounds to 790.01.
+ */
 function roundMoney(amount: number): Money {
-  return Math.round((amount + Number.EPSILON) * 100) / 100;
+  return Math.round(Number((amount * 100).toPrecision(15))) / 100;
 }
 
-/** Stems in one unit. A bunch is priced whole, so it counts as one. */
-function stemsPerUnit(unit: Unit, bundleSize: number | null): number {
+/** Stems in one unit; null for a bundle with no size. A bunch is priced whole, so it counts as one. */
+function stemsPerUnit(unit: Unit, bundleSize: number | null): number | null {
   switch (unit) {
     case "dozen":
       return 12;
     case "per10":
       return 10;
     case "bundle":
-      return bundleSize ?? 1;
+      return bundleSize !== null && bundleSize > 0 ? bundleSize : null;
     case "bunch":
     case "piece":
       return 1;
   }
 }
 
-/** Cost of one stem (one bunch for fillers) in a stock batch. */
+/**
+ * Cost of one stem (one bunch for fillers) in a stock batch. null when it cannot
+ * be computed: a bundle with no bundle size, or a quantity of zero or less.
+ * A receipt line with a null cost must be fixed before the receipt is saved.
+ */
 export function costPerStem(
   batch: Pick<StockBatch, "quantity" | "unit" | "bundleSize" | "totalPaid">,
-): Money {
-  return roundMoney(batch.totalPaid / (batch.quantity * stemsPerUnit(batch.unit, batch.bundleSize)));
+): Money | null {
+  const perUnit = stemsPerUnit(batch.unit, batch.bundleSize);
+  if (perUnit === null || batch.quantity <= 0) return null;
+  return roundMoney(batch.totalPaid / (batch.quantity * perUnit));
 }
 
 /** A stock batch with its receipt's purchase date, as latestCost needs it. */
@@ -57,7 +66,10 @@ export function latestCost(
     }
   }
   if (newest) return { cost: newest.costPerStem, isSample: false };
-  return { cost: roundMoney(stem.samplePrice / stemsPerUnit(stem.unit, stem.bundleSize)), isSample: true };
+  // A stem bought by the bundle always has a bundle size (the stems table must
+  // enforce it); the 1 only stops a bad row from crashing a screen.
+  const perUnit = stemsPerUnit(stem.unit, stem.bundleSize) ?? 1;
+  return { cost: roundMoney(stem.samplePrice / perUnit), isSample: true };
 }
 
 /**
@@ -121,11 +133,11 @@ export function clampCount(count: number, isFiller: boolean): number {
   return Math.min(max, Math.max(1, Math.round(count)));
 }
 
-/** A new line's starting count from the AI's count range. */
-export function prefillCount(countLow: number, countHigh: number, rule: CountPrefill): number {
+/** A new line's starting count from the AI's count range, within the line limits. */
+export function prefillCount(countLow: number, countHigh: number, isFiller: boolean, rule: CountPrefill): number {
   switch (rule) {
     case "middle":
-      return Math.ceil((countLow + countHigh) / 2);
+      return clampCount(Math.ceil((countLow + countHigh) / 2), isFiller);
   }
 }
 
