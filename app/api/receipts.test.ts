@@ -94,6 +94,21 @@ describe.skipIf(!testAccountsReady)("photo and receipt routes", () => {
     }
   });
 
+  test.each([
+    ["a file that is not a JPEG", new Uint8Array([0x89, 0x50, 0x4e, 0x47])],
+    ["an empty file", new Uint8Array([])],
+    ["a JPEG over 5 MB", Object.assign(new Uint8Array(5 * 1024 * 1024 + 1), { 0: 0xff, 1: 0xd8, 2: 0xff })],
+  ])("upload answers 400 invalid_request for %s", async (_case, bytes) => {
+    const form = new FormData();
+    form.set("kind", "receipts");
+    // Typed as JPEG on purpose: the route checks the bytes, not the label.
+    form.set("photo", new Blob([bytes], { type: "image/jpeg" }));
+
+    const response = await photosRoute.POST(new Request("http://localhost/api/photos", { method: "POST", body: form }));
+
+    expect([response.status, (await response.json()).code]).toEqual([400, "invalid_request"]);
+  });
+
   test("extract reads the photo into the table and logs the call", async () => {
     const photoPath = await upload();
     const call = usage();
