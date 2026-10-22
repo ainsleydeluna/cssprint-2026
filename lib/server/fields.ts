@@ -1,9 +1,10 @@
-// Request bodies for the shop and stem routes. Only the fields named in the
+// Request bodies for the shop, stem and quote routes. Only the fields named in the
 // lib/contract.ts request type get through; anything else (id, shopId, price,
 // status, …) is ignored, never copied onto the row. Ranges match the checks in
 // supabase/migrations, so a bad value answers invalid_request, not a database error.
 
-import type { AddStemRequest, UpdateShopRequest, UpdateStemRequest } from "../contract";
+import { isManilaDate } from "../ai/shared";
+import type { AddStemRequest, UpdateQuoteRequest, UpdateShopRequest, UpdateStemRequest } from "../contract";
 import type { Stem, Unit } from "../types";
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; code: "invalid_request" | "invalid_bundle_size"; error: string };
@@ -41,6 +42,15 @@ function name(maxLength: number): Check {
     return trimmed === "" ? undefined : trimmed;
   };
 }
+
+const date: Check = (value) => (typeof value === "string" && isManilaDate(value) ? value : undefined);
+
+function nullable(check: Check): Check {
+  return (value) => (value === null ? null : check(value));
+}
+
+/** Long enough for a Taglish reply many times over. */
+const replyText = text(2000);
 
 const SHOP_FIELDS: Record<keyof UpdateShopRequest, Check> = {
   name: text(80),
@@ -123,4 +133,17 @@ export function parseStemUpdate(body: unknown, current: Stem): Parsed<UpdateStem
   // Store a bundle size only when it changes: a new value, or cleared because the row is no longer a bundle.
   if (after.value.bundleSize !== current.bundleSize) changes.bundleSize = after.value.bundleSize;
   return { ok: true, value: changes };
+}
+
+const QUOTE_UPDATE_FIELDS: Record<keyof UpdateQuoteRequest, Check> = {
+  label: name(80),
+  budget: nullable(money),
+  // A sent quote always has a valid-until date (quotes_sent_complete), so it is never cleared.
+  validUntil: date,
+  replyText,
+};
+
+/** PATCH /api/quotes/[id]. */
+export function parseQuoteUpdate(body: unknown): Parsed<UpdateQuoteRequest> {
+  return pick<UpdateQuoteRequest>(body, QUOTE_UPDATE_FIELDS);
 }

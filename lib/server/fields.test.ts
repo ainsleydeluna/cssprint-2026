@@ -1,9 +1,9 @@
-// Request bodies for the shop and stem routes: only the fields named in the
+// Request bodies for the shop, stem and quote routes: only the fields named in the
 // lib/contract.ts request types get through, and each is checked.
 
 import { describe, expect, test } from "vitest";
 import type { Stem } from "../types";
-import { parseNewStem, parseShopUpdate, parseStemUpdate } from "./fields";
+import { parseNewStem, parseQuoteUpdate, parseShopUpdate, parseStemUpdate } from "./fields";
 
 describe("parseShopUpdate", () => {
   test("keeps the shop settings and drops every other field", () => {
@@ -113,5 +113,31 @@ describe("parseStemUpdate", () => {
     ["an empty flower name", { flower: "" }],
   ])("refuses %s with invalid_request", (_case, body) => {
     expect(parseStemUpdate(body, roseRed)).toMatchObject({ ok: false, code: "invalid_request" });
+  });
+});
+
+describe("parseQuoteUpdate", () => {
+  test("keeps the label, budget, valid-until date and reply text, and drops every other field", () => {
+    const body = { label: " Debut, Oct 25 ", budget: 1500, validUntil: "2026-10-26", replyText: "Hi po!", status: "sent", price: 1, shopId: "x" };
+    expect(parseQuoteUpdate(body)).toEqual({
+      ok: true,
+      value: { label: "Debut, Oct 25", budget: 1500, validUntil: "2026-10-26", replyText: "Hi po!" },
+    });
+  });
+
+  test("clears the budget with null", () => {
+    expect(parseQuoteUpdate({ budget: null })).toEqual({ ok: true, value: { budget: null } });
+  });
+
+  test.each([
+    ["an empty label", { label: "   " }],
+    ["a label over 80 characters", { label: "x".repeat(81) }],
+    ["a negative budget", { budget: -1 }],
+    ["a date that is not YYYY-MM-DD", { validUntil: "Oct 26" }],
+    ["a date that does not exist", { validUntil: "2026-02-30" }],
+    ["a cleared valid-until date", { validUntil: null }],
+    ["reply text that is not text", { replyText: 5 }],
+  ])("refuses %s with invalid_request", (_case, body) => {
+    expect(parseQuoteUpdate(body)).toMatchObject({ ok: false, code: "invalid_request" });
   });
 });
