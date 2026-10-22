@@ -99,7 +99,10 @@ export const ERROR_STATUS: Record<ApiErrorCode, number> = {
   /** A field has the wrong type or is out of range. Unknown fields are ignored, not refused. */
   invalid_request: 400,
   not_found: 404,
-  /** Copying the reply of a quote with a blank count or a "pick a flower" line. */
+  /**
+   * Drafting or copying the reply, or asking for budget options, on a quote
+   * with no lines, a blank count or a "pick a flower" line.
+   */
   incomplete_quote: 422,
   /** Adding or editing a stem with unit "bundle" and no bundle size above 0. */
   invalid_bundle_size: 422,
@@ -246,7 +249,11 @@ export type CopiedRequest = { replyText: string };
 export type CopiedResponse = Quote;
 
 // POST /api/quotes/[id]/budget-options — fitToBudget, priced and checked by code.
-// Choosing an option sends its lines to PUT /api/quotes/[id]/lines.
+// Saves the budget on the quote. Choosing an option sends its lines to PUT
+// /api/quotes/[id]/lines, which replaces every line. Answers incomplete_quote,
+// before saving or any AI call, for a quote with no lines, a blank count or a
+// "pick a flower" line, and ai_failed when the AI call fails after its retry.
+// Options naming a row the shop does not have are dropped.
 export type BudgetOptionsRequest = { budget: Money };
 export type BudgetOption = {
   label: string;
@@ -254,13 +261,17 @@ export type BudgetOption = {
   recipeCost: Money;
   price: Money;
   margin: number;
-  /** 0 when within budget. Set only on the single cheapest option shown when none fit. */
+  /**
+   * 0 when within budget. Set only on the single cheapest option shown when none
+   * fit; still 0 when that option is within budget but below minimum margin.
+   */
   overBudgetBy: Money;
 };
 export type BudgetOptionsResponse = { options: BudgetOption[]; demo: boolean };
 
 // POST /api/quotes/[id]/price-update — drafts the price-update message for an
-// underwater quote.
+// open, underwater quote. Saves nothing. Answers invalid_request for any other
+// quote, and ai_failed when the AI call fails after its retry.
 export type PriceUpdateResponse = {
   message: string;
   oldPrice: Money;
@@ -269,9 +280,15 @@ export type PriceUpdateResponse = {
   validUntil: ManilaDate;
   demo: boolean;
 };
-// POST /api/quotes/[id]/price-update/apply — on copying the message: sets the
-// new price, resets validUntil, clears underwaterAt, leaves sentAt alone.
-export type ApplyPriceUpdateRequest = { message: string };
+// POST /api/quotes/[id]/price-update/apply — on copying the message: saves the
+// draft's newPrice, validUntil and message (as replyText) exactly as sent, so
+// the quote matches what the customer was told. Leaves sentAt and status alone.
+// Clears underwaterAt only if the saved price keeps the minimum margin at
+// latest costs. Answers invalid_request unless the quote is open and
+// underwater, the message contains the new price, and validUntil is not before
+// today in Manila. Copying the same draft again changes nothing.
+/** newPrice and validUntil as the price-update route answered them. */
+export type ApplyPriceUpdateRequest = { message: string; newPrice: Money; validUntil: ManilaDate };
 export type ApplyPriceUpdateResponse = Quote;
 
 // GET /api/accuracy
@@ -287,7 +304,12 @@ export type EvalResult = {
 };
 export type AccuracyResponse = {
   eval: EvalResult[];
-  /** From the ai_calls table. */
-  live: Array<{ call: AiCallName; calls: number; medianSeconds: number; averageCostUsd: number }>;
+  /**
+   * From the ai_calls table. A call whose model is missing from TOKEN_PRICES
+   * has an unknown cost and is left out of the averages; null when every
+   * call's cost is unknown.
+   */
+  live: Array<{ call: AiCallName; calls: number; medianSeconds: number; averageCostUsd: number | null }>;
+  /** Each quote's calls summed, averaged over quotes; null when there are none of known cost. */
   averageCostPerQuoteUsd: number | null;
 };

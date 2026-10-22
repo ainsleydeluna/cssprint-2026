@@ -4,6 +4,8 @@
 import { describe, expect, test } from "vitest";
 import type { Stem } from "../types";
 import {
+  parseApplyPriceUpdate,
+  parseBudgetOptions,
   parseCopied,
   parseCreateQuote,
   parseNewStem,
@@ -296,5 +298,40 @@ describe("parseCreateQuote", () => {
     ["a path that leaves the folder", { photoPath: `${shopId}/../x.jpg` }],
   ])("refuses %s with invalid_request", (_case, body) => {
     expect(parseCreateQuote(body, shopId)).toMatchObject({ ok: false, code: "invalid_request" });
+  });
+});
+
+describe("parseBudgetOptions", () => {
+  test("keeps the budget and drops every other field", () => {
+    expect(parseBudgetOptions({ budget: 1500, price: 1 })).toEqual({ ok: true, value: { budget: 1500 } });
+  });
+
+  test.each([
+    ["no budget", {}],
+    ["a null budget", { budget: null }],
+    ["a budget as text", { budget: "1500" }],
+    ["a budget below zero", { budget: -1 }],
+  ])("refuses %s with invalid_request", (_case, body) => {
+    expect(parseBudgetOptions(body)).toMatchObject({ ok: false, code: "invalid_request" });
+  });
+});
+
+describe("parseApplyPriceUpdate", () => {
+  const draft = { message: "Pasensya na po, ₱1,130 na po", newPrice: 1130, validUntil: "2026-10-25" };
+
+  test("keeps the copied draft and drops every other field", () => {
+    expect(parseApplyPriceUpdate({ ...draft, price: 1, sentAt: null })).toEqual({ ok: true, value: draft });
+  });
+
+  test.each([
+    ["no message", { newPrice: 1130, validUntil: "2026-10-25" }],
+    ["an empty message", { ...draft, message: " " }],
+    ["no new price", { message: draft.message, validUntil: "2026-10-25" }],
+    ["a new price as text", { ...draft, newPrice: "1130" }],
+    ["a new price below zero", { ...draft, newPrice: -1 }],
+    ["no valid-until date", { message: draft.message, newPrice: 1130 }],
+    ["a valid-until date that does not exist", { ...draft, validUntil: "2026-02-30" }],
+  ])("refuses %s with invalid_request", (_case, body) => {
+    expect(parseApplyPriceUpdate(body)).toMatchObject({ ok: false, code: "invalid_request" });
   });
 });
