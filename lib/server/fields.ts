@@ -61,6 +61,14 @@ function nullable(check: Check): Check {
 /** Long enough for a Taglish reply many times over. */
 const replyText = text(2000);
 
+/** " - " joins flower and color in a row's name ("Rose - red"), so it may not appear inside either. */
+function namePart(check: Check): Check {
+  return (value) => {
+    const checked = check(value);
+    return typeof checked === "string" && checked.includes(" - ") ? undefined : checked;
+  };
+}
+
 const SHOP_FIELDS: Record<keyof UpdateShopRequest, Check> = {
   name: text(80),
   wrapFee: money,
@@ -97,8 +105,8 @@ export function parseShopUpdate(body: unknown): Parsed<UpdateShopRequest> {
 }
 
 const NEW_STEM_FIELDS: Record<keyof AddStemRequest, Check> = {
-  flower: name(60),
-  color: text(40),
+  flower: namePart(name(60)),
+  color: namePart(text(40)),
   isFiller: boolean,
   unit,
   bundleSize,
@@ -139,8 +147,11 @@ export function parseStemUpdate(body: unknown, current: Stem): Parsed<UpdateStem
   const bundleSizeAfter = Object.hasOwn(changes, "bundleSize") ? (changes.bundleSize ?? null) : current.bundleSize;
   const after = stemBundle({ unit: changes.unit ?? current.unit, bundleSize: bundleSizeAfter });
   if (!after.ok) return after;
-  // Store a bundle size only when it changes: a new value, or cleared because the row is no longer a bundle.
-  if (after.value.bundleSize !== current.bundleSize) changes.bundleSize = after.value.bundleSize;
+  // Save the bundle size as it is after the edit (null unless the row is a bundle)
+  // whenever the body sent one or it changes, so a stray size is never saved.
+  if (Object.hasOwn(changes, "bundleSize") || after.value.bundleSize !== current.bundleSize) {
+    changes.bundleSize = after.value.bundleSize;
+  }
   return { ok: true, value: changes };
 }
 

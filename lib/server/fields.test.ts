@@ -73,6 +73,9 @@ describe("parseNewStem", () => {
   test.each([
     ["a missing field", { flower: "Peony", color: "pink", isFiller: false, unit: "piece", bundleSize: null }],
     ["an empty flower name", { ...peony, flower: "  " }],
+    // " - " joins flower and color in the row name ("Rose - red"), so it may not appear inside either.
+    ["\" - \" inside the flower", { ...peony, flower: "Rose - spray" }],
+    ["\" - \" inside the color", { ...peony, color: "pink - white" }],
     ["an unknown unit", { ...peony, unit: "box" }],
     ["isFiller as text", { ...peony, isFiller: "no" }],
     ["a negative sample price", { ...peony, samplePrice: -1 }],
@@ -104,6 +107,14 @@ describe("parseStemUpdate", () => {
     expect(parseStemUpdate({ unit: "bundle", bundleSize: 20 }, roseRed)).toEqual({ ok: true, value: { unit: "bundle", bundleSize: 20 } });
   });
 
+  test.each([
+    ["a bundle size sent for a dozen row", { bundleSize: 5 }],
+    ["a bundle size sent with a change to piece", { unit: "piece", bundleSize: 5 }],
+  ])("never saves %s", (_case, body) => {
+    const parsed = parseStemUpdate(body, roseRed);
+    expect(parsed.ok && parsed.value.bundleSize).toBeNull();
+  });
+
   test("clears the bundle size when a bundle row changes to another unit", () => {
     expect(parseStemUpdate({ unit: "piece" }, mumsWhite)).toEqual({ ok: true, value: { unit: "piece", bundleSize: null } });
   });
@@ -119,6 +130,7 @@ describe("parseStemUpdate", () => {
   test.each([
     ["hidden as text", { hidden: "yes" }],
     ["an empty flower name", { flower: "" }],
+    ["\" - \" inside the color", { color: "red - white" }],
   ])("refuses %s with invalid_request", (_case, body) => {
     expect(parseStemUpdate(body, roseRed)).toMatchObject({ ok: false, code: "invalid_request" });
   });

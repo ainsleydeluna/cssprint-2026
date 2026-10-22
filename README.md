@@ -68,5 +68,5 @@ Thursday: planning, receipt to cost, photo to quote. Friday: budget fit and repl
 
 \## AI tools used to build
 
-Claude Code (building), Codex (code reviews), Gemini (research and docs). Full credits will be in the README.
+Claude Code (building). Full credits will be in the README.
 

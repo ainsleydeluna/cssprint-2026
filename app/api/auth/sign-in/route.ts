@@ -18,6 +18,8 @@ export async function POST(request: Request) {
     email,
     options: { emailRedirectTo: `${new URL(request.url).origin}/auth/confirm` },
   });
+  // Supabase answers 429 (code over_email_send_rate_limit) when too many emails went out.
+  if (error?.status === 429) return errorResponse("rate_limited", "Too many sign-in emails");
   if (error) throw new Error(`Sending the magic link failed: ${error.message}`);
   return Response.json({ sent: true } satisfies SignInResponse);
 }

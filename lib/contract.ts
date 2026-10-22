@@ -86,7 +86,8 @@ export type ApiErrorCode =
   | "invalid_request"
   | "not_found"
   | "incomplete_quote"
-  | "invalid_bundle_size";
+  | "invalid_bundle_size"
+  | "rate_limited";
 
 /** Screens check `code`, which never changes; `error` is a short English message for logs. */
 export type ApiError = { code: ApiErrorCode; error: string };
@@ -101,6 +102,8 @@ export const ERROR_STATUS: Record<ApiErrorCode, number> = {
   incomplete_quote: 422,
   /** Adding or editing a stem with unit "bundle" and no bundle size above 0. */
   invalid_bundle_size: 422,
+  /** Too many sign-in emails: Supabase's email rate limit. Wait and try again. */
+  rate_limited: 429,
 };
 
 /** A stem row with its latest cost. Per bunch for fillers. */
@@ -120,7 +123,8 @@ export function stemName(stem: Pick<Stem, "flower" | "color">): string {
 export type QuoteDetail = { quote: Quote; lines: QuoteLine[] };
 
 // POST /api/auth/sign-in — emails a magic link that returns to the address the
-// form was opened on. Answers invalid_request for a malformed email.
+// form was opened on. Answers invalid_request for a malformed email and
+// rate_limited when Supabase's email rate limit is hit.
 export type SignInRequest = { email: string };
 export type SignInResponse = { sent: true };
 

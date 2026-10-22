@@ -35,8 +35,12 @@ for (const email of [emailA, emailB]) {
   if (!error) console.log(`Created ${email}`);
   else if (error.code === "email_exists" || error.code === "user_already_exists") {
     // Reset the password so the test still signs in after TEST_ACCOUNTS_PASSWORD changes.
-    const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
-    const user = data.users.find((u) => u.email === email.toLowerCase());
+    const listed = await admin.auth.admin.listUsers({ perPage: 1000 });
+    if (listed.error) {
+      console.error(`${email} already exists, but listing users to reset its password failed: ${listed.error.message}`);
+      process.exit(1);
+    }
+    const user = listed.data.users.find((u) => u.email === email.toLowerCase());
     const reset = user && (await admin.auth.admin.updateUserById(user.id, { password }));
     if (reset && !reset.error) console.log(`${email} already exists; password reset`);
     else {
