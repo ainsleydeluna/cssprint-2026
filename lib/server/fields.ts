@@ -1,10 +1,11 @@
-// Request bodies for the shop and stem routes. Only the fields named in the
+// Request bodies for the shop, stem and receipt routes. Only the fields named in the
 // lib/contract.ts request type get through; anything else (id, shopId, price,
 // status, …) is ignored, never copied onto the row. Ranges match the checks in
 // supabase/migrations, so a bad value answers invalid_request, not a database error.
 
-import type { AddStemRequest, UpdateShopRequest, UpdateStemRequest } from "../contract";
-import type { Stem, Unit } from "../types";
+import type { AddStemRequest, SaveReceiptRequest, UpdateShopRequest, UpdateStemRequest } from "../contract";
+import { costPerStem, roundMoney } from "../money";
+import type { ManilaDate, Money, Stem, Unit } from "../types";
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; code: "invalid_request" | "invalid_bundle_size"; error: string };
 
@@ -59,7 +60,7 @@ const SHOP_FIELDS: Record<keyof UpdateShopRequest, Check> = {
   validForDays: number(1, 60, { whole: true }),
 };
 
-function isRecord(body: unknown): body is Record<string, unknown> {
+export function isRecord(body: unknown): body is Record<string, unknown> {
   return typeof body === "object" && body !== null && !Array.isArray(body);
 }
 
@@ -134,4 +135,82 @@ export function parseStemUpdate(body: unknown, current: Stem): Parsed<UpdateStem
     changes.bundleSize = after.value.bundleSize;
   }
   return { ok: true, value: changes };
+}
+
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A photo path in the shop's own folder, as uploadPhoto makes it: "<shop_id>/<uuid>.jpg". */
+export function isShopPhotoPath(path: unknown, shopId: string): path is string {
+  if (typeof path !== "string") return false;
+  const [folder, file, ...rest] = path.split("/");
+  return (
+    folder === shopId &&
+    file !== undefined &&
+    rest.length === 0 &&
+    file.endsWith(".jpg") &&
+    UUID.test(file.slice(0, -".jpg".length))
+  );
+}
+
+/** "YYYY-MM-DD" that is a real calendar date. */
+export function isCalendarDate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
+}
+
+/** Far more than one Dangwa receipt holds; keeps one save to a bounded transaction. */
+const MAX_RECEIPT_LINES = 100;
+
+/** A checked receipt line, with its cost per stem from lib/money.ts. */
+export type SaveReceiptLine = SaveReceiptRequest["lines"][number] & { costPerStem: Money };
+
+const RECEIPT_LINE_FIELDS: Record<keyof Omit<SaveReceiptRequest["lines"][number], "stemId">, Check> = {
+  quantity: number(0.01, MAX_MONEY),
+  unit,
+  bundleSize,
+  totalPaid: money,
+};
+
+/**
+ * POST /api/receipts. Every line must be matched to a stem and have a cost per
+ * stem (decision 20); the server recomputes that cost and never trusts one sent
+ * in. A missing purchase date is today in Manila. The route still checks that
+ * each stem is the shop's.
+ */
+export function parseSaveReceipt(
+  body: unknown,
+  { shopId, today }: { shopId: string; today: ManilaDate },
+): Parsed<{ photoPath: string; purchaseDate: ManilaDate; lines: SaveReceiptLine[] }> {
+  if (!isRecord(body)) return invalid("Body must be a JSON object");
+  const { photoPath, purchaseDate = null, lines } = body;
+  if (!isShopPhotoPath(photoPath, shopId)) return invalid("Invalid photoPath");
+  if (purchaseDate !== null && !isCalendarDate(purchaseDate)) return invalid("Invalid purchaseDate");
+  // "YYYY-MM-DD" dates compare correctly as strings.
+  if (purchaseDate !== null && purchaseDate > today) return invalid("The purchase date is after today");
+  if (!Array.isArray(lines) || lines.length === 0) return invalid("A receipt needs at least one line");
+  if (lines.length > MAX_RECEIPT_LINES) return invalid(`A receipt has at most ${MAX_RECEIPT_LINES} lines`);
+
+  const checked: SaveReceiptLine[] = [];
+  for (const [i, line] of lines.entries()) {
+    const n = i + 1;
+    if (!isRecord(line)) return invalid(`Line ${n} must be an object`);
+    if (typeof line.stemId !== "string" || !UUID.test(line.stemId)) return invalid(`Line ${n} has no stem`);
+    const picked = pick<Omit<SaveReceiptLine, "stemId" | "costPerStem">>(line, RECEIPT_LINE_FIELDS);
+    if (!picked.ok) return invalid(`${picked.error} on line ${n}`);
+    const missing = Object.keys(RECEIPT_LINE_FIELDS).find((field) => !Object.hasOwn(picked.value, field));
+    if (missing) return invalid(`Invalid ${missing} on line ${n}`);
+    const fields = picked.value as Omit<SaveReceiptLine, "stemId" | "costPerStem">;
+    const batch = {
+      ...fields,
+      stemId: line.stemId,
+      // numeric(10,2) in receipt_lines, so the cost per stem is computed on the stored quantity.
+      quantity: roundMoney(fields.quantity),
+      bundleSize: fields.unit === "bundle" ? fields.bundleSize : null,
+    };
+    const cost = costPerStem(batch);
+    if (cost === null) return invalid(`Line ${n} has no cost per stem`);
+    checked.push({ ...batch, costPerStem: cost });
+  }
+  return { ok: true, value: { photoPath, purchaseDate: purchaseDate ?? today, lines: checked } };
 }

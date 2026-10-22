@@ -1,11 +1,9 @@
 import type { UpdateStemResponse } from "@/lib/contract";
 import { requireShop } from "@/lib/server/auth";
 import { stemsWithCost } from "@/lib/server/costs";
-import { parseStemUpdate } from "@/lib/server/fields";
+import { parseStemUpdate, UUID } from "@/lib/server/fields";
 import { DUPLICATE_NAME, errorResponse, readJson } from "@/lib/server/http";
 import { STEM_COLUMNS, toColumns, toStem } from "@/lib/server/rows";
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Edit a row, or hide it with { hidden: true }; stems are never deleted.
 // Answers invalid_bundle_size when the edited row is "bundle" without a bundle size above 0.
