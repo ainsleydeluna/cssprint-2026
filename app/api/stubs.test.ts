@@ -1,9 +1,10 @@
-// Every route the screens call exists and answers JSON (issue #4). Calls the
+// Every stub route the screens call exists and answers JSON (issue #4). Calls the
 // route handlers directly, the way Next.js does, without starting a server.
+// The shop and stem routes are real now; app/api/routes.test.ts covers them.
 
 import { describe, expect, test } from "vitest";
 import type { QuoteDetail, UpdateQuoteLinesRequest } from "@/lib/contract";
-import { createQuote, quoteList, stems } from "@/lib/fake/responses";
+import { createQuote, quoteList } from "@/lib/fake/responses";
 import * as accuracy from "./accuracy/route";
 import * as photos from "./photos/route";
 import * as quoteBudgetOptions from "./quotes/[id]/budget-options/route";
@@ -17,9 +18,6 @@ import * as quotes from "./quotes/route";
 import * as receipt from "./receipts/[id]/route";
 import * as receiptExtract from "./receipts/extract/route";
 import * as receipts from "./receipts/route";
-import * as shop from "./shop/route";
-import * as stem from "./stems/[id]/route";
-import * as stemsRoute from "./stems/route";
 
 type Handler = (request: Request, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
 
@@ -27,7 +25,6 @@ type Handler = (request: Request, ctx: { params: Promise<{ id: string }> }) => P
 const quoteId = createQuote.quote.id;
 /** Inquiry 1: every line has a stem and a count. */
 const completeQuoteId = quoteList.quotes.find((item) => item.label === "Debut, Oct 25")!.id;
-const stemId = stems[0].id;
 
 function call(handler: Handler, id = "", body?: unknown) {
   const request = new Request("http://localhost/api", {
@@ -43,12 +40,6 @@ const routes: Array<[string, Handler, string?, unknown?]> = [
   ["save a receipt", receipts.POST],
   ["list receipts", receipts.GET],
   ["delete a receipt", receipt.DELETE, "any"],
-  ["read the shop", shop.GET],
-  ["update the shop", shop.PATCH, "", { markupPercent: 60 }],
-  ["list stems", stemsRoute.GET],
-  ["add a stem", stemsRoute.POST, "", { flower: "Peony", color: "pink", isFiller: false, unit: "piece", bundleSize: null, samplePrice: 250 }],
-  ["edit a stem", stem.PATCH, stemId, { samplePrice: 190 }],
-  ["hide a stem", stem.PATCH, stemId, { hidden: true }],
   ["create a quote", quotes.POST],
   ["list quotes", quotes.GET],
   ["read a quote", quote.GET, quoteId],
@@ -78,31 +69,6 @@ describe("stub routes", () => {
   test("copying the reply of an unfinished draft answers 422 incomplete_quote", async () => {
     const response = await call(quoteCopied.POST, quoteId, { replyText: "Hi po!" });
     expect([response.status, (await response.json()).code]).toEqual([422, "incomplete_quote"]);
-  });
-
-  test("adding a bundle stem without a bundle size answers 422 invalid_bundle_size", async () => {
-    const mums = { flower: "Mums", color: "white", isFiller: false, unit: "bundle", samplePrice: 150 };
-    const responses = await Promise.all([
-      call(stemsRoute.POST, "", { ...mums, bundleSize: null }),
-      call(stemsRoute.POST, "", { ...mums, bundleSize: 0 }),
-    ]);
-    const answers = await Promise.all(responses.map(async (r) => [r.status, (await r.json()).code]));
-    expect(answers).toEqual([
-      [422, "invalid_bundle_size"],
-      [422, "invalid_bundle_size"],
-    ]);
-  });
-
-  test("editing a stem to a bundle without a bundle size answers 422 invalid_bundle_size", async () => {
-    const response = await call(stem.PATCH, stemId, { unit: "bundle", bundleSize: null });
-    expect([response.status, (await response.json()).code]).toEqual([422, "invalid_bundle_size"]);
-  });
-
-  test("editing a sample price answers the new latest cost", async () => {
-    // Rose - white: sample ₱240 a dozen is ₱20 a stem.
-    const roseWhite = stems.find((row) => row.name === "Rose - white")!;
-    const response = await call(stem.PATCH, roseWhite.id, { samplePrice: 240 });
-    expect((await response.json()).latestCost).toBe(20);
   });
 
   test("saving edited lines answers the quote repriced at latest costs", async () => {
