@@ -3,7 +3,7 @@ import type { ExtractReceiptResponse } from "@/lib/contract";
 import { logAiCall } from "@/lib/server/ai-calls";
 import { requireShop } from "@/lib/server/auth";
 import { stemsWithCost } from "@/lib/server/costs";
-import { isShopPhotoPath } from "@/lib/server/fields";
+import { isRecord, isShopPhotoPath } from "@/lib/server/fields";
 import { errorResponse, readJson } from "@/lib/server/http";
 import { todayInManila, toReceiptDraft } from "@/lib/server/receipts";
 
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   if (session instanceof Response) return session;
   const { supabase, shop } = session;
   const body = await readJson(request);
-  const photoPath = typeof body === "object" && body !== null ? (body as Record<string, unknown>).photoPath : undefined;
+  const photoPath = isRecord(body) ? body.photoPath : undefined;
   if (!isShopPhotoPath(photoPath, shop.id)) return errorResponse("invalid_request", "Invalid photoPath");
 
   const photo = await supabase.storage.from("receipts").download(photoPath);

@@ -52,7 +52,7 @@ const SHOP_FIELDS: Record<keyof UpdateShopRequest, Check> = {
   validForDays: number(1, 60, { whole: true }),
 };
 
-function isRecord(body: unknown): body is Record<string, unknown> {
+export function isRecord(body: unknown): body is Record<string, unknown> {
   return typeof body === "object" && body !== null && !Array.isArray(body);
 }
 
@@ -132,7 +132,13 @@ export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 export function isShopPhotoPath(path: unknown, shopId: string): path is string {
   if (typeof path !== "string") return false;
   const [folder, file, ...rest] = path.split("/");
-  return folder === shopId && rest.length === 0 && file.endsWith(".jpg") && UUID.test(file.slice(0, -".jpg".length));
+  return (
+    folder === shopId &&
+    file !== undefined &&
+    rest.length === 0 &&
+    file.endsWith(".jpg") &&
+    UUID.test(file.slice(0, -".jpg".length))
+  );
 }
 
 /** "YYYY-MM-DD" that is a real calendar date. */
@@ -141,6 +147,9 @@ export function isCalendarDate(value: unknown): value is string {
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
 }
+
+/** Far more than one Dangwa receipt holds; keeps one save to a bounded transaction. */
+const MAX_RECEIPT_LINES = 100;
 
 /** A checked receipt line, with its cost per stem from lib/money.ts. */
 export type SaveReceiptLine = SaveReceiptRequest["lines"][number] & { costPerStem: Money };
@@ -167,6 +176,7 @@ export function parseSaveReceipt(
   if (!isShopPhotoPath(photoPath, shopId)) return invalid("Invalid photoPath");
   if (purchaseDate !== null && !isCalendarDate(purchaseDate)) return invalid("Invalid purchaseDate");
   if (!Array.isArray(lines) || lines.length === 0) return invalid("A receipt needs at least one line");
+  if (lines.length > MAX_RECEIPT_LINES) return invalid(`A receipt has at most ${MAX_RECEIPT_LINES} lines`);
 
   const checked: SaveReceiptLine[] = [];
   for (const [i, line] of lines.entries()) {

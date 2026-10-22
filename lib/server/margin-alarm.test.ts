@@ -75,4 +75,10 @@ describe("recheckUnderwater", () => {
 
     await expect(recheckUnderwater(untouchable, shop, new Map([["rose", 22.5]]), { enabled: false })).resolves.toEqual([]);
   });
+
+  test("logs a failed recheck and answers no ids, so a committed save or delete still succeeds", async () => {
+    const failing = { from: () => { throw new Error("connection lost"); } } as unknown as SupabaseClient;
+
+    await expect(recheckUnderwater(failing, shop, new Map([["rose", 22.5]]), { enabled: true })).resolves.toEqual([]);
+  });
 });

@@ -152,6 +152,8 @@ describe("parseSaveReceipt", () => {
     ["no lines", { lines: [] }, "A receipt needs at least one line"],
     ["another shop's photo", { photoPath: `f0000000-0000-4000-8000-000000000009/${photoPath.split("/")[1]}` }, "Invalid photoPath"],
     ["a purchase date that is not a date", { purchaseDate: "Oct 21" }, "Invalid purchaseDate"],
+    ["a photo path with no file", { photoPath: shopId }, "Invalid photoPath"],
+    ["more than 100 lines", { lines: Array(101).fill(roses) }, "A receipt has at most 100 lines"],
   ])("refuses %s with invalid_request", (_case, body, error) => {
     expect(parse(body)).toEqual({ ok: false, code: "invalid_request", error });
   });

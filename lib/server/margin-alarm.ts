@@ -55,7 +55,9 @@ export async function latestCosts(
 /**
  * Call after a receipt save or delete with `before`, the latestCosts of the
  * receipt's stems read before the change. Flags and clears quotes, and answers
- * the ids of rechecked open quotes that are underwater now.
+ * the ids of rechecked open quotes that are underwater now. Never throws: the
+ * save or delete has already committed, so a failed recheck is logged and
+ * answers no ids, rather than failing a request that a retry would repeat.
  */
 export async function recheckUnderwater(
   supabase: SupabaseClient,
@@ -64,7 +66,20 @@ export async function recheckUnderwater(
   { enabled = MARGIN_ALARM } = {},
 ): Promise<string[]> {
   if (!enabled || before.size === 0) return [];
-  const after = await latestCosts(supabase, [...before.keys()], { enabled });
+  try {
+    return await recheck(supabase, shop, before);
+  } catch (error) {
+    console.error(`Margin alarm recheck failed: ${error instanceof Error ? error.message : error}`);
+    return [];
+  }
+}
+
+async function recheck(
+  supabase: SupabaseClient,
+  shop: Pick<Shop, "minimumMarginPercent">,
+  before: Map<string, Money>,
+): Promise<string[]> {
+  const after = await latestCosts(supabase, [...before.keys()], { enabled: true });
   const changedStemIds = new Set([...before.keys()].filter((id) => after.get(id) !== before.get(id)));
   if (changedStemIds.size === 0) return [];
 
@@ -101,7 +116,7 @@ export async function recheckUnderwater(
       underwaterAt: row.underwater_at as string | null,
     })),
     lines,
-    costs: await latestCosts(supabase, stemIds, { enabled }),
+    costs: await latestCosts(supabase, stemIds, { enabled: true }),
     changedStemIds,
     shop,
     today,
