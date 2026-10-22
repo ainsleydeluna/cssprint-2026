@@ -117,6 +117,7 @@ describe("copyChanges", () => {
   test.each([
     ["a blank count", [{ stemId: "rose", count: null }]],
     ['a "pick a flower" line', [{ stemId: null, count: 3 }]],
+    ["no lines at all", []],
   ])("refuses a quote with %s as incomplete_quote", (_case, lines) => {
     expect(copyChanges(draft, lines, "Hi po!", now, 2)).toEqual({ ok: false, code: "incomplete_quote" });
   });

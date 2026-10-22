@@ -66,8 +66,17 @@ export function averageTimeToQuote(times: Array<number | null>): number | null {
 }
 
 /**
+ * True while a quote's reply may not be drafted or copied: it has no lines, or
+ * a line has a blank count or is a "pick a flower" line.
+ */
+export function cannotSend(lines: Pick<QuoteLine, "stemId" | "count">[]): boolean {
+  return lines.length === 0 || lines.some((line) => line.stemId === null || line.count === null);
+}
+
+/**
  * What copying the reply changes (spec section 4, "Taglish reply"). Refused
- * while any line has a blank count or is a "pick a flower" line. The first copy
+ * while the quote has no lines, or any line has a blank count or is a "pick a
+ * flower" line (cannotSend). The first copy
  * sends the quote: it stamps the sent time and the valid-until date. Later
  * copies save only the text.
  */
@@ -78,7 +87,7 @@ export function copyChanges(
   now: Date,
   validForDays: number,
 ): { ok: true; changes: Partial<Quote> } | { ok: false; code: "incomplete_quote" } {
-  if (lines.some((line) => line.stemId === null || line.count === null)) return { ok: false, code: "incomplete_quote" };
+  if (cannotSend(lines)) return { ok: false, code: "incomplete_quote" };
   if (quote.status !== "draft") return { ok: true, changes: { replyText } };
   return {
     ok: true,

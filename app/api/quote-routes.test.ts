@@ -257,6 +257,13 @@ describe.skipIf(!testAccountsReady)("quote routes", { timeout: 20_000 }, () => {
     expect(list.averageTimeToQuoteSeconds).not.toBeNull();
   });
 
+  test("copying a quote whose lines were all removed answers incomplete_quote", async () => {
+    const { quote } = await create();
+    expect((await putLines(quote.id, [])).status).toBe(200);
+    const response = await copiedRoute.POST(json("POST", { replyText: "Hi po!" }), ctx(quote.id));
+    expect([response.status, (await response.json()).code]).toEqual([422, "incomplete_quote"]);
+  });
+
   test("a sent quote's lines cannot be edited", async () => {
     const detail = await completed();
     await copiedRoute.POST(json("POST", { replyText: "Hi po!" }), ctx(detail.quote.id));
