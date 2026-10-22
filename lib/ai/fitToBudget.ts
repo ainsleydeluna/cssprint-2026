@@ -11,15 +11,17 @@ import { countText, findStem, pesos, schema, stemList } from "./shared";
 
 const SYSTEM = `A florist in Manila has a bouquet recipe that costs more than the customer's budget. Suggest up to 3 changed recipes that keep the look and cost less.
 
+The main flower is the flower line (not a filler) with the highest cost (count × cost per stem); on a tie, the one with the higher cost per stem. It is named in the request.
+
 Keep the look, in this order:
-1. Keep the main flower and its colors.
+1. Keep the main flower and its colors. Every option must keep at least 1 stem of it.
 2. First reduce counts.
-3. Then swap to cheaper rows of the same color.
+3. Then swap other flowers to cheaper rows of the same color.
 4. Then swap to cheaper fillers.
-Never go below 1 stem of the main flower. The price is the recipe cost with a markup plus fixed fees, so cut the recipe cost by a bigger share than the price must fall.
+The price is the recipe cost with a markup plus fixed fees, so cut the recipe cost by a bigger share than the price must fall.
 
 Each option is a full recipe, using only rows from the shop's list, copied exactly. Flowers are counted in stems, fillers in bunches.
-- label: a short name for the change, such as "Fewer roses" or "Carnations instead of roses".
+- label: a short name for the change, such as "Fewer stargazers" or "Carnations instead of white roses".
 - lines: every row in the new recipe, with its count and a note ("" if nothing).
 Return no prices. Return fewer options, or none, if the look cannot be kept.
 
@@ -41,12 +43,20 @@ const SCHEMA = schema.object({
 
 type Row = Pick<StemWithCost, "name" | "isFiller" | "hidden" | "latestCost">;
 
-/** The recipe's main flower: its flower line with the most stems. */
+/**
+ * The recipe's main flower: its flower line (not a filler) with the highest
+ * cost, count × cost per stem; on a tie, the higher cost per stem. The prompt
+ * gives the model the same definition.
+ */
 function mainFlower(recipe: Array<{ stem: string; count: number }>, stems: Row[]): Row | undefined {
-  let main: { row: Row; count: number } | undefined;
+  let main: { row: Row; cost: number } | undefined;
   for (const line of recipe) {
     const row = findStem(stems, line.stem);
-    if (row && !row.isFiller && (!main || line.count > main.count)) main = { row, count: line.count };
+    if (!row || row.isFiller) continue;
+    const cost = line.count * row.latestCost;
+    if (!main || cost > main.cost || (cost === main.cost && row.latestCost > main.row.latestCost)) {
+      main = { row, cost };
+    }
   }
   return main?.row;
 }
@@ -59,13 +69,14 @@ export async function fitToBudget(
     ({ stem, count }) => `- ${stem}: ${countText(count, findStem(input.stems, stem)?.isFiller ?? false)}`,
   );
   const withCost = (row: Row) => `${row.name}: ${pesos(row.latestCost)} a ${row.isFiller ? "bunch" : "stem"}`;
+  const main = mainFlower(input.recipe, input.stems);
   const text = [
     `Current recipe:\n${recipe.join("\n")}`,
+    `Main flower: ${main?.name ?? "none"}`,
     `Current price: ${pesos(input.currentPrice)}`,
     `Budget: ${pesos(input.budget)}`,
     stemList(input.stems, withCost),
   ].join("\n\n");
-  const main = mainFlower(input.recipe, input.stems);
 
   const outcome = await askClaude<FitToBudgetResult>("fitToBudget", { system: SYSTEM, content: text, schema: SCHEMA }, api);
   if (!outcome.ok) return outcome;

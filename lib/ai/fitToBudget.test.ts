@@ -70,6 +70,80 @@ describe("fitToBudget", () => {
     expect(options.map((o) => o.label)).toEqual(["Fewer roses"]);
   });
 
+  describe("main flower", () => {
+    const rows = [
+      { name: "Rose - white", isFiller: false, hidden: false, latestCost: 10 },
+      { name: "Carnation - white", isFiller: false, hidden: false, latestCost: 12 },
+      { name: "Stargazer lily - pink", isFiller: false, hidden: false, latestCost: 150 },
+      { name: "Baby's breath - white", isFiller: true, hidden: false, latestCost: 200 },
+    ];
+    async function fitWith(recipe: typeof input.recipe, ...options: Option[]) {
+      const { api, requests } = fakeApi(fakeMessage({ options, note: "" }));
+      const outcome = await fitToBudget({ ...input, recipe, stems: rows }, api);
+      if (!outcome.ok) throw new Error(outcome.error);
+      return { labels: outcome.result.options.map((o) => o.label), request: requests[0] };
+    }
+
+    test("is the flower line that costs the most, not the one with the most stems", async () => {
+      const { labels, request } = await fitWith(
+        [
+          { stem: "Rose - white", count: 24 },
+          { stem: "Stargazer lily - pink", count: 3 },
+          { stem: "Baby's breath - white", count: 3 },
+        ],
+        option("Roses only", [{ stem: "Rose - white", count: 30, note: "" }]),
+        option("Fewer stargazers", [{ stem: "Stargazer lily - pink", count: 2, note: "" }]),
+      );
+
+      expect(JSON.stringify(request.messages[0].content)).toContain("Main flower: Stargazer lily - pink");
+      expect(labels).toEqual(["Fewer stargazers"]);
+    });
+
+    test("goes to the higher cost per stem on a tie", async () => {
+      const { labels, request } = await fitWith(
+        [
+          { stem: "Rose - white", count: 12 },
+          { stem: "Carnation - white", count: 10 },
+        ],
+        option("Roses only", [{ stem: "Rose - white", count: 12, note: "" }]),
+        option("Fewer roses", [
+          { stem: "Rose - white", count: 6, note: "" },
+          { stem: "Carnation - white", count: 10, note: "" },
+        ]),
+      );
+
+      expect(JSON.stringify(request.messages[0].content)).toContain("Main flower: Carnation - white");
+      expect(labels).toEqual(["Fewer roses"]);
+    });
+
+    test("is defined the same way in the prompt, with labels that keep it", async () => {
+      const { request } = await fitWith([{ stem: "Rose - white", count: 12 }]);
+
+      expect(request.system).toContain("highest cost (count × cost per stem)");
+      expect(request.system).toContain('"Fewer stargazers"');
+      expect(request.system).toContain('"Carnations instead of white roses"');
+    });
+  });
+
+  test("ignores hidden rows even when the caller passes them", async () => {
+    const stems = [...input.stems, { name: "Tulip - red", isFiller: false, hidden: true, latestCost: 5 }];
+    const { api, requests } = fakeApi(
+      fakeMessage({
+        options: [
+          option("Tulips too", [
+            { stem: "Rose - red", count: 12, note: "" },
+            { stem: "Tulip - red", count: 5, note: "" },
+          ]),
+        ],
+        note: "",
+      }),
+    );
+    const outcome = await fitToBudget({ ...input, stems }, api);
+
+    expect(JSON.stringify(requests[0].messages[0].content)).not.toContain("Tulip");
+    expect(outcome.ok && outcome.result.options).toEqual([]);
+  });
+
   test("clamps counts to 1 to 100 stems and 1 to 5 filler bunches", async () => {
     const { options } = await fit(
       option("Odd", [
