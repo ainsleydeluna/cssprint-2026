@@ -1,19 +1,20 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   type AddStemRequest,
   type ReceiptDraftLine,
-  type SaveReceiptRequest,
   type SaveReceiptResponse,
   type StemWithCost,
   stemName,
 } from "@/lib/contract";
 import { t } from "@/lib/strings";
-import { addStem, extractReceipt, listStems, saveReceipt, uploadPhoto } from "./api";
+import { addStem, extractReceipt, isUnauthorized, listStems, saveReceipt, uploadPhoto } from "./api";
 import { Button, Input, Row } from "./kit";
+import { type DraftLine, isMatched, lineProblems, toInput } from "./lines";
 import { PhotoPicker } from "./PhotoPicker";
-import { type DraftLine, ReceiptTable } from "./ReceiptTable";
+import { ReceiptTable } from "./ReceiptTable";
 
 type State =
   | { step: "pick" }
@@ -22,7 +23,6 @@ type State =
   | { step: "saved"; result: SaveReceiptResponse };
 
 const peso = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
-const num = (s: string) => (s.trim() === "" ? NaN : Number(s));
 
 function toDraft(line: ReceiptDraftLine, i: number): DraftLine {
   return {
@@ -31,26 +31,18 @@ function toDraft(line: ReceiptDraftLine, i: number): DraftLine {
     stemId: line.stemId,
     quantity: line.quantity?.toString() ?? "",
     unit: line.unit ?? "",
-    unitFromReceipt: line.unit !== null,
     bundleSize: line.bundleSize?.toString() ?? "",
     // The route fills a missing total when it can; null means the florist fills it in.
     totalPaid: line.totalPaid?.toString() ?? "",
     unitPrice: line.unitPrice,
     confidence: line.confidence,
     note: line.note,
+    edited: false,
   };
 }
 
-function toInput(line: DraftLine): SaveReceiptRequest["lines"][number] | null {
-  const quantity = num(line.quantity);
-  const totalPaid = num(line.totalPaid);
-  if (!line.stemId || !line.unit || !(quantity > 0) || !(totalPaid >= 0)) return null;
-  const bundleSize = line.unit === "bundle" ? num(line.bundleSize) : null;
-  if (bundleSize !== null && !(Number.isInteger(bundleSize) && bundleSize > 0)) return null;
-  return { stemId: line.stemId, quantity, unit: line.unit, bundleSize, totalPaid };
-}
-
 export function ReceiptScan() {
+  const router = useRouter();
   const [state, setState] = useState<State>({ step: "pick" });
   const [lines, setLines] = useState<DraftLine[]>([]);
   const [stems, setStems] = useState<StemWithCost[]>([]);
@@ -61,8 +53,9 @@ export function ReceiptScan() {
     setState({ step: "working", message });
     try {
       return await task();
-    } catch {
-      setError(t("common", "error"));
+    } catch (e) {
+      if (isUnauthorized(e)) router.push("/sign-in");
+      else setError(t("common", "error"));
       setState(fallback);
       return null;
     }
@@ -84,9 +77,14 @@ export function ReceiptScan() {
   }
 
   async function handleAddStem(input: AddStemRequest) {
-    const added = await addStem(input);
-    setStems((list) => [...list, added]);
-    return added;
+    try {
+      const added = await addStem(input);
+      setStems((list) => [...list, added]);
+      return added;
+    } catch (e) {
+      if (isUnauthorized(e)) router.push("/sign-in");
+      throw e;
+    }
   }
 
   if (state.step === "pick") {
@@ -133,9 +131,10 @@ export function ReceiptScan() {
     );
   }
 
-  const inputs = lines.map(toInput);
-  const unmatched = lines.filter((l) => !l.stemId).length;
-  const incomplete = inputs.filter((x) => x === null).length - unmatched;
+  const inputs = lines.map((l) => toInput(l, stems));
+  // A line matched to a hidden stem counts as unmatched.
+  const unmatched = lines.filter((l) => !isMatched(l.stemId, stems)).length;
+  const incomplete = lines.filter((l) => [...lineProblems(l, stems)].some((p) => p !== "stem")).length;
   const blocker =
     lines.length === 0 ? t("scan", "noLines")
     : unmatched ? t("scan", "unmatched", { n: unmatched })

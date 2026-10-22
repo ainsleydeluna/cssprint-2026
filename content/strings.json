@@ -7,6 +7,17 @@
     "retry": "Subukan ulit",
     "error": "May problema. Subukan ulit."
   },
+  "signIn": {
+    "title": "Mag-sign in",
+    "email": "Email",
+    "send": "Ipadala ang sign-in link",
+    "sending": "Ipinapadala…",
+    "checkEmail": "Tingnan ang email mo",
+    "sentTo": "Pinadala namin ang sign-in link sa {email}. Buksan ito para makapasok.",
+    "useAnotherEmail": "Ibang email",
+    "linkFailed": "Hindi gumana ang link. Humingi ng bago.",
+    "rateLimited": "Too many sign-in emails. Wait a minute and try again."
+  },
   "nav": {
     "menu": "Pangunahing menu",
     "newQuote": "Bagong quote",
@@ -99,5 +110,17 @@
   },
   "accuracy": {
     "title": "AI accuracy"
+  },
+  "photo": {
+    "take": "Kumuha ng photo",
+    "camera": "Kunan ng photo",
+    "gallery": "Pumili sa gallery",
+    "another": "Ibang photo",
+    "use": "Gamitin ang photo",
+    "whole": "Buong photo",
+    "dragHint": "I-drag sa photo para piliin lang ang resibo o bouquet.",
+    "preparing": "Inihahanda ang photo…",
+    "unreadable": "Hindi mabasa ang photo na ito. Subukan ang JPG o PNG.",
+    "failed": "Hindi naihanda ang photo. Subukan ulit."
   }
 }

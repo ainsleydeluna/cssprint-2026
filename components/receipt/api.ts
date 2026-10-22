@@ -15,14 +15,22 @@ import type {
 } from "@/lib/contract";
 
 export class ApiFailure extends Error {
-  /** The contract's error code, or null when the call failed without one (offline, server crash). */
   constructor(
+    /** The contract's error code, or null when the call failed without one (offline, server crash). */
     readonly code: ApiErrorCode | null,
     message: string,
+    /** The HTTP status, or null when there was no answer at all. */
+    readonly status: number | null = null,
   ) {
     super(message);
   }
 }
+
+/**
+ * The session ended: send the florist to /sign-in. Checks the 401 status because the
+ * "unauthorized" code is only on main so far; switch to the code once main is merged.
+ */
+export const isUnauthorized = (e: unknown) => e instanceof ApiFailure && e.status === 401;
 
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
   let res: Response;
@@ -33,7 +41,7 @@ async function call<T>(url: string, init?: RequestInit): Promise<T> {
   }
   if (res.ok) return (await res.json()) as T;
   const body = (await res.json().catch(() => null)) as Partial<ApiError> | null;
-  throw new ApiFailure(body?.code ?? null, body?.error ?? `${res.status} ${url}`);
+  throw new ApiFailure(body?.code ?? null, body?.error ?? `${res.status} ${url}`, res.status);
 }
 
 const json = (method: string, body: unknown): RequestInit => ({
