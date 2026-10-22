@@ -1,6 +1,6 @@
-// Long edge of the photo we hand on, in pixels. Our model test may change this.
-export const MAX_LONG_EDGE_PX = 2000;
-export const JPEG_QUALITY = 0.85;
+// Long edge of the photo we hand on, in pixels (spec decision 26). Matches lib/ai/config.ts.
+export const MAX_LONG_EDGE_PX = Number(process.env.NEXT_PUBLIC_MAX_PHOTO_PX) || 1600;
+export const JPEG_QUALITY = 0.8;
 
 /** A rectangle in the decoded photo's own pixels. */
 export type CropRect = { x: number; y: number; width: number; height: number };
