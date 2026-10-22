@@ -6,7 +6,8 @@
 //
 // The tests set markup 50% and fees ₱50 + ₱100, and price each recipe at the
 // stems' latest costs as the stems route reports them: other tests may save
-// receipts for Shop A. At the seed's sample prices (Rose - red ₱20.83 a stem,
+// receipts for Shop A (app/api/receipts.test.ts buys Rose - red, so these use
+// Rose - white). At the seed's sample prices (Rose - white ₱20.83 a stem,
 // Carnation - pink ₱15, Baby's breath ₱100 a bunch), the first quote is
 // 12 × 20.83 + 6 × 15 + 2 × 100 = 539.96; × 1.5 + 150 = 959.94, rounded up to ₱960.
 
@@ -60,7 +61,7 @@ async function uploadBouquet(): Promise<string> {
 
 const bouquet = {
   lines: [
-    { stem: "Rose - red", color: "red", countLow: 10, countHigh: 13, confidence: "high", closestStem: null, note: "" },
+    { stem: "Rose - white", color: "white", countLow: 10, countHigh: 13, confidence: "high", closestStem: null, note: "" },
     { stem: "Other", color: "blush", countLow: 5, countHigh: 6, confidence: "high", closestStem: "Carnation - pink", note: "Peony, blush" },
     { stem: "Other", color: "green", countLow: 3, countHigh: 3, confidence: "low", closestStem: null, note: "Unknown pods" },
     { stem: "Baby's breath - white", color: "white", countLow: 1, countHigh: 2, confidence: "medium", closestStem: null, note: "" },
@@ -168,14 +169,14 @@ describe.skipIf(!testAccountsReady)("quote routes", { timeout: 20_000 }, () => {
     expect([quote.status, quote.label]).toEqual(["draft", expect.stringMatching(/^Inquiry \d+$/)]);
     expect(lines).toMatchObject([
       // Middle of 10–13, rounded up.
-      { stemId: stems.get("Rose - red")!.id, count: 12, costPerStem: cost("Rose - red"), confidence: "high" },
+      { stemId: stems.get("Rose - white")!.id, count: 12, costPerStem: cost("Rose - white"), confidence: "high" },
       // Other is priced at its closest stem, highlighted, with the real name in the note.
       { stemId: stems.get("Carnation - pink")!.id, count: 6, costPerStem: cost("Carnation - pink"), confidence: "medium", note: "Peony, blush" },
       // Other with no closest stem: a "pick a flower" line, unpriced.
       { stemId: null, count: 3, costPerStem: 0 },
       { stemId: stems.get("Baby's breath - white")!.id, count: 2, costPerStem: cost("Baby's breath - white") },
     ]);
-    expect(quote.price).toBe(expectedPrice(12 * cost("Rose - red") + 6 * cost("Carnation - pink") + 2 * cost("Baby's breath - white")));
+    expect(quote.price).toBe(expectedPrice(12 * cost("Rose - white") + 6 * cost("Carnation - pink") + 2 * cost("Baby's breath - white")));
 
     const logged = await client.from("ai_calls").select("call, ok, model, input_tokens").eq("quote_id", quote.id);
     expect(logged.data).toEqual([{ call: "analyzeBouquet", ok: true, model: "claude-opus-5-5", input_tokens: 1500 }]);
@@ -223,7 +224,7 @@ describe.skipIf(!testAccountsReady)("quote routes", { timeout: 20_000 }, () => {
     ]);
     // At sample prices: 24 × 20.83 + 6 × 80 + 2 × 100 + 120 = 1,299.92; × 1.5 + 150 = 2,099.88, rounded up to ₱2,100.
     expect(quote.price).toBe(
-      expectedPrice(24 * cost("Rose - red") + 6 * cost("Sunflower - yellow") + 2 * cost("Baby's breath - white") + cost("Tulip - pink")),
+      expectedPrice(24 * cost("Rose - white") + 6 * cost("Sunflower - yellow") + 2 * cost("Baby's breath - white") + cost("Tulip - pink")),
     );
   });
 
