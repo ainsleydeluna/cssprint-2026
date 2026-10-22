@@ -8,15 +8,13 @@
   { "flower": "Carnation", "color": "red", "isFiller": false, "unit": "per10", "bundleSize": null, "samplePrice": 150, "sampleSource": "Placeholder; Zach's seed file (T12) replaces it" },
   { "flower": "Carnation", "color": "pink", "isFiller": false, "unit": "per10", "bundleSize": null, "samplePrice": 150, "sampleSource": "Placeholder; Zach's seed file (T12) replaces it" },
   { "flower": "Chrysanthemum", "color": "white", "isFiller": false, "unit": "bundle", "bundleSize": 10, "samplePrice": 150, "sampleSource": "Placeholder; Zach's seed file (T12) replaces it" },
-s  { "flower": "Alstroemeria", "color": "mixed", "isFiller": false, "unit": "bundle", "bundleSize": 10, "samplePrice": 160, "sampleSource": "Placeholder; Zach's seed file (T12) replaces it" },
+  { "flower": "Alstroemeria", "color": "mixed", "isFiller": false, "unit": "bundle", "bundleSize": 10, "samplePrice": 160, "sampleSource": "Placeholder; Zach's seed file (T12) replaces it" },
   { "flower": "Sunflower", "color": "yellow", "isFiller": false, "unit": "piece", "bundleSize": null, "samplePrice": 80, "sampleSource": "Placeholder; Zach's seed file (T12) replaces it" },
   { "flower": "Stargazer lily", "color": "pink", "isFiller": false, "unit": "piece", "bundleSize": null, "samplePrice": 150, "sampleSource": "Placeholder; Zach's seed file (T12) replaces it" },
   { "flower": "Tulip", "color": "pink", "isFiller": false, "unit": "piece", "bundleSize": null, "samplePrice": 120, "sampleSource": "Placeholder; Zach's seed file (T12) replaces it" },
   { "flower": "Baby's breath", "color": "white", "isFiller": true, "unit": "bunch", "bundleSize": null, "samplePrice": 100, "sampleSource": "Placeholder; Zach's seed file (T12) replaces it" },
   { "flower": "Eucalyptus", "color": "green", "isFiller": true, "unit": "bunch", "bundleSize": null, "samplePrice": 80, "sampleSource": "Placeholder; Zach's seed file (T12) replaces it" },
-  { "flower": "Statice", "color": "purple", "isFiller": true, "unit": "bunch", "bundleSize": null, "samplePrice": 80, "sampleSource": "Placeholder; Zach's seed file (T12) replaces it" }
-]
-sqaaaaaaaaaaaaaaaaaaaaaaaa[
+  { "flower": "Statice", "color": "purple", "isFiller": true, "unit": "bunch", "bundleSize": null, "samplePrice": 80, "sampleSource": "Placeholder; Zach's seed file (T12) replaces it" }]
 { "flower": "Rose", "color": "red", "isFiller": false, "unit": "dozen", "bundleSize": null, "samplePrice": 150, "sampleSource": "GMA News Online Undas Dangwa report" },
 { "flower": "Rose", "color": "white", "isFiller": false, "unit": "dozen", "bundleSize": null, "samplePrice": 150, "sampleSource": "GMA News Online Undas Dangwa report" },
 { "flower": "Rose", "color": "pink", "isFiller": false, "unit": "dozen", "bundleSize": null, "samplePrice": 150, "sampleSource": "GMA News Online Undas Dangwa report" },
