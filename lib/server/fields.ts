@@ -126,7 +126,14 @@ export function parseStemUpdate(body: unknown, current: Stem): Parsed<UpdateStem
   return { ok: true, value: changes };
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A photo path in the shop's own folder, as uploadPhoto makes it: "<shop_id>/<uuid>.jpg". */
+export function isShopPhotoPath(path: unknown, shopId: string): path is string {
+  if (typeof path !== "string") return false;
+  const [folder, file, ...rest] = path.split("/");
+  return folder === shopId && rest.length === 0 && file.endsWith(".jpg") && UUID.test(file.slice(0, -".jpg".length));
+}
 
 /** "YYYY-MM-DD" that is a real calendar date. */
 export function isCalendarDate(value: unknown): value is string {
@@ -157,8 +164,7 @@ export function parseSaveReceipt(
 ): Parsed<{ photoPath: string; purchaseDate: ManilaDate; lines: SaveReceiptLine[] }> {
   if (!isRecord(body)) return invalid("Body must be a JSON object");
   const { photoPath, purchaseDate = null, lines } = body;
-  const [folder, file] = typeof photoPath === "string" ? photoPath.split("/") : [];
-  if (folder !== shopId || !/^[0-9a-f-]{36}\.jpg$/i.test(file ?? "")) return invalid("Invalid photoPath");
+  if (!isShopPhotoPath(photoPath, shopId)) return invalid("Invalid photoPath");
   if (purchaseDate !== null && !isCalendarDate(purchaseDate)) return invalid("Invalid purchaseDate");
   if (!Array.isArray(lines) || lines.length === 0) return invalid("A receipt needs at least one line");
 
@@ -177,5 +183,5 @@ export function parseSaveReceipt(
     if (cost === null) return invalid(`Line ${n} has no cost per stem`);
     checked.push({ ...batch, costPerStem: cost });
   }
-  return { ok: true, value: { photoPath: photoPath as string, purchaseDate: purchaseDate ?? today, lines: checked } };
+  return { ok: true, value: { photoPath, purchaseDate: purchaseDate ?? today, lines: checked } };
 }

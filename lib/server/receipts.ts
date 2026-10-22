@@ -1,10 +1,12 @@
 // Receipt to cost (spec C2, decisions 4, 20 and 28): the extract answer as the
-// editable table, and today's date in Manila.
+// editable table, today's date in Manila, and reading saved receipts.
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { findStem } from "../ai/shared";
 import type { ExtractReceiptResponse, ExtractReceiptResult, StemWithCost } from "../contract";
 import { costPerStem, receiptLineTotal } from "../money";
-import type { ManilaDate } from "../types";
+import type { ManilaDate, Receipt, StockBatch } from "../types";
+import { BATCH_COLUMNS, RECEIPT_COLUMNS, toReceipt, toStockBatch } from "./rows";
 
 /** Manila is UTC+8 all year (no daylight saving), so its date is the UTC date 8 hours on. */
 export function todayInManila(now = new Date()): ManilaDate {
@@ -44,4 +46,24 @@ export function toReceiptDraft(
     }),
     note: result.note,
   };
+}
+
+/** The shop's receipts with their stock batches: newest purchase date first, batches in entry order. Only `id` when given. */
+export async function readReceipts(
+  supabase: SupabaseClient,
+  id?: string,
+): Promise<Array<{ receipt: Receipt; batches: StockBatch[] }>> {
+  let query = supabase
+    .from("receipts")
+    .select(`${RECEIPT_COLUMNS}, receipt_lines(${BATCH_COLUMNS})`)
+    .order("purchase_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .order("created_at", { referencedTable: "receipt_lines" });
+  if (id) query = query.eq("id", id);
+  const { data, error } = await query;
+  if (error) throw new Error(`Reading receipts failed: ${error.message}`);
+  return data.map(({ receipt_lines: lines, ...row }) => ({
+    receipt: toReceipt(row),
+    batches: (lines as Record<string, unknown>[]).map(toStockBatch),
+  }));
 }

@@ -1,12 +1,12 @@
 // Every stub route the screens call exists and answers JSON (issue #4). Calls the
 // route handlers directly, the way Next.js does, without starting a server.
-// The shop and stem routes are real now; app/api/routes.test.ts covers them.
+// The shop, stem, photo and receipt routes are real now; app/api/routes.test.ts
+// and app/api/receipts.test.ts cover them.
 
 import { describe, expect, test } from "vitest";
 import type { QuoteDetail, UpdateQuoteLinesRequest } from "@/lib/contract";
 import { createQuote, quoteList } from "@/lib/fake/responses";
 import * as accuracy from "./accuracy/route";
-import * as photos from "./photos/route";
 import * as quoteBudgetOptions from "./quotes/[id]/budget-options/route";
 import * as quoteCopied from "./quotes/[id]/copied/route";
 import * as quoteLines from "./quotes/[id]/lines/route";
@@ -15,9 +15,6 @@ import * as quotePriceUpdate from "./quotes/[id]/price-update/route";
 import * as quoteReply from "./quotes/[id]/reply/route";
 import * as quote from "./quotes/[id]/route";
 import * as quotes from "./quotes/route";
-import * as receipt from "./receipts/[id]/route";
-import * as receiptExtract from "./receipts/extract/route";
-import * as receipts from "./receipts/route";
 
 type Handler = (request: Request, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
 
@@ -35,11 +32,6 @@ function call(handler: Handler, id = "", body?: unknown) {
 }
 
 const routes: Array<[string, Handler, string?, unknown?]> = [
-  ["upload a photo", photos.POST],
-  ["extract a receipt", receiptExtract.POST],
-  ["save a receipt", receipts.POST],
-  ["list receipts", receipts.GET],
-  ["delete a receipt", receipt.DELETE, "any"],
   ["create a quote", quotes.POST],
   ["list quotes", quotes.GET],
   ["read a quote", quote.GET, quoteId],
