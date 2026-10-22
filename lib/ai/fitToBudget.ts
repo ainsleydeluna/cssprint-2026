@@ -7,7 +7,7 @@ import type { FitToBudgetResult, StemWithCost } from "../contract";
 import { clampBouquet, clampCount } from "../money";
 import type { Money } from "../types";
 import { askClaude, type AiOutcome, type MessagesApi } from "./client";
-import { findStem, pesos, schema } from "./shared";
+import { countText, findStem, pesos, schema, stemList } from "./shared";
 
 const SYSTEM = `A florist in Manila has a bouquet recipe that costs more than the customer's budget. Suggest up to 3 changed recipes that keep the look and cost less.
 
@@ -41,35 +41,41 @@ const SCHEMA = schema.object({
 
 type Row = Pick<StemWithCost, "name" | "isFiller" | "latestCost">;
 
-const unitOf = (row: Row | undefined) => (row?.isFiller ? "bunch" : "stem");
+/** The recipe's main flower: its flower line with the most stems. */
+function mainFlower(recipe: Array<{ stem: string; count: number }>, stems: Row[]): Row | undefined {
+  let main: { row: Row; count: number } | undefined;
+  for (const line of recipe) {
+    const row = findStem(stems, line.stem);
+    if (row && !row.isFiller && (!main || line.count > main.count)) main = { row, count: line.count };
+  }
+  return main?.row;
+}
 
 export async function fitToBudget(
   input: { recipe: Array<{ stem: string; count: number }>; budget: Money; currentPrice: Money; stems: Row[] },
   api?: MessagesApi,
 ): Promise<AiOutcome<FitToBudgetResult>> {
-  const recipe = input.recipe.map(({ stem, count }) => {
-    const unit = unitOf(findStem(input.stems, stem));
-    return `- ${stem}: ${count} ${unit === "bunch" ? "bunches" : "stems"}`;
-  });
-  const rows = (isFiller: boolean) =>
-    input.stems
-      .filter((row) => row.isFiller === isFiller)
-      .map((row) => `- ${row.name}: ${pesos(row.latestCost)} a ${unitOf(row)}`)
-      .join("\n") || "(none)";
+  const recipe = input.recipe.map(
+    ({ stem, count }) => `- ${stem}: ${countText(count, findStem(input.stems, stem)?.isFiller ?? false)}`,
+  );
+  const withCost = (row: Row) => `${row.name}: ${pesos(row.latestCost)} a ${row.isFiller ? "bunch" : "stem"}`;
   const text = [
     `Current recipe:\n${recipe.join("\n")}`,
     `Current price: ${pesos(input.currentPrice)}`,
     `Budget: ${pesos(input.budget)}`,
-    `Shop's list with latest costs.\nFlowers:\n${rows(false)}\nFillers:\n${rows(true)}`,
+    stemList(input.stems, withCost),
   ].join("\n\n");
+  const main = mainFlower(input.recipe, input.stems);
 
   const outcome = await askClaude<FitToBudgetResult>("fitToBudget", { system: SYSTEM, content: text, schema: SCHEMA }, api);
   if (!outcome.ok) return outcome;
 
   const options = outcome.result.options.flatMap((option) => {
     const matched = option.lines.map((line) => ({ line, row: findStem(input.stems, line.stem) }));
-    // An option with a row the shop does not have cannot be priced.
+    // An option with a row the shop does not have cannot be priced; one without
+    // the main flower does not keep the look.
     if (matched.length === 0 || matched.some(({ row }) => !row)) return [];
+    if (main && !matched.some(({ row }) => row === main)) return [];
     const lines = clampBouquet(
       matched.map(({ line, row }) => ({
         stem: row!.name,

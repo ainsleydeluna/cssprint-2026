@@ -23,9 +23,9 @@ export function photoBlock(photo: Photo): BetaContentBlockParam {
  * The allowed list as the prompt shows it. Fillers get their own heading, not
  * a marker after the name, which the model copied into its answers.
  */
-export function stemList(stems: AllowedStem[]): string {
+export function stemList<S extends AllowedStem>(stems: S[], describe: (stem: S) => string = (stem) => stem.name): string {
   const names = (isFiller: boolean) =>
-    stems.filter((stem) => stem.isFiller === isFiller).map((stem) => `- ${stem.name}`).join("\n") || "(none)";
+    stems.filter((stem) => stem.isFiller === isFiller).map((stem) => `- ${describe(stem)}`).join("\n") || "(none)";
   return `Allowed list.\nFlowers:\n${names(false)}\nFillers:\n${names(true)}`;
 }
 
@@ -34,6 +34,12 @@ export function findStem<S extends AllowedStem>(stems: S[], name: string | null)
   if (name === null) return undefined;
   const wanted = name.trim().toLowerCase();
   return stems.find((stem) => stem.name.toLowerCase() === wanted);
+}
+
+/** "12 stems", "1 bunch": flowers are counted in stems, fillers in bunches. */
+export function countText(count: number, isFiller: boolean): string {
+  if (isFiller) return `${count} ${count === 1 ? "bunch" : "bunches"}`;
+  return `${count} ${count === 1 ? "stem" : "stems"}`;
 }
 
 /** "₱1,220", or "₱22.50" when there are centavos. */
@@ -60,7 +66,10 @@ export function requireTexts(
   what: string,
 ): AiOutcome<{ message: string; note: string }> {
   if (!outcome.ok) return outcome;
-  const missing = texts.find((text) => !outcome.result.message.includes(text));
+  // Not followed by more digits, so "Oct 2" does not pass inside "Oct 20".
+  const has = (text: string) =>
+    new RegExp(`${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?!\\d|,\\d)`).test(outcome.result.message);
+  const missing = texts.find((text) => !has(text));
   return missing === undefined ? outcome : { ...outcome, ok: false, error: `${what} is missing ${missing}` };
 }
 

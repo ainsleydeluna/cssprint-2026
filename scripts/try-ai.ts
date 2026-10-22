@@ -67,7 +67,10 @@ async function main() {
     case "budget":
       return print(await fitToBudget({ recipe, budget: 1000, currentPrice: 1430, stems }));
     case "reply": {
-      const lines = recipe.map((line) => ({ ...line, isFiller: line.stem.startsWith("Baby's") }));
+      const lines = recipe.map((line) => ({
+        ...line,
+        isFiller: stems.some((stem) => stem.name === line.stem && stem.isFiller),
+      }));
       return print(await draftReply({ shopName: "Bulaklak ni Liza", lines, price: 1430, validUntil: "2026-10-25" }));
     }
     case "price-update":

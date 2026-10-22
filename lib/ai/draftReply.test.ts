@@ -48,6 +48,14 @@ describe("draftReply", () => {
     expect(outcome).toMatchObject({ ok: false, error: "Reply is missing ₱1,220" });
   });
 
+  test("fails a message whose date only starts like the valid-until date", async () => {
+    const { outcome } = await reply(goodMessage.replace("Oct 25", "Oct 2"), { validUntil: "2026-10-02" });
+    const wrong = await reply(goodMessage.replace("Oct 25", "Oct 20"), { validUntil: "2026-10-02" });
+
+    expect(outcome.ok).toBe(true);
+    expect(wrong.outcome).toMatchObject({ ok: false, error: "Reply is missing Oct 2" });
+  });
+
   test("fails a message that leaves out the valid-until date", async () => {
     const { outcome } = await reply("Hi po! 12 red roses. ₱1,220 po. Salamat po!");
 

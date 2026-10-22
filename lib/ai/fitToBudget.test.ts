@@ -61,6 +61,15 @@ describe("fitToBudget", () => {
     expect(options.map((o) => o.label)).toEqual(["Fewer roses"]);
   });
 
+  test("drops an option without the main flower", async () => {
+    const { options } = await fit(
+      option("Carnations only", [{ stem: "Carnation - red", count: 20, note: "" }]),
+      option("Fewer roses", [{ stem: "Rose - red", count: 12, note: "" }]),
+    );
+
+    expect(options.map((o) => o.label)).toEqual(["Fewer roses"]);
+  });
+
   test("clamps counts to 1 to 100 stems and 1 to 5 filler bunches", async () => {
     const { options } = await fit(
       option("Odd", [

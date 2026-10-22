@@ -5,7 +5,7 @@
 import type { DraftReplyResult } from "../contract";
 import type { ManilaDate, Money } from "../types";
 import { askClaude, type AiOutcome, type MessagesApi } from "./client";
-import { pesos, requireTexts, schema, shortDate } from "./shared";
+import { countText, pesos, requireTexts, schema, shortDate } from "./shared";
 
 const SYSTEM = `You write the reply a florist in Manila sends on Messenger to a customer who asked "hm po?" about a bouquet photo.
 
@@ -34,10 +34,7 @@ export async function draftReply(
 ): Promise<AiOutcome<DraftReplyResult>> {
   const price = pesos(input.price);
   const validUntil = shortDate(input.validUntil);
-  const lines = input.lines.map(({ stem, count, isFiller }) => {
-    const unit = isFiller ? "bunch" : "stem";
-    return `- ${stem}: ${count} ${count === 1 ? unit : `${unit}${isFiller ? "es" : "s"}`}`;
-  });
+  const lines = input.lines.map(({ stem, count, isFiller }) => `- ${stem}: ${countText(count, isFiller)}`);
   const text = [
     `Shop name: ${input.shopName || "none"}`,
     `Flowers:\n${lines.join("\n")}`,
