@@ -30,6 +30,8 @@ describe("starter list", () => {
         expect(row[field]).toBeTypeOf("string");
         expect(row[field]).not.toBe("");
         expect(row[field]).toBe((row[field] as string).trim());
+        // " - " joins flower and color in the row name, so the routes refuse it inside either.
+        expect(row[field]).not.toContain(" - ");
       }
     },
   );
