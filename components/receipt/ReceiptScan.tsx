@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import type { AddStemRequest, ReceiptDraftLine, SaveReceiptRequest, SaveReceiptResponse, StemWithCost } from "@/lib/contract";
+import { receiptLineTotal } from "@/lib/money";
+import { t as label } from "@/lib/strings";
 import { addStem, extractReceipt, listStems, saveReceipt, uploadPhoto } from "./api";
 import { Button, Input, Row } from "./kit";
 import { PhotoPicker } from "./PhotoPicker";
-import { type DraftLine, ReceiptTable, stemName } from "./ReceiptTable";
+import { type DraftLine, ReceiptTable } from "./ReceiptTable";
 import { scan as t } from "./strings";
-import type { ExtractReceiptResult, ReceiptLineInput, SaveReceiptResponse, Stem } from "./types";
 
 type State =
   | { step: "pick" }
@@ -14,32 +16,32 @@ type State =
   | { step: "table"; photoPath: string; purchaseDate: string }
   | { step: "saved"; result: SaveReceiptResponse };
 
-const todayInManila = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date());
 const peso = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 const num = (s: string) => (s.trim() === "" ? NaN : Number(s));
 
-function toDraft(line: ExtractReceiptResult["lines"][number], i: number, stems: Stem[]): DraftLine {
-  const match = stems.find((s) => stemName(s).toLowerCase() === line.stem?.toLowerCase());
+function toDraft(line: ReceiptDraftLine, i: number): DraftLine {
+  // receiptLineTotal keeps the written total, else quantity × unit price when the unit is known;
+  // null means the florist fills it in. The unit price is shown as a hint either way.
+  const total = receiptLineTotal(line);
   return {
     key: String(i),
     rawText: line.rawText,
-    stemId: match?.id ?? null,
+    stemId: line.stemId,
     quantity: line.quantity?.toString() ?? "",
-    unit: line.unit ?? match?.unit ?? "piece",
-    bundleSize: (line.bundleSize ?? match?.bundleSize)?.toString() ?? "",
-    // A missing total stays blank for the florist to fill; the unit price is shown as a hint.
-    totalPaid: line.totalPaid?.toString() ?? "",
+    unit: line.unit ?? "",
+    bundleSize: line.bundleSize?.toString() ?? "",
+    totalPaid: total?.toString() ?? "",
     unitPrice: line.unitPrice,
     confidence: line.confidence,
     note: line.note,
   };
 }
 
-function toInput(line: DraftLine): ReceiptLineInput | null {
+function toInput(line: DraftLine): SaveReceiptRequest["lines"][number] | null {
   const quantity = num(line.quantity);
   const totalPaid = num(line.totalPaid);
+  if (!line.stemId || !line.unit || !(quantity > 0) || !(totalPaid >= 0)) return null;
   const bundleSize = line.unit === "bundle" ? num(line.bundleSize) : null;
-  if (!line.stemId || !(quantity > 0) || !(totalPaid >= 0)) return null;
   if (bundleSize !== null && !(Number.isInteger(bundleSize) && bundleSize > 0)) return null;
   return { stemId: line.stemId, quantity, unit: line.unit, bundleSize, totalPaid };
 }
@@ -47,7 +49,7 @@ function toInput(line: DraftLine): ReceiptLineInput | null {
 export function ReceiptScan() {
   const [state, setState] = useState<State>({ step: "pick" });
   const [lines, setLines] = useState<DraftLine[]>([]);
-  const [stems, setStems] = useState<Stem[]>([]);
+  const [stems, setStems] = useState<StemWithCost[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   async function run<T>(message: string, task: () => Promise<T>, fallback: State): Promise<T | null> {
@@ -56,7 +58,7 @@ export function ReceiptScan() {
     try {
       return await task();
     } catch {
-      setError(t.failed);
+      setError(label("common", "error"));
       setState(fallback);
       return null;
     }
@@ -64,18 +66,19 @@ export function ReceiptScan() {
 
   async function handlePhoto(photo: File) {
     const result = await run(t.uploading, async () => {
-      const { photoPath } = await uploadPhoto(photo);
+      const { photoPath } = await uploadPhoto(photo, "receipts");
       setState({ step: "working", message: t.reading });
       const [extract, stemList] = await Promise.all([extractReceipt(photoPath), listStems()]);
       return { photoPath, extract, stemList };
     }, { step: "pick" });
     if (!result) return;
     setStems(result.stemList);
-    setLines(result.extract.lines.map((l, i) => toDraft(l, i, result.stemList)));
-    setState({ step: "table", photoPath: result.photoPath, purchaseDate: result.extract.purchaseDate ?? todayInManila() });
+    setLines(result.extract.lines.map(toDraft));
+    // The route answers today in Manila when the AI could not read a date.
+    setState({ step: "table", photoPath: result.photoPath, purchaseDate: result.extract.purchaseDate });
   }
 
-  async function handleAddStem(input: Parameters<typeof addStem>[0]) {
+  async function handleAddStem(input: AddStemRequest) {
     const added = await addStem(input);
     setStems((list) => [...list, added]);
     return added;
@@ -95,13 +98,13 @@ export function ReceiptScan() {
   }
 
   if (state.step === "saved") {
-    const { batches, underwaterCount } = state.result;
+    const { batches, underwaterQuoteIds } = state.result;
     const byId = new Map(stems.map((s) => [s.id, s]));
     return (
       <div className="flex flex-col gap-4">
-        {underwaterCount > 0 && (
+        {underwaterQuoteIds.length > 0 && (
           <p role="alert" className="rounded-xl border border-amber-400 bg-amber-50 p-3 font-semibold text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
-            {t.underwater(underwaterCount)}
+            {label("quotes", "underwaterBanner", { count: underwaterQuoteIds.length })}
           </p>
         )}
         <p>{t.saved}</p>
@@ -111,7 +114,7 @@ export function ReceiptScan() {
             return (
               <Row key={b.id}>
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-medium">{s ? stemName(s) : b.stemId}</span>
+                  <span className="font-medium">{s?.name ?? b.stemId}</span>
                   <span className="shrink-0">
                     {peso.format(b.costPerStem)} {s?.isFiller ? t.perBunch : t.perStem}
                   </span>
@@ -144,7 +147,7 @@ export function ReceiptScan() {
   return (
     <div className="flex flex-col gap-4">
       <Input
-        label={t.purchaseDate}
+        label={label("scan", "purchaseDate")}
         type="date"
         value={state.purchaseDate}
         onChange={(e) => setState({ ...tableState, purchaseDate: e.target.value })}
