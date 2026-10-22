@@ -279,7 +279,12 @@ export type EvalResult = {
 };
 export type AccuracyResponse = {
   eval: EvalResult[];
-  /** From the ai_calls table. */
-  live: Array<{ call: AiCallName; calls: number; medianSeconds: number; averageCostUsd: number }>;
+  /**
+   * From the ai_calls table. A call whose model is missing from TOKEN_PRICES
+   * has an unknown cost and is left out of the averages; null when every
+   * call's cost is unknown.
+   */
+  live: Array<{ call: AiCallName; calls: number; medianSeconds: number; averageCostUsd: number | null }>;
+  /** Each quote's calls summed, averaged over quotes; null when there are none of known cost. */
   averageCostPerQuoteUsd: number | null;
 };
