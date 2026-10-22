@@ -59,8 +59,16 @@ export function pesos(amount: Money): string {
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** A Manila calendar date as the reply writes it: "2026-10-25" is "Oct 25". */
+/** True for "YYYY-MM-DD" that is a real calendar date. */
+export function isManilaDate(date: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const parsed = new Date(`${date}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(date);
+}
+
+/** A Manila calendar date as the reply writes it: "2026-10-25" is "Oct 25". Throws on anything else. */
 export function shortDate(date: ManilaDate): string {
+  if (!isManilaDate(date)) throw new Error(`shortDate needs a "YYYY-MM-DD" date, got "${date}"`);
   const [, month, day] = date.split("-").map(Number);
   return `${MONTHS[month - 1]} ${day}`;
 }

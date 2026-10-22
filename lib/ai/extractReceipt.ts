@@ -5,7 +5,7 @@
 import type { ExtractReceiptResult } from "../contract";
 import type { Unit } from "../types";
 import { askClaude, type AiOutcome, type MessagesApi } from "./client";
-import { findStem, photoBlock, schema, stemList, type AllowedStem, type Photo } from "./shared";
+import { findStem, isManilaDate, photoBlock, schema, stemList, type AllowedStem, type Photo } from "./shared";
 
 const UNITS: Unit[] = ["dozen", "per10", "bundle", "bunch", "piece"];
 
@@ -44,13 +44,6 @@ const SCHEMA = schema.object({
   note: { type: "string" },
 });
 
-/** "YYYY-MM-DD" that is a real calendar date, else null. */
-function readableDate(date: string | null): string | null {
-  if (date === null || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
-  const parsed = new Date(`${date}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(date) ? date : null;
-}
-
 export async function extractReceipt(
   input: { photo: Photo; stems: AllowedStem[] },
   api?: MessagesApi,
@@ -70,7 +63,7 @@ export async function extractReceipt(
   return {
     ...outcome,
     result: {
-      purchaseDate: readableDate(purchaseDate),
+      purchaseDate: purchaseDate !== null && isManilaDate(purchaseDate) ? purchaseDate : null,
       lines: lines.map((line) => {
         const stem = findStem(input.stems, line.stem);
         const fillerBundle = stem?.isFiller && line.unit === "bundle";

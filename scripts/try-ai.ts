@@ -18,7 +18,7 @@ import { draftReply } from "../lib/ai/draftReply";
 import { extractReceipt } from "../lib/ai/extractReceipt";
 import { fitToBudget } from "../lib/ai/fitToBudget";
 import { priceUpdate } from "../lib/ai/priceUpdate";
-import type { Photo } from "../lib/ai/shared";
+import { findStem, type Photo } from "../lib/ai/shared";
 import { stems as allStems } from "../lib/fake/data";
 
 const stems = allStems.filter((stem) => !stem.hidden);
@@ -67,10 +67,7 @@ async function main() {
     case "budget":
       return print(await fitToBudget({ recipe, budget: 1000, currentPrice: 1430, stems }));
     case "reply": {
-      const lines = recipe.map((line) => ({
-        ...line,
-        isFiller: stems.some((stem) => stem.name === line.stem && stem.isFiller),
-      }));
+      const lines = recipe.map((line) => ({ ...line, isFiller: findStem(stems, line.stem)?.isFiller ?? false }));
       return print(await draftReply({ shopName: "Bulaklak ni Liza", lines, price: 1430, validUntil: "2026-10-25" }));
     }
     case "price-update":
