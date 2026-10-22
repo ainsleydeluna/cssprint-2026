@@ -1,19 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/receipt/kit";
-import type { QuoteDetail, StemWithCost, UpdateQuoteLinesRequest } from "@/lib/contract";
+import type { QuoteDetail, StemWithCost, UpdateQuoteLinesRequest, UpdateQuoteLinesResponse } from "@/lib/contract";
 import { COUNT_LIMITS, price, recipeCost } from "@/lib/money";
 import { t } from "@/lib/strings";
 import type { Shop } from "@/lib/types";
 import { updateLines } from "./api";
+import { Autosave, type SaveState } from "./autosave";
 import { type EditLine, QuoteLineRow } from "./QuoteLineRow";
 
 const SAVE_DELAY_MS = 600;
 const peso = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
 type Props = { detail: QuoteDetail; shop: Shop; stems: StemWithCost[]; demo: boolean };
-type SaveState = "saved" | "pending" | "saving" | "failed";
 
 const toRequest = (lines: EditLine[]): UpdateQuoteLinesRequest => ({
   lines: lines.map(({ id, stemId, count, countLow, countHigh, confidence, note }) => ({
@@ -22,64 +22,42 @@ const toRequest = (lines: EditLine[]): UpdateQuoteLinesRequest => ({
   })),
 });
 
+/**
+ * Folds a save's answer into the newest lines. The route answers the lines in the order sent:
+ * new lines get their ids, and lines whose stem didn't change since take the server's cost.
+ */
+function merge(latest: EditLine[], sent: EditLine[], answer: UpdateQuoteLinesResponse): EditLine[] {
+  const saved = new Map(sent.map((l, i) => [l.key, answer.lines[i]]));
+  return latest.map((l) => {
+    const s = saved.get(l.key);
+    if (!s) return l;
+    return { ...l, id: s.id, costPerStem: s.stemId === l.stemId ? s.costPerStem : l.costPerStem };
+  });
+}
+
 export function QuoteEditor({ detail, shop, stems, demo }: Props) {
   const quoteId = detail.quote.id;
   const [lines, setLines] = useState<EditLine[]>(() => detail.lines.map((l) => ({ ...l, key: l.id })));
   const [save, setSave] = useState<SaveState>("saved");
-  // Refs for the autosave: the newest lines, the debounce timer, and one save in flight at a time.
-  const latest = useRef(lines);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const inFlight = useRef(false);
-  const again = useRef(false);
+  // One autosave per quote: at most one save in flight; edits during it follow once it finishes.
+  const [autosave] = useState(
+    () =>
+      new Autosave<EditLine[], UpdateQuoteLinesResponse>(lines, {
+        delayMs: SAVE_DELAY_MS,
+        send: (sent) => updateLines(quoteId, toRequest(sent)),
+        merge,
+        onChange: (state, value) => {
+          setSave(state);
+          setLines(value);
+        },
+      }),
+  );
 
-  async function flush() {
-    timer.current = null;
-    if (inFlight.current) return void (again.current = true);
-    inFlight.current = true;
-    const sent = latest.current;
-    setSave("saving");
-    try {
-      const res = await updateLines(quoteId, toRequest(sent));
-      // The route answers the lines in the order sent: new lines get their ids, and lines whose
-      // stem didn't change since take the server's cost.
-      const saved = new Map(sent.map((l, i) => [l.key, res.lines[i]]));
-      const merged = latest.current.map((l) => {
-        const s = saved.get(l.key);
-        if (!s) return l;
-        return { ...l, id: s.id, costPerStem: s.stemId === l.stemId ? s.costPerStem : l.costPerStem };
-      });
-      latest.current = merged;
-      setLines(merged);
-      setSave(again.current || timer.current ? "pending" : "saved");
-    } catch {
-      setSave("failed");
-    } finally {
-      inFlight.current = false;
-      if (again.current) {
-        again.current = false;
-        void flush();
-      }
-    }
-  }
+  // Leaving the page with an edit still waiting: save it, after any save already running.
+  useEffect(() => () => void autosave.flush(), [autosave]);
 
-  function edit(next: EditLine[]) {
-    latest.current = next;
-    setLines(next);
-    setSave("pending");
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(flush, SAVE_DELAY_MS);
-  }
-
-  // Leaving the page with an edit still waiting: send it now.
-  useEffect(() => {
-    const pending = timer;
-    const newest = latest;
-    return () => {
-      if (!pending.current) return;
-      clearTimeout(pending.current);
-      void updateLines(quoteId, toRequest(newest.current)).catch(() => {});
-    };
-  }, [quoteId]);
+  const edit = (next: EditLine[]) => autosave.edit(next);
+  const flush = () => void autosave.flush();
 
   const update = (key: string, patch: Partial<EditLine>) => edit(lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   // A new line is a "pick a flower" line of 1, sure of itself once a flower is picked.
