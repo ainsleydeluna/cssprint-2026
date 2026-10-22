@@ -181,11 +181,12 @@ describe.skipIf(!testAccountsReady)("quote routes", { timeout: 20_000 }, () => {
     expect(logged.data).toEqual([{ call: "analyzeBouquet", ok: true, model: "claude-opus-5-5", input_tokens: 1500 }]);
   });
 
-  test("a failed analysis saves no quote, deletes the photo and still logs the call", async () => {
+  test("a failed analysis answers 502 ai_failed, saves no quote, deletes the photo and still logs the call", async () => {
     const photoPath = await uploadBouquet();
     const error = `Canned failure ${crypto.randomUUID()}`;
     ai.answers.push({ ok: false, error, model: "claude-opus-5-5", seconds: 30, inputTokens: 0, outputTokens: 0 });
-    await expect(quotesRoute.POST(json("POST", { photoPath }))).rejects.toThrow(error);
+    const response = await quotesRoute.POST(json("POST", { photoPath }));
+    expect([response.status, (await response.json()).code]).toEqual([502, "ai_failed"]);
 
     expect((await client.from("quotes").select("id").eq("photo_path", photoPath)).data).toEqual([]);
     expect(await photoStored(photoPath)).toBe(false);
@@ -295,6 +296,17 @@ describe.skipIf(!testAccountsReady)("quote routes", { timeout: 20_000 }, () => {
     expect((await client.from("quotes").select("reply_text").eq("id", quote.id).single()).data?.reply_text).toBe(message);
     const logged = await client.from("ai_calls").select("call, ok").eq("quote_id", quote.id).eq("call", "draftReply");
     expect(logged.data).toEqual([{ call: "draftReply", ok: true }]);
+  });
+
+  test("a failed reply draft answers 502 ai_failed, keeps the saved text and still logs the call", async () => {
+    const { quote } = await completed();
+    const error = `Canned failure ${crypto.randomUUID()}`;
+    ai.answers.push({ ok: false, error, model: "claude-sonnet-5-5", seconds: 30, inputTokens: 0, outputTokens: 0 });
+    const response = await replyRoute.POST(json("POST"), ctx(quote.id));
+    expect([response.status, (await response.json()).code]).toEqual([502, "ai_failed"]);
+    expect((await client.from("quotes").select("reply_text").eq("id", quote.id).single()).data).toEqual({ reply_text: "" });
+    const logged = await client.from("ai_calls").select("call, ok, quote_id").eq("error", error);
+    expect(logged.data).toEqual([{ call: "draftReply", ok: false, quote_id: quote.id }]);
   });
 
   test("renaming changes only the allowed fields", async () => {

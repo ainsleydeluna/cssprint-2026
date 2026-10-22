@@ -44,7 +44,7 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/quotes/[id
     ok: outcome.ok,
     error: outcome.ok ? "" : outcome.error,
   });
-  if (!outcome.ok) throw new Error(`draftReply failed: ${outcome.error}`);
+  if (!outcome.ok) return errorResponse("ai_failed", `Drafting the reply failed: ${outcome.error}`);
 
   if (quote.status === "draft") {
     const { error } = await supabase.from("quotes").update({ reply_text: outcome.result.message }).eq("id", quote.id);
