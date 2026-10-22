@@ -128,7 +128,10 @@ export function parseStemUpdate(body: unknown, current: Stem): Parsed<UpdateStem
   const bundleSizeAfter = Object.hasOwn(changes, "bundleSize") ? (changes.bundleSize ?? null) : current.bundleSize;
   const after = stemBundle({ unit: changes.unit ?? current.unit, bundleSize: bundleSizeAfter });
   if (!after.ok) return after;
-  // Store a bundle size only when it changes: a new value, or cleared because the row is no longer a bundle.
-  if (after.value.bundleSize !== current.bundleSize) changes.bundleSize = after.value.bundleSize;
+  // Save the bundle size as it is after the edit (null unless the row is a bundle)
+  // whenever the body sent one or it changes, so a stray size is never saved.
+  if (Object.hasOwn(changes, "bundleSize") || after.value.bundleSize !== current.bundleSize) {
+    changes.bundleSize = after.value.bundleSize;
+  }
   return { ok: true, value: changes };
 }

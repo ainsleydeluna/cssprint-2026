@@ -99,6 +99,14 @@ describe("parseStemUpdate", () => {
     expect(parseStemUpdate({ unit: "bundle", bundleSize: 20 }, roseRed)).toEqual({ ok: true, value: { unit: "bundle", bundleSize: 20 } });
   });
 
+  test.each([
+    ["a bundle size sent for a dozen row", { bundleSize: 5 }],
+    ["a bundle size sent with a change to piece", { unit: "piece", bundleSize: 5 }],
+  ])("never saves %s", (_case, body) => {
+    const parsed = parseStemUpdate(body, roseRed);
+    expect(parsed.ok && parsed.value.bundleSize).toBeNull();
+  });
+
   test("clears the bundle size when a bundle row changes to another unit", () => {
     expect(parseStemUpdate({ unit: "piece" }, mumsWhite)).toEqual({ ok: true, value: { unit: "piece", bundleSize: null } });
   });
