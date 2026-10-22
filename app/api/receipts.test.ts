@@ -145,15 +145,19 @@ describe.skipIf(!testAccountsReady)("photo and receipt routes", () => {
   test("saving the same photo twice answers 400 invalid_request and keeps one receipt", async () => {
     const photoPath = await upload();
     const body = { photoPath, lines: [{ stemId: roseId, quantity: 2, unit: "dozen", bundleSize: null, totalPaid: 540 }] };
-    const first = (await (await receiptsRoute.POST(json("POST", body))).json()) as SaveReceiptResponse;
+    const savedWithPhoto = async () =>
+      ((await (await receiptsRoute.GET()).json()) as ReceiptListResponse).receipts.filter(
+        (item) => item.receipt.photoPath === photoPath,
+      );
     try {
+      expect((await receiptsRoute.POST(json("POST", body))).status).toBe(200);
       const second = await receiptsRoute.POST(json("POST", body));
 
       expect([second.status, await second.json()]).toEqual([400, { code: "invalid_request", error: "This photo is already saved as a receipt" }]);
-      const listed = ((await (await receiptsRoute.GET()).json()) as ReceiptListResponse).receipts;
-      expect(listed.filter((item) => item.receipt.photoPath === photoPath)).toHaveLength(1);
+      expect(await savedWithPhoto()).toHaveLength(1);
     } finally {
-      await receiptRoute.DELETE(json("DELETE"), idContext(first.receipt.id));
+      // Every copy, so a failing run leaves no receipt behind on the shared test shop.
+      for (const { receipt } of await savedWithPhoto()) await receiptRoute.DELETE(json("DELETE"), idContext(receipt.id));
     }
   });
 
