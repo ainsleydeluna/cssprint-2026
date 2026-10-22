@@ -20,11 +20,12 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/stems/[id]
   if (current.error) throw new Error(`Reading the stem failed: ${current.error.message}`);
   if (!current.data) return errorResponse("not_found", "Stem not found");
 
-  const parsed = parseStemUpdate(await readJson(request), toStem(current.data));
+  const stem = toStem(current.data);
+  const parsed = parseStemUpdate(await readJson(request), stem);
   if (!parsed.ok) return errorResponse(parsed.code, parsed.error);
   const changes = toColumns(parsed.value);
   // The starter list's source note describes the starter price, not one the florist typed.
-  if (parsed.value.samplePrice !== undefined) changes.sample_source = "";
+  if (parsed.value.samplePrice !== undefined && parsed.value.samplePrice !== stem.samplePrice) changes.sample_source = "";
 
   if (Object.keys(changes).length > 0) {
     const { error } = await session.supabase.from("stems").update(changes).eq("id", id);
