@@ -65,6 +65,9 @@ describe("parseNewStem", () => {
   test.each([
     ["a missing field", { flower: "Peony", color: "pink", isFiller: false, unit: "piece", bundleSize: null }],
     ["an empty flower name", { ...peony, flower: "  " }],
+    // " - " joins flower and color in the row name ("Rose - red"), so it may not appear inside either.
+    ["\" - \" inside the flower", { ...peony, flower: "Rose - spray" }],
+    ["\" - \" inside the color", { ...peony, color: "pink - white" }],
     ["an unknown unit", { ...peony, unit: "box" }],
     ["isFiller as text", { ...peony, isFiller: "no" }],
     ["a negative sample price", { ...peony, samplePrice: -1 }],
@@ -111,6 +114,7 @@ describe("parseStemUpdate", () => {
   test.each([
     ["hidden as text", { hidden: "yes" }],
     ["an empty flower name", { flower: "" }],
+    ["\" - \" inside the color", { color: "red - white" }],
   ])("refuses %s with invalid_request", (_case, body) => {
     expect(parseStemUpdate(body, roseRed)).toMatchObject({ ok: false, code: "invalid_request" });
   });

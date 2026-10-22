@@ -42,6 +42,14 @@ function name(maxLength: number): Check {
   };
 }
 
+/** " - " joins flower and color in a row's name ("Rose - red"), so it may not appear inside either. */
+function namePart(check: Check): Check {
+  return (value) => {
+    const checked = check(value);
+    return typeof checked === "string" && checked.includes(" - ") ? undefined : checked;
+  };
+}
+
 const SHOP_FIELDS: Record<keyof UpdateShopRequest, Check> = {
   name: text(80),
   wrapFee: money,
@@ -78,8 +86,8 @@ export function parseShopUpdate(body: unknown): Parsed<UpdateShopRequest> {
 }
 
 const NEW_STEM_FIELDS: Record<keyof AddStemRequest, Check> = {
-  flower: name(60),
-  color: text(40),
+  flower: namePart(name(60)),
+  color: namePart(text(40)),
   isFiller: boolean,
   unit,
   bundleSize,
