@@ -1,0 +1,55 @@
+{
+  "common": {
+    "demo": "Demo",
+    "sample": "sample",
+    "save": "I-save",
+    "cancel": "Kanselahin",
+    "retry": "Subukan ulit",
+    "error": "May problema. Subukan ulit."
+  },
+  "nav": {
+    "menu": "Pangunahing menu",
+    "newQuote": "Bagong quote",
+    "scan": "I-scan ang resibo",
+    "quotes": "Mga quote"
+  },
+  "newQuote": {
+    "title": "Bagong quote",
+    "useDemoPhoto": "Gumamit ng demo photo"
+  },
+  "quote": {
+    "inquiryLabel": "Inquiry {n}",
+    "renameHint": "No customer names or numbers.",
+    "unsure": "Hindi sigurado",
+    "pickFlower": "Pumili ng bulaklak",
+    "blankCount": "Ilagay ang bilang",
+    "total": "Kabuuan",
+    "copyReply": "Kopyahin ang reply",
+    "copied": "Nakopya na",
+    "overBudgetBy": "Over budget by ₱{amount}",
+    "draftPriceUpdate": "Draft price update"
+  },
+  "quotes": {
+    "title": "Mga quote",
+    "average": "Average na time-to-quote: {time}",
+    "underwaterBanner": "{count} open quotes are now underwater",
+    "statusDraft": "Draft",
+    "statusSent": "Naipadala",
+    "statusExpired": "Expired"
+  },
+  "scan": {
+    "title": "I-scan ang resibo",
+    "matchLine": "I-match ang linyang ito",
+    "purchaseDate": "Petsa ng bili"
+  },
+  "shop": {
+    "title": "Setup ng shop",
+    "wrapFee": "Wrap fee",
+    "laborFee": "Labor fee",
+    "markup": "Markup (%)",
+    "minimumMargin": "Minimum margin (%)"
+  },
+  "accuracy": {
+    "title": "AI accuracy"
+  }
+}

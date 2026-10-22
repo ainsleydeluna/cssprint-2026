@@ -1,7 +1,10 @@
 import { useState } from "react";
+import type { AddStemRequest, StemWithCost } from "@/lib/contract";
+import { t as label } from "@/lib/strings";
+import type { Confidence, Unit } from "@/lib/types";
+import { ApiFailure } from "./api";
 import { Button, Input, Row, Select } from "./kit";
 import { scan as t, units } from "./strings";
-import type { Confidence, NewStem, Stem, Unit } from "./types";
 
 /** One receipt line while the florist edits it. Numbers stay strings until save. */
 export type DraftLine = {
@@ -9,7 +12,8 @@ export type DraftLine = {
   rawText: string;
   stemId: string | null;
   quantity: string;
-  unit: Unit;
+  /** "" when the receipt doesn't say; the florist must choose one. */
+  unit: Unit | "";
   bundleSize: string;
   totalPaid: string;
   unitPrice: number | null;
@@ -17,14 +21,13 @@ export type DraftLine = {
   note: string;
 };
 
-export const stemName = (s: Stem) => `${s.flower} - ${s.color}`;
 const ADD_ROW = "__add";
 
 type Props = {
   lines: DraftLine[];
-  stems: Stem[];
+  stems: StemWithCost[];
   onChange: (lines: DraftLine[]) => void;
-  onAddStem: (input: NewStem) => Promise<Stem>;
+  onAddStem: (input: AddStemRequest) => Promise<StemWithCost>;
 };
 
 export function ReceiptTable({ lines, stems, onChange, onAddStem }: Props) {
@@ -55,23 +58,30 @@ function ReceiptLineRow({
   onAddStem,
 }: {
   line: DraftLine;
-  stems: Stem[];
+  stems: StemWithCost[];
   onUpdate: (patch: Partial<DraftLine>) => void;
   onRemove: () => void;
   onAddStem: Props["onAddStem"];
 }) {
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState({ flower: "", color: "", isFiller: false });
+  // The receipt's own unit price is the new row's sample price: both are per one unit as bought.
+  const [draft, setDraft] = useState({ flower: "", color: "", isFiller: false, samplePrice: line.unitPrice?.toString() ?? "" });
   const [busy, setBusy] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const samplePrice = draft.samplePrice.trim() === "" ? NaN : Number(draft.samplePrice);
 
   async function addRow() {
     setBusy(true);
+    setAddError(null);
     try {
-      const unit = draft.isFiller ? "bunch" : line.unit;
+      const unit = draft.isFiller ? "bunch" : line.unit || "piece";
       const bundleSize = unit === "bundle" ? Number(line.bundleSize) || null : null;
-      const added = await onAddStem({ ...draft, unit, bundleSize });
+      const { flower, color, isFiller } = draft;
+      const added = await onAddStem({ flower, color, isFiller, unit, bundleSize, samplePrice });
       onUpdate({ stemId: added.id, unit });
       setAdding(false);
+    } catch (e) {
+      setAddError(e instanceof ApiFailure && e.code === "invalid_bundle_size" ? t.bundleSizeNeeded : label("common", "error"));
     } finally {
       setBusy(false);
     }
@@ -85,7 +95,7 @@ function ReceiptLineRow({
       </p>
 
       <Select
-        label={line.stemId ? t.stem : t.matchLine}
+        label={line.stemId ? t.stem : label("scan", "matchLine")}
         value={adding ? ADD_ROW : (line.stemId ?? "")}
         onChange={(e) => {
           const add = e.target.value === ADD_ROW;
@@ -94,11 +104,13 @@ function ReceiptLineRow({
         }}
       >
         <option value="">{t.choose}</option>
-        {stems.map((s) => (
-          <option key={s.id} value={s.id}>
-            {stemName(s)}
-          </option>
-        ))}
+        {stems
+          .filter((s) => !s.hidden || s.id === line.stemId)
+          .map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
         <option value={ADD_ROW}>{t.addRow}</option>
       </Select>
 
@@ -106,6 +118,12 @@ function ReceiptLineRow({
         <div className="flex flex-col gap-3 rounded-xl bg-white p-3 dark:bg-zinc-900">
           <Input label={t.newFlower} value={draft.flower} onChange={(e) => setDraft({ ...draft, flower: e.target.value })} />
           <Input label={t.newColor} value={draft.color} onChange={(e) => setDraft({ ...draft, color: e.target.value })} />
+          <Input
+            label={t.samplePrice}
+            inputMode="decimal"
+            value={draft.samplePrice}
+            onChange={(e) => setDraft({ ...draft, samplePrice: e.target.value })}
+          />
           <label className="flex min-h-12 items-center gap-3 text-sm">
             <input
               type="checkbox"
@@ -115,7 +133,8 @@ function ReceiptLineRow({
             />
             {t.isFiller}
           </label>
-          <Button disabled={busy || !draft.flower.trim()} onClick={addRow}>
+          {addError && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{addError}</p>}
+          <Button disabled={busy || !draft.flower.trim() || !(samplePrice >= 0)} onClick={addRow}>
             {t.addRowSave}
           </Button>
         </div>
@@ -128,7 +147,8 @@ function ReceiptLineRow({
           value={line.quantity}
           onChange={(e) => onUpdate({ quantity: e.target.value })}
         />
-        <Select label={t.unit} value={line.unit} onChange={(e) => onUpdate({ unit: e.target.value as Unit })}>
+        <Select label={t.unit} value={line.unit} onChange={(e) => onUpdate({ unit: e.target.value as Unit | "" })}>
+          <option value="">{t.choose}</option>
           {(Object.keys(units) as Unit[]).map((u) => (
             <option key={u} value={u}>
               {units[u]}

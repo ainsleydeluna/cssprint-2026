@@ -1,35 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { deleteReceipt, getReceipt } from "./api";
+import type { StemWithCost } from "@/lib/contract";
+import { t as label } from "@/lib/strings";
+import type { Receipt, StockBatch } from "@/lib/types";
+import { ApiFailure, deleteReceipt, listReceipts, listStems } from "./api";
 import { formatDate, peso } from "./format";
 import { Button, Row } from "./kit";
-import { stemName } from "./ReceiptTable";
 import { receipts as t, scan, units } from "./strings";
-import type { ReceiptDetail } from "./types";
+
+type Loaded = { receipt: Receipt; batches: StockBatch[]; stems: Map<string, StemWithCost> };
+/** After a delete: how many open quotes it turned underwater, or "gone" if it was already deleted. */
+type Deleted = { underwater: number } | "gone";
 
 /** A saved receipt: read-only (spec decision 28). Fixing one means delete and scan again. */
 export function ReceiptView({ id }: { id: string }) {
-  const router = useRouter();
-  const [detail, setDetail] = useState<ReceiptDetail | null | undefined>(undefined);
+  const [loaded, setLoaded] = useState<Loaded | null | undefined>(undefined);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleted, setDeleted] = useState<Deleted | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    getReceipt(id).then(setDetail, () => setError(true));
+    // No single-receipt route: find it in the list. Stems include hidden rows, so old lines keep their names.
+    Promise.all([listReceipts(), listStems()]).then(([receipts, stems]) => {
+      const found = receipts.find((r) => r.receipt.id === id);
+      setLoaded(found ? { ...found, stems: new Map(stems.map((s) => [s.id, s])) } : null);
+    }, () => setError(true));
   }, [id]);
 
   async function handleDelete() {
     setDeleting(true);
     setError(false);
     try {
-      await deleteReceipt(id);
-      router.replace("/receipts");
-    } catch {
-      setError(true);
+      const { underwaterQuoteIds } = await deleteReceipt(id);
+      setDeleted({ underwater: underwaterQuoteIds.length });
+    } catch (e) {
+      if (e instanceof ApiFailure && e.code === "not_found") setDeleted("gone");
+      else setError(true);
+    } finally {
       setDeleting(false);
     }
   }
@@ -39,25 +49,37 @@ export function ReceiptView({ id }: { id: string }) {
       {t.back}
     </Link>
   );
+  const errorText = <p role="alert" className="text-sm text-red-700 dark:text-red-400">{label("common", "error")}</p>;
 
-  if (detail === undefined && !error) return <>{back}<p role="status">{t.loading}</p></>;
-  if (!detail) return <>{back}<p role="alert">{error ? t.failed : t.notFound}</p></>;
-
-  const stems = new Map(detail.stems.map((s) => [s.id, s]));
+  if (deleted) {
+    return (
+      <div className="flex flex-col gap-4">
+        {back}
+        {deleted !== "gone" && deleted.underwater > 0 && (
+          <p role="alert" className="rounded-xl border border-amber-400 bg-amber-50 p-3 font-semibold text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
+            {label("quotes", "underwaterBanner", { count: deleted.underwater })}
+          </p>
+        )}
+        <p role="status">{deleted === "gone" ? t.alreadyGone : t.deleted}</p>
+      </div>
+    );
+  }
+  if (loaded === undefined) return <>{back}{error ? errorText : <p role="status">{t.loading}</p>}</>;
+  if (loaded === null) return <>{back}<p role="alert">{t.notFound}</p></>;
 
   return (
     <div className="flex flex-col gap-4">
       {back}
-      <h1 className="text-2xl font-bold">{formatDate(detail.receipt.purchaseDate)}</h1>
+      <h1 className="text-2xl font-bold">{formatDate(loaded.receipt.purchaseDate)}</h1>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">{t.readOnly}</p>
 
       <ul className="flex flex-col gap-2">
-        {detail.batches.map((b) => {
-          const stem = stems.get(b.stemId);
+        {loaded.batches.map((b) => {
+          const stem = loaded.stems.get(b.stemId);
           return (
             <Row key={b.id}>
               <div className="flex items-baseline justify-between gap-3">
-                <span className="font-medium">{stem ? stemName(stem) : b.stemId}</span>
+                <span className="font-medium">{stem?.name ?? b.stemId}</span>
                 <span className="shrink-0">{peso.format(b.totalPaid)}</span>
               </div>
               <div className="flex justify-between gap-3 text-sm text-zinc-600 dark:text-zinc-400">
@@ -92,7 +114,7 @@ export function ReceiptView({ id }: { id: string }) {
           {t.delete}
         </Button>
       )}
-      {error && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{t.failed}</p>}
+      {error && errorText}
     </div>
   );
 }
