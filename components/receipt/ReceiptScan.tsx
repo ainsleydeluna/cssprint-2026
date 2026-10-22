@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { addStem, extractReceipt, listStems, saveReceipt, uploadPhoto } from "./api";
+import { peso } from "./format";
 import { Button, Input, Row } from "./kit";
 import { PhotoPicker } from "./PhotoPicker";
 import { type DraftLine, ReceiptTable, stemName } from "./ReceiptTable";
@@ -15,7 +16,6 @@ type State =
   | { step: "saved"; result: SaveReceiptResponse };
 
 const todayInManila = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date());
-const peso = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 const num = (s: string) => (s.trim() === "" ? NaN : Number(s));
 
 function toDraft(line: ExtractReceiptResult["lines"][number], i: number, stems: Stem[]): DraftLine {

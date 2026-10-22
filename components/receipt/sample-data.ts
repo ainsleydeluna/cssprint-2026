@@ -1,6 +1,9 @@
 // TEMPORARY stand-in for the server until the stub routes (#4) land. Delete it then:
 // screens must call the routes, never fake data. Prices here are made up.
-import type { ExtractReceiptResult, NewStem, SaveReceiptRequest, SaveReceiptResponse, Stem } from "./types";
+import type {
+  DeleteReceiptResponse, ExtractReceiptResult, NewStem, Receipt, ReceiptDetail, ReceiptListItem,
+  SaveReceiptRequest, SaveReceiptResponse, StockBatch, Stem,
+} from "./types";
 
 const shopId = "shop-sample";
 const stem = (id: string, flower: string, color: string, unit: Stem["unit"], samplePrice: number, extra: Partial<Stem> = {}): Stem => ({
@@ -38,13 +41,38 @@ export function fakeAddStem(input: NewStem): Stem {
 // The real save route computes cost per stem with lib/money.ts.
 const stemsPerUnit = { dozen: 12, per10: 10, bunch: 1, piece: 1 } as const;
 
+// Saved receipts for this browser session, newest first.
+const saved: Array<{ receipt: Receipt; batches: StockBatch[] }> = [];
+
 export function fakeSave(req: SaveReceiptRequest): SaveReceiptResponse {
   const createdAt = new Date().toISOString();
-  const receipt = { id: "r-sample", shopId, purchaseDate: req.purchaseDate, photoPath: req.photoPath, createdAt };
+  const receipt = { id: `r-${saved.length + 1}`, shopId, purchaseDate: req.purchaseDate, photoPath: req.photoPath, createdAt };
   const batches = req.lines.map((line, i) => {
     const perUnit = line.unit === "bundle" ? (line.bundleSize ?? 1) : stemsPerUnit[line.unit];
     const costPerStem = Math.round((line.totalPaid / (line.quantity * perUnit)) * 100) / 100;
-    return { ...line, id: `b-${i}`, receiptId: receipt.id, shopId, costPerStem, createdAt };
+    return { ...line, id: `${receipt.id}-b${i}`, receiptId: receipt.id, shopId, costPerStem, createdAt };
   });
+  saved.unshift({ receipt, batches });
   return { receipt, batches, underwaterCount: 2 };
+}
+
+export function fakeList(): ReceiptListItem[] {
+  return saved.map(({ receipt, batches }) => ({
+    ...receipt,
+    lineCount: batches.length,
+    totalPaid: batches.reduce((sum, b) => sum + b.totalPaid, 0),
+  }));
+}
+
+export function fakeGet(id: string): ReceiptDetail | null {
+  const found = saved.find((r) => r.receipt.id === id);
+  if (!found) return null;
+  const used = new Set(found.batches.map((b) => b.stemId));
+  return { ...found, stems: sampleStems.filter((s) => used.has(s.id)) };
+}
+
+export function fakeDelete(id: string): DeleteReceiptResponse {
+  const i = saved.findIndex((r) => r.receipt.id === id);
+  if (i >= 0) saved.splice(i, 1);
+  return { underwaterCount: 0 };
 }

@@ -49,3 +49,7 @@ export type NewStem = Pick<Stem, "flower" | "color" | "isFiller" | "unit" | "bun
 export type ReceiptLineInput = Pick<StockBatch, "stemId" | "quantity" | "unit" | "bundleSize" | "totalPaid">;
 export type SaveReceiptRequest = { photoPath: string; purchaseDate: string; lines: ReceiptLineInput[] };
 export type SaveReceiptResponse = { receipt: Receipt; batches: StockBatch[]; underwaterCount: number };
+export type ReceiptListItem = Receipt & { lineCount: number; totalPaid: Money };
+/** `stems` holds every row the batches use, hidden ones included. */
+export type ReceiptDetail = { receipt: Receipt; batches: StockBatch[]; stems: Stem[] };
+export type DeleteReceiptResponse = { underwaterCount: number };

@@ -42,3 +42,23 @@ export const scan = {
   underwater: (n: number) => `${n} open quote ang underwater na ngayon.`,
   scanAgain: "Mag-scan ng isa pa",
 };
+
+export const receipts = {
+  title: "Mga resibo",
+  link: "Mga resibo",
+  loading: "Kinukuha ang mga resibo…",
+  empty: "Wala pang na-save na resibo.",
+  scanFirst: "I-scan ang resibo",
+  lines: (n: number) => `${n} linya`,
+  back: "← Mga resibo",
+  notFound: "Hindi makita ang resibong ito.",
+  readOnly: "Hindi na mae-edit ang na-save na resibo. Para ayusin, burahin ito at i-scan ulit.",
+  delete: "Burahin ang resibo",
+  confirmTitle: "Burahin ang resibong ito?",
+  confirmBody:
+    "Mabubura rin ang photo nito at lahat ng linya nito. Babalik ang cost ng mga stem sa naunang resibo, o sa sample price kung wala.",
+  confirmYes: "Oo, burahin",
+  confirmNo: "Huwag",
+  deleting: "Binubura…",
+  failed: "May mali. Subukan ulit.",
+};

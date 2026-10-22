@@ -1,10 +1,16 @@
+import Link from "next/link";
 import { ReceiptScan } from "@/components/receipt/ReceiptScan";
-import { scan as t } from "@/components/receipt/strings";
+import { receipts, scan as t } from "@/components/receipt/strings";
 
 export default function ScanReceiptPage() {
   return (
     <section className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold">{t.title}</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">{t.title}</h1>
+        <Link href="/receipts" className="flex min-h-12 shrink-0 items-center font-medium text-green-800 dark:text-green-400">
+          {receipts.link}
+        </Link>
+      </div>
       <ReceiptScan />
     </section>
   );
