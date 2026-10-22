@@ -27,7 +27,7 @@
 - Commit small and often, with clear messages.
 
 ## Verify before saying done
-- Run npx tsc --noEmit (type check) and the lint script, and fix what they report.
+- Run npm run typecheck (type check) and the lint script, and fix what they report.
 - Run the app and check the flow you changed.
 - For core logic only, write the test before the code.
 - For a bug, first reproduce it the way a user would hit it, then fix it.
