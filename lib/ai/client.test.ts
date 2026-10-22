@@ -23,6 +23,15 @@ describe("askClaude", () => {
     expect(outcome.seconds).toBeGreaterThanOrEqual(0);
   });
 
+  test("a request's model replaces the call's, with that model's way of turning thinking off", async () => {
+    const { api, requests } = fakeApi(fakeMessage({}));
+
+    const outcome = await askClaude("analyzeBouquet", { ...request, model: "claude-haiku-5-5" }, api);
+
+    expect(requests[0]).toMatchObject({ model: "claude-haiku-5-5", thinking: { type: "disabled" } });
+    expect(outcome.model).toBe("claude-haiku-5-5");
+  });
+
   test("sends the call's model and effort, thinking off, and the answer format", async () => {
     const { api, requests } = fakeApi(fakeMessage({}));
 
