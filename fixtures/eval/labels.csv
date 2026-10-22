@@ -1,39 +1,38 @@
-﻿"photo","stem","count","is_filler","closest_stem","note","counted_by","source_url"
-"photo-01.jpg","Rose - pink","2","false","","","Ian","https://www.pexels.com/photo/elegant-bouquet-of-pink-roses-and-white-flowers-30891127/"
-"photo-01.jpg","Rose - pink","6","false","","","Ian","https://www.pexels.com/photo/elegant-bouquet-of-pink-roses-and-white-flowers-30891127/"
-"photo-02.jpg","Rose - red","14","false","","","Ian","https://www.pexels.com/photo/assorted-color-of-bouquet-of-flowers-3117159/"
-"photo-02.jpg","Rose - yellow","6","false","","","Ian","https://www.pexels.com/photo/assorted-color-of-bouquet-of-flowers-3117159/"
-"photo-02.jpg","Rose - pink","4","false","","","Ian","https://www.pexels.com/photo/assorted-color-of-bouquet-of-flowers-3117159/"
-"photo-02.jpg","Rose - white","4","false","","","Ian","https://www.pexels.com/photo/assorted-color-of-bouquet-of-flowers-3117159/"
-"photo-03.jpg","Rose - red","3","false","","","Ian","https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/"
-"photo-03.jpg","Baby's breath - red","4","true","","","Ian","https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/"
-"photo-03.jpg","Gerbera - magenta","1","false","","","Ian","https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/"
-"photo-04.jpg","Rose - pink","6","false","","","Ian","https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/"
-"photo-04.jpg","Rose - yellow","12","false","","","Ian","https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/"
-"photo-04.jpg","Rose - magenta","14","false","","","Ian","https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/"
-"photo-04.jpg","Rose - cream","8","false","","","Ian","https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/"
-"photo-04.jpg","Rose - orange","8","false","","","Ian","https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/"
-"photo-05.jpg","Tulips - yellow","9","false","","","Ian","https://www.pexels.com/photo/vibrant-yellow-tulip-bouquet-close-up-37296942/"
-"photo-06.jpg","Tulips - pastel","9","false","","","Ian","https://www.pexels.com/photo/elegant-bouquet-of-pink-and-peach-tulips-36686877/"
-"photo-06.jpg","Tulips - peach","9","false","","","Ian","https://www.pexels.com/photo/elegant-bouquet-of-pink-and-peach-tulips-36686877/"
-"photo-07.jpg,Rose - pink,7,false,,,Ian,https://www.pexels.com/photo/elegant-floral-arrangement-in-woven-basket-36106445/"
-"photo-07.jpg,Alstroemeria - white,12,false,,,Ian,https://www.pexels.com/photo/elegant-floral-arrangement-in-woven-basket-36106445/"
-"photo-07.jpg,Rose - white,6,false,,,Ian,https://www.pexels.com/photo/elegant-floral-arrangement-in-woven-basket-36106445/"
-"photo-07.jpg,Other,6,true,,,Ian,https://www.pexels.com/photo/elegant-floral-arrangement-in-woven-basket-36106445/"
-"photo-08.jpg","Anthurium - pink","5","true","","","Ian","https://www.pexels.com/photo/pink-flowers-in-bloom-13181203/"
-"photo-08.jpg","Orchid - pink","6","true","","","Ian","https://www.pexels.com/photo/pink-flowers-in-bloom-13181203/"
-"photo-09.jpg","Hydrangea - magenta","3","false","","","Ian","https://www.pexels.com/photo/bouquet-of-hydrangeas-against-minimalist-background-36186130/"
-"photo-09.jpg","Hydrangea - white","4","false","","","Ian","https://www.pexels.com/photo/bouquet-of-hydrangeas-against-minimalist-background-36186130/"
-"photo-10.jpg","Stargazer lillies - magenta","5","false","","","Ian","https://www.pexels.com/photo/vivid-stargazer-lilies-in-full-bloom-38592898/"
-"photo-11.jpg","Sunflower - orange","6","false","","","Ian","https://www.pexels.com/photo/sunflowers-in-vase-17564239/"
-"photo-12.jpg","Sunflower - yellow","9","false","","","Ian","https://www.pexels.com/photo/vibrant-sunflower-bouquet-in-vase-on-wooden-table-29679384/"
-"photo-13.jpg","Gerbera - magenta","5","false","","","Ian","https://www.pexels.com/photo/bouquet-of-pink-barberton-daisy-flowers-24260686/"
-"photo-14.jpg","Gerbera - red","11","false","","","Ian","https://www.pexels.com/photo/bright-red-gerbera-daisies-in-natural-light-34710941/"
-"photo-15.jpg","Carnations - pink","14","false","","","Ian","https://www.pexels.com/photo/a-pink-flower-bouquet-on-the-table-10958825/"
-"photo-16.jpg","Alstroemeria - pink","7","false","","","Ian","https://www.pexels.com/photo/vibrant-alstroemeria-bouquet-in-glass-vase-38482095/"
-"photo-16.jpg","Alstroemeria - white","6","false","","","Ian","https://www.pexels.com/photo/vibrant-alstroemeria-bouquet-in-glass-vase-38482095/"
-"photo-17.jpg","Orchid - white","17","false","","","Ian","https://www.pexels.com/photo/photo-of-white-moth-orchids-1076233/"
-"photo-17.jpg","Baby's breath - white","2","true","","","Ian","https://www.pexels.com/photo/photo-of-white-moth-orchids-1076233/"
-"photo-18.jpg","Chrysanthemum - pink","124,"false","","","Ian","https://www.pexels.com/photo/bouquet-of-pink-chrysanthemums-in-white-paper-wrap-36495679/"
-"photo-19.jpg","Anthurium - red","6","false","","","Ian","https://www.pexels.com/photo/elegant-anthurium-display-in-glass-vase-33408703/"
-"photo-20.jpg","Anthurium - white","7","false","","","Ian","https://www.pexels.com/photo/elegant-white-anthurium-flowers-in-glass-vase-33409492/"
+photo,stem,closest_stem,count,is_filler,counted_by,recount,note,source_url
+photo-01.jpg,Rose - pink,,8,false,Ian,,CHECK: merged Ian's 2 fuchsia + 6 pink; no fuchsia row in the starter list,https://www.pexels.com/photo/elegant-bouquet-of-pink-roses-and-white-flowers-30891127/
+photo-02.jpg,Rose - red,,14,false,Ian,,,https://www.pexels.com/photo/assorted-color-of-bouquet-of-flowers-3117159/
+photo-02.jpg,Rose - yellow,,6,false,Ian,,was 'dandelion',https://www.pexels.com/photo/assorted-color-of-bouquet-of-flowers-3117159/
+photo-02.jpg,Rose - pink,,4,false,Ian,,,https://www.pexels.com/photo/assorted-color-of-bouquet-of-flowers-3117159/
+photo-02.jpg,Rose - white,,4,false,Ian,,,https://www.pexels.com/photo/assorted-color-of-bouquet-of-flowers-3117159/
+photo-03.jpg,Rose - red,,3,false,Ian,,,https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
+photo-03.jpg,Gerbera - pink,,1,false,Ian,,was 'magenta',https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
+photo-03.jpg,Malaysian mums - white,,0,false,Ian,,CHECK: white daisies were missing; count them,https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
+photo-03.jpg,Malaysian mums - purple,,0,false,Ian,,CHECK: purple mum was missing; count it,https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
+photo-03.jpg,Baby's breath - white,,2,true,Ian,,CHECK: was 'red' with 4 bunches; it looks white; recount bunches (1-5),https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
+photo-03.jpg,Other,Eucalyptus - green,0,true,Ian,,CHECK: greenery filler was missing (not the flowers' own leaves); count bunches or delete this row,https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
+photo-04.jpg,Rose - pink,,20,false,Ian,,CHECK: merged 6 pink + 14 magenta; may be spray roses: count STEMS not heads,https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/
+photo-04.jpg,Rose - yellow,,12,false,Ian,,CHECK: spray roses? count stems,https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/
+photo-04.jpg,Rose - white,,8,false,Ian,,was 'cream',https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/
+photo-04.jpg,Rose - orange,,8,false,Ian,,,https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/
+photo-05.jpg,Tulip - yellow,,9,false,Ian,,,https://www.pexels.com/photo/vibrant-yellow-tulip-bouquet-close-up-37296942/
+photo-06.jpg,Tulip - pink,,18,false,Ian,,CHECK: merged 9 pastel + 9 peach; no peach row,https://www.pexels.com/photo/elegant-bouquet-of-pink-and-peach-tulips-36686877/
+photo-07.jpg,Rose - pink,,7,false,Ian,,,https://www.pexels.com/photo/elegant-floral-arrangement-in-woven-basket-36106445/
+photo-07.jpg,Alstroemeria - white,,12,false,Ian,,,https://www.pexels.com/photo/elegant-floral-arrangement-in-woven-basket-36106445/
+photo-07.jpg,Rose - white,,6,false,Ian,,,https://www.pexels.com/photo/elegant-floral-arrangement-in-woven-basket-36106445/
+photo-07.jpg,Other,Baby's breath - white,0,true,Ian,,CHECK: Ian's 'Other' filler had count 6; fillers are bunches 1-5; name the filler in this note,https://www.pexels.com/photo/elegant-floral-arrangement-in-woven-basket-36106445/
+photo-08.jpg,Anthurium - pink,,5,false,Ian,,was marked filler; it's a flower,https://www.pexels.com/photo/pink-flowers-in-bloom-13181203/
+photo-08.jpg,Dendrobium orchid - purple,,6,false,Ian,,"CHECK: was 'Orchid - pink'; if not dendrobium, use stem Other with closest Dendrobium orchid - purple",https://www.pexels.com/photo/pink-flowers-in-bloom-13181203/
+photo-09.jpg,Other,Stargazer lily - white,7,false,Ian,,"CHECK: hydrangea, 3 magenta + 4 white, merged; pick the closest row by price and size",https://www.pexels.com/photo/bouquet-of-hydrangeas-against-minimalist-background-36186130/
+photo-10.jpg,Stargazer lily - pink,,5,false,Ian,,,https://www.pexels.com/photo/vivid-stargazer-lilies-in-full-bloom-38592898/
+photo-11.jpg,Sunflower - yellow,,6,false,Ian,,was 'orange',https://www.pexels.com/photo/sunflowers-in-vase-17564239/
+photo-12.jpg,Sunflower - yellow,,9,false,Ian,,,https://www.pexels.com/photo/vibrant-sunflower-bouquet-in-vase-on-wooden-table-29679384/
+photo-13.jpg,Gerbera - pink,,5,false,Ian,,CHECK: was 'magenta'; any filler or greenery in the photo needs its own row,https://www.pexels.com/photo/bouquet-of-pink-barberton-daisy-flowers-24260686/
+photo-14.jpg,Gerbera - red,,11,false,Ian,,,https://www.pexels.com/photo/bright-red-gerbera-daisies-in-natural-light-34710941/
+photo-15.jpg,Carnation - pink,,14,false,Ian,,,https://www.pexels.com/photo/a-pink-flower-bouquet-on-the-table-10958825/
+photo-16.jpg,Alstroemeria - pink,,7,false,Ian,,,https://www.pexels.com/photo/vibrant-alstroemeria-bouquet-in-glass-vase-38482095/
+photo-16.jpg,Alstroemeria - white,,6,false,Ian,,,https://www.pexels.com/photo/vibrant-alstroemeria-bouquet-in-glass-vase-38482095/
+photo-17.jpg,Other,Dendrobium orchid - white,0,false,Ian,,"CHECK: moth orchids, not dendrobium; Ian's 17 counted blooms; count STEMS",https://www.pexels.com/photo/photo-of-white-moth-orchids-1076233/
+photo-17.jpg,Baby's breath - white,,2,true,Ian,,,https://www.pexels.com/photo/photo-of-white-moth-orchids-1076233/
+photo-18.jpg,Malaysian mums - mixed,,0,false,Ian,,"CHECK: Ian's row was broken ('124,false'); pink mums; count stems; or Other if not mums",https://www.pexels.com/photo/bouquet-of-pink-chrysanthemums-in-white-paper-wrap-36495679/
+photo-19.jpg,Anthurium - red,,6,false,Ian,,,https://www.pexels.com/photo/elegant-anthurium-display-in-glass-vase-33408703/
+photo-20.jpg,Anthurium - white,,7,false,Ian,,,https://www.pexels.com/photo/elegant-white-anthurium-flowers-in-glass-vase-33409492/
