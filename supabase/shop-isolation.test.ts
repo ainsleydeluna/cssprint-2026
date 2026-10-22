@@ -58,9 +58,9 @@ async function fillShop(client: SupabaseClient, shopId: string, created: Created
 
 /** Deletes what fillShop created. Deleting a receipt or quote deletes its lines too. */
 async function emptyShop(client: SupabaseClient, created: Created): Promise<void> {
-  if (created.receiptId) await client.from("receipts").delete().eq("id", created.receiptId);
-  if (created.quoteId) await client.from("quotes").delete().eq("id", created.quoteId);
-  for (const [bucket, path] of Object.entries(created.photos)) await client.storage.from(bucket).remove([path]);
+  if (created.receiptId) must(await client.from("receipts").delete().eq("id", created.receiptId).select("id"));
+  if (created.quoteId) must(await client.from("quotes").delete().eq("id", created.quoteId).select("id"));
+  for (const [bucket, path] of Object.entries(created.photos)) must(await client.storage.from(bucket).remove([path]));
 }
 
 describe.skipIf(!testAccountsReady)("Shop A cannot see Shop B", () => {
