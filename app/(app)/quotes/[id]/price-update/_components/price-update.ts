@@ -1,5 +1,5 @@
 // The price-update screen's decisions (docs/spec.md section 4, "Margin alarm"), kept
-// apart from React so they can be tested: what an error shows, and copying the message.
+// apart from React so they can be tested: what an error shows, saving, and copying.
 
 import { ApiFailure } from "@/app/(app)/_components/api";
 import type { ApplyPriceUpdateRequest, PriceUpdateResponse } from "@/lib/contract";
@@ -11,44 +11,62 @@ export const wholePesos = (amount: Money) => `₱${Math.round(amount).toLocaleSt
 /**
  * Whether the edited message still says the new price as the draft wrote it. The
  * apply route refuses a message without it (lib/server/price-rules.ts), so the
- * screen checks before copying, not after the customer may already have it.
+ * screen checks before saving.
  */
 export const mentionsNewPrice = (message: string, newPrice: Money) => message.includes(wholePesos(newPrice));
 
-/** What the screen shows for a failed call. */
-export type Problem = { kind: "signIn" } | { kind: "retry" } | { kind: "message"; text: string };
-
 /**
- * unauthorized goes to sign-in. A failed AI call, or no answer at all, gets the
- * general error and "Subukan ulit". Any other error shows its own message.
+ * What the screen shows for a failed call: a short Taglish line per code, never the
+ * server's English text. "signIn" goes to /sign-in; "retry" is the general error
+ * plus "Subukan ulit" (a failed AI call, or no answer at all).
  */
+export type Problem = "signIn" | "retry" | "openAgain" | "notFound" | "rateLimited" | "other";
+
 export function problemFor(error: unknown): Problem {
-  if (!(error instanceof ApiFailure) || error.code === null || error.code === "ai_failed") return { kind: "retry" };
-  if (error.code === "unauthorized") return { kind: "signIn" };
-  return { kind: "message", text: error.message };
+  if (!(error instanceof ApiFailure) || error.code === null) return "retry";
+  switch (error.code) {
+    case "ai_failed":
+      return "retry";
+    case "unauthorized":
+      return "signIn";
+    // The quote expired, its flag was already cleared, or the valid-until date passed.
+    case "invalid_request":
+      return "openAgain";
+    case "not_found":
+      return "notFound";
+    case "rate_limited":
+      return "rateLimited";
+    default:
+      return "other";
+  }
 }
 
-export type CopyResult = { ok: true } | { ok: false; failed: "missingPrice" | "clipboard" };
+export type SaveResult<Q> = { ok: true; saved: Q } | { ok: false; failed: "missingPrice" };
 
 /**
- * "Kopyahin": the clipboard first, so a refused clipboard never changes the quote;
- * then the apply route with the edited message and the draft's newPrice and
- * validUntil exactly as the draft route answered them. A server failure throws.
+ * The first tap: saves the edited message with the draft's newPrice and validUntil
+ * exactly as the draft route answered them. Nothing is copied here; the screen offers
+ * "Kopyahin" only after this succeeds, so the new price never reaches the customer
+ * unless the server saved it. A server refusal throws.
  */
-export async function copyThenApply(
-  deps: {
-    writeClipboard: (text: string) => Promise<void>;
-    apply: (req: ApplyPriceUpdateRequest) => Promise<unknown>;
-  },
+export async function saveDraft<Q>(
+  apply: (req: ApplyPriceUpdateRequest) => Promise<Q>,
   draft: Pick<PriceUpdateResponse, "newPrice" | "validUntil">,
   message: string,
-): Promise<CopyResult> {
+): Promise<SaveResult<Q>> {
   if (!mentionsNewPrice(message, draft.newPrice)) return { ok: false, failed: "missingPrice" };
+  return { ok: true, saved: await apply({ message, newPrice: draft.newPrice, validUntil: draft.validUntil }) };
+}
+
+/**
+ * The second tap, "Kopyahin": a tap of its own, because phones allow the clipboard
+ * only straight after a tap. false when the phone refuses.
+ */
+export async function copyMessage(writeClipboard: (text: string) => Promise<void>, text: string): Promise<boolean> {
   try {
-    await deps.writeClipboard(message);
+    await writeClipboard(text);
+    return true;
   } catch {
-    return { ok: false, failed: "clipboard" };
+    return false;
   }
-  await deps.apply({ message, newPrice: draft.newPrice, validUntil: draft.validUntil });
-  return { ok: true };
 }

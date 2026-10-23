@@ -1,26 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { ApiFailure } from "@/app/(app)/_components/api";
-import { copyThenApply, mentionsNewPrice, problemFor, wholePesos } from "./price-update";
+import { copyMessage, mentionsNewPrice, problemFor, saveDraft, wholePesos } from "./price-update";
 
 describe("problemFor", () => {
   it("sends a signed-out florist to sign-in", () => {
-    expect(problemFor(new ApiFailure("unauthorized", "Not signed in"))).toEqual({ kind: "signIn" });
+    expect(problemFor(new ApiFailure("unauthorized", "Not signed in"))).toBe("signIn");
   });
 
-  it("offers a retry when the AI call failed", () => {
-    expect(problemFor(new ApiFailure("ai_failed", "Drafting the price update failed: timeout"))).toEqual({ kind: "retry" });
+  it("offers a retry when the AI call failed, or there was no answer at all", () => {
+    expect(problemFor(new ApiFailure("ai_failed", "Drafting the price update failed: timeout"))).toBe("retry");
+    expect(problemFor(new ApiFailure(null, "Network error"))).toBe("retry");
+    expect(problemFor(new TypeError("boom"))).toBe("retry");
   });
 
-  it("offers a retry when there was no answer at all (offline, server crash)", () => {
-    expect(problemFor(new ApiFailure(null, "Network error"))).toEqual({ kind: "retry" });
-    expect(problemFor(new TypeError("boom"))).toEqual({ kind: "retry" });
+  it("asks to open the quote again when the server refuses the request", () => {
+    // Expired quote, flag already cleared, or the valid-until date has passed.
+    expect(problemFor(new ApiFailure("invalid_request", "Only an open, underwater quote gets a price update"))).toBe("openAgain");
   });
 
-  it("shows any other error's own message", () => {
-    expect(problemFor(new ApiFailure("invalid_request", "Only an open, underwater quote gets a price update"))).toEqual({
-      kind: "message",
-      text: "Only an open, underwater quote gets a price update",
-    });
+  it("gives not_found, rate_limited and any other code their own line, never the server's text", () => {
+    expect(problemFor(new ApiFailure("not_found", "Quote not found"))).toBe("notFound");
+    expect(problemFor(new ApiFailure("rate_limited", "Too many"))).toBe("rateLimited");
+    expect(problemFor(new ApiFailure("incomplete_quote", "Quote has a blank count"))).toBe("other");
   });
 });
 
@@ -44,55 +45,39 @@ describe("mentionsNewPrice", () => {
   });
 });
 
-describe("copyThenApply", () => {
+describe("saveDraft", () => {
   const draft = { message: "Hi po! Bagong presyo: ₱1,220, valid hanggang Oct 30.", oldPrice: 1100, newPrice: 1220, validUntil: "2026-10-30", demo: false };
+  const quote = { id: "q1", underwaterAt: null };
 
-  it("copies to the clipboard first, then saves the edited message with the draft's price and date", async () => {
-    const order: string[] = [];
-    const saved: unknown[] = [];
+  it("saves the edited message with the draft's price and date, and hands back the saved quote", async () => {
+    const sent: unknown[] = [];
     const edited = "Hello po! ₱1,220 na po, valid hanggang Oct 30.";
-    const result = await copyThenApply(
-      {
-        writeClipboard: async (text) => void order.push(`clipboard:${text}`),
-        apply: async (req) => {
-          order.push("server");
-          saved.push(req);
-        },
-      },
-      draft,
-      edited,
-    );
-    expect(result).toEqual({ ok: true });
-    expect(order).toEqual([`clipboard:${edited}`, "server"]);
-    expect(saved).toEqual([{ message: edited, newPrice: 1220, validUntil: "2026-10-30" }]);
+    const result = await saveDraft(async (req) => (sent.push(req), quote), draft, edited);
+    expect(result).toEqual({ ok: true, saved: quote });
+    expect(sent).toEqual([{ message: edited, newPrice: 1220, validUntil: "2026-10-30" }]);
   });
 
-  it("saves nothing when the clipboard refuses", async () => {
-    let applied = false;
-    const result = await copyThenApply(
-      { writeClipboard: () => Promise.reject(new Error("denied")), apply: async () => void (applied = true) },
-      draft,
-      draft.message,
-    );
-    expect(result).toEqual({ ok: false, failed: "clipboard" });
-    expect(applied).toBe(false);
-  });
-
-  it("neither copies nor saves a message missing the new price", async () => {
-    const calls: string[] = [];
-    const result = await copyThenApply(
-      { writeClipboard: async () => void calls.push("clipboard"), apply: async () => void calls.push("server") },
-      draft,
-      "Hi po! Nagbago ang presyo.",
-    );
+  it("does not save a message missing the new price", async () => {
+    let saved = false;
+    const result = await saveDraft(async () => ((saved = true), quote), draft, "Hi po! Nagbago ang presyo.");
     expect(result).toEqual({ ok: false, failed: "missingPrice" });
-    expect(calls).toEqual([]);
+    expect(saved).toBe(false);
   });
 
-  it("passes a server failure on to the screen", async () => {
+  it("passes a server refusal on to the screen", async () => {
     const failure = new ApiFailure("invalid_request", "validUntil is before today in Manila");
-    await expect(
-      copyThenApply({ writeClipboard: async () => {}, apply: () => Promise.reject(failure) }, draft, draft.message),
-    ).rejects.toBe(failure);
+    await expect(saveDraft(() => Promise.reject(failure), draft, draft.message)).rejects.toBe(failure);
+  });
+});
+
+describe("copyMessage", () => {
+  it("copies the text and says so", async () => {
+    let copied = "";
+    expect(await copyMessage(async (text) => void (copied = text), "Hi po! ₱1,220")).toBe(true);
+    expect(copied).toBe("Hi po! ₱1,220");
+  });
+
+  it("says so when the phone refuses the clipboard", async () => {
+    expect(await copyMessage(() => Promise.reject(new Error("denied")), "Hi po!")).toBe(false);
   });
 });

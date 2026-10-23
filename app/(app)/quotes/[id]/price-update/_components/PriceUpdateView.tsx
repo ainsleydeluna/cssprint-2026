@@ -6,34 +6,39 @@ import { useState } from "react";
 import { applyPriceUpdate, draftPriceUpdate } from "@/app/(app)/_components/api";
 import { formatDate } from "@/components/receipt/format";
 import { Button } from "@/components/receipt/kit";
-import type { ApplyPriceUpdateResponse, PriceUpdateResponse } from "@/lib/contract";
+import type { PriceUpdateResponse } from "@/lib/contract";
 import { t } from "@/lib/strings";
-import { copyThenApply, problemFor, wholePesos, type Problem } from "./price-update";
+import { copyMessage, problemFor, saveDraft, wholePesos, type Problem } from "./price-update";
 
 type Step =
   | { name: "start" }
   | { name: "drafting" }
-  | { name: "draft"; draft: PriceUpdateResponse; message: string; copying: boolean }
-  /** stillUnderwater: the server saved the price but kept the flag, because costs rose again since the draft. */
-  | { name: "done"; draft: PriceUpdateResponse; stillUnderwater: boolean };
+  | { name: "draft"; draft: PriceUpdateResponse; message: string; saving: boolean }
+  /**
+   * The server saved the price; only now may the message be copied. stillUnderwater:
+   * the server kept the flag, because costs rose again since the draft.
+   */
+  | { name: "saved"; draft: PriceUpdateResponse; message: string; stillUnderwater: boolean; copied: boolean };
 
-/** A problem the screen shows: from the server, or from copying on this phone. */
-type Shown = Exclude<Problem, { kind: "signIn" }> | { kind: "missingPrice" } | { kind: "clipboard" };
+/** A problem the screen shows: from the server, or from this phone. */
+type Shown = Exclude<Problem, "signIn"> | "missingPrice" | "clipboard";
 
 function problemText(shown: Shown, step: Step): string {
-  switch (shown.kind) {
+  switch (shown) {
     case "retry":
       return t("common", "error");
-    case "message":
-      return shown.text;
-    case "clipboard":
-      return t("priceUpdate", "clipboardFailed");
     case "missingPrice":
       return t("priceUpdate", "missingPrice", { price: step.name === "draft" ? wholePesos(step.draft.newPrice) : "" });
+    case "clipboard":
+      return t("priceUpdate", "clipboardFailed");
+    default:
+      return t("priceUpdate", shown);
   }
 }
 
 const linkStyles = "flex min-h-12 items-center font-medium text-green-800 dark:text-green-400";
+const textareaStyles =
+  "w-full min-w-0 rounded-xl border border-zinc-300 bg-white p-3 text-base read-only:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:read-only:bg-zinc-900";
 
 function Prices({ draft }: { draft: PriceUpdateResponse }) {
   return (
@@ -51,14 +56,14 @@ function Prices({ draft }: { draft: PriceUpdateResponse }) {
 export function PriceUpdateView({ id }: { id: string }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ name: "start" });
-  // `retry` names the action behind "Subukan ulit"; copying again uses the message as it is now.
-  const [problem, setProblem] = useState<{ shown: Shown; retry: "draft" | "copy" } | null>(null);
+  // `retry` names the action behind "Subukan ulit"; saving again uses the message as it is now.
+  const [problem, setProblem] = useState<{ shown: Shown; retry: "draft" | "save" } | null>(null);
 
   /** Sends a signed-out florist to sign-in; otherwise shows the problem. */
-  function fail(e: unknown, retry: "draft" | "copy") {
-    const p = problemFor(e);
-    if (p.kind === "signIn") return router.push("/sign-in");
-    setProblem({ shown: p, retry });
+  function fail(e: unknown, retry: "draft" | "save") {
+    const shown = problemFor(e);
+    if (shown === "signIn") return router.push("/sign-in");
+    setProblem({ shown, retry });
   }
 
   async function draft() {
@@ -66,32 +71,36 @@ export function PriceUpdateView({ id }: { id: string }) {
     setStep({ name: "drafting" });
     try {
       const answer = await draftPriceUpdate(id);
-      setStep({ name: "draft", draft: answer, message: answer.message, copying: false });
+      setStep({ name: "draft", draft: answer, message: answer.message, saving: false });
     } catch (e) {
       setStep({ name: "start" });
       fail(e, "draft");
     }
   }
 
-  async function copy(current: Extract<Step, { name: "draft" }>) {
+  async function save(current: Extract<Step, { name: "draft" }>) {
     setProblem(null);
-    setStep({ ...current, copying: true });
-    let saved: ApplyPriceUpdateResponse | undefined;
+    setStep({ ...current, saving: true });
     try {
-      const result = await copyThenApply(
-        {
-          writeClipboard: (text) => navigator.clipboard.writeText(text),
-          apply: async (req) => void (saved = await applyPriceUpdate(id, req)),
-        },
-        current.draft,
-        current.message,
-      );
-      if (result.ok) return setStep({ name: "done", draft: current.draft, stillUnderwater: saved?.underwaterAt != null });
-      setStep(current);
-      setProblem({ shown: { kind: result.failed }, retry: "copy" });
+      const result = await saveDraft((req) => applyPriceUpdate(id, req), current.draft, current.message);
+      if (!result.ok) {
+        setStep(current);
+        return setProblem({ shown: result.failed, retry: "save" });
+      }
+      const { draft, message } = current;
+      setStep({ name: "saved", draft, message, stillUnderwater: result.saved.underwaterAt !== null, copied: false });
     } catch (e) {
       setStep(current);
-      fail(e, "copy");
+      fail(e, "save");
+    }
+  }
+
+  async function copy(current: Extract<Step, { name: "saved" }>) {
+    setProblem(null);
+    if (await copyMessage((text) => navigator.clipboard.writeText(text), current.message)) {
+      setStep({ ...current, copied: true });
+    } else {
+      setProblem({ shown: "clipboard", retry: "save" });
     }
   }
 
@@ -111,7 +120,7 @@ export function PriceUpdateView({ id }: { id: string }) {
         </>
       )}
 
-      {step.name === "draft" && (
+      {(step.name === "draft" || step.name === "saved") && (
         <>
           {step.draft.demo && (
             <span className="self-start rounded-full bg-amber-100 px-2 text-sm font-medium text-amber-900 dark:bg-amber-900 dark:text-amber-100">
@@ -121,51 +130,62 @@ export function PriceUpdateView({ id }: { id: string }) {
           <Prices draft={step.draft} />
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium">{t("priceUpdate", "message")}</span>
+            {/* Read-only once saving starts: the saved text is exactly what gets copied. */}
             <textarea
               value={step.message}
-              onChange={(e) => setStep({ ...step, message: e.target.value })}
+              onChange={(e) => step.name === "draft" && setStep({ ...step, message: e.target.value })}
+              readOnly={step.name === "saved" || step.saving}
               rows={8}
-              readOnly={step.copying}
-              className="w-full min-w-0 rounded-xl border border-zinc-300 bg-white p-3 text-base dark:border-zinc-700 dark:bg-zinc-950"
+              className={textareaStyles}
             />
           </label>
-          <Button onClick={() => copy(step)} disabled={step.copying}>
-            {step.copying ? t("priceUpdate", "copying") : t("priceUpdate", "copy")}
-          </Button>
         </>
       )}
 
-      {problem && (
-        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-red-300 p-3 text-red-800 dark:border-red-800 dark:text-red-300">
-          <p>{problemText(problem.shown, step)}</p>
-          {problem.shown.kind === "retry" && (
-            <Button
-              variant="secondary"
-              onClick={() => (problem.retry === "draft" ? draft() : step.name === "draft" && copy(step))}
-            >
-              {t("common", "retry")}
-            </Button>
-          )}
-        </div>
+      {step.name === "draft" && (
+        <Button onClick={() => save(step)} disabled={step.saving}>
+          {step.saving ? t("priceUpdate", "saving") : t("priceUpdate", "save")}
+        </Button>
       )}
 
-      {step.name === "done" && (
+      {step.name === "saved" && (
         <>
           <p role="status" className="rounded-xl bg-green-50 p-3 text-green-900 dark:bg-green-950 dark:text-green-100">
-            {t("priceUpdate", "done", { price: wholePesos(step.draft.newPrice), date: formatDate(step.draft.validUntil) })}
+            {step.copied
+              ? t("priceUpdate", "copied")
+              : t("priceUpdate", "saved", { price: wholePesos(step.draft.newPrice), date: formatDate(step.draft.validUntil) })}
           </p>
           {step.stillUnderwater && (
             <p className="rounded-xl border border-amber-400 bg-amber-50 p-3 text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-100">
               {t("priceUpdate", "stillUnderwater")}
             </p>
           )}
-          <Link
-            href={`/quotes/${encodeURIComponent(id)}`}
-            className="flex min-h-12 items-center justify-center rounded-xl bg-green-800 px-4 font-semibold text-white"
-          >
-            {t("priceUpdate", "backToQuote")}
-          </Link>
+          <Button variant={step.copied ? "secondary" : "primary"} onClick={() => copy(step)}>
+            {t("priceUpdate", "copy")}
+          </Button>
+          {step.copied && (
+            <Link
+              href={`/quotes/${encodeURIComponent(id)}`}
+              className="flex min-h-12 items-center justify-center rounded-xl bg-green-800 px-4 font-semibold text-white"
+            >
+              {t("priceUpdate", "backToQuote")}
+            </Link>
+          )}
         </>
+      )}
+
+      {problem && (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-red-300 p-3 text-red-800 dark:border-red-800 dark:text-red-300">
+          <p>{problemText(problem.shown, step)}</p>
+          {problem.shown === "retry" && (
+            <Button
+              variant="secondary"
+              onClick={() => (problem.retry === "draft" ? draft() : step.name === "draft" && save(step))}
+            >
+              {t("common", "retry")}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );
