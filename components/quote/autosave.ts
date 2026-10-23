@@ -78,7 +78,8 @@ export class Autosave<T, R> {
     this.options.onChange?.(state, this.latest);
   }
 
-  private state(): SaveState {
+  /** Where saving stands now; "saved" after a flush means the server has the newest value. */
+  state(): SaveState {
     if (this.failed) return "failed";
     if (this.running) return "saving";
     return this.dirty ? "pending" : "saved";

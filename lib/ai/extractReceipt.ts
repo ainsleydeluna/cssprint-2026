@@ -5,6 +5,7 @@
 import type { ExtractReceiptResult } from "../contract";
 import type { Unit } from "../types";
 import { askClaude, type AiOutcome, type MessagesApi } from "./client";
+import type { ModelId } from "./config";
 import { findStem, isManilaDate, photoBlock, schema, stemList, type AllowedStem, type Photo } from "./shared";
 
 const UNITS: Unit[] = ["dozen", "per10", "bundle", "bunch", "piece"];
@@ -47,7 +48,7 @@ const SCHEMA = schema.object({
 });
 
 export async function extractReceipt(
-  input: { photo: Photo; stems: AllowedStem[] },
+  input: { photo: Photo; stems: AllowedStem[]; model?: ModelId },
   api?: MessagesApi,
 ): Promise<AiOutcome<ExtractReceiptResult>> {
   const outcome = await askClaude<ExtractReceiptResult>(
@@ -56,6 +57,7 @@ export async function extractReceipt(
       system: SYSTEM,
       content: [photoBlock(input.photo), { type: "text", text: stemList(input.stems) }],
       schema: SCHEMA,
+      model: input.model,
     },
     api,
   );

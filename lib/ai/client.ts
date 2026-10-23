@@ -30,6 +30,8 @@ export type AiRequest = {
   content: string | ContentBlockParam[];
   /** JSON schema of the answer; the API enforces it. */
   schema: Record<string, unknown>;
+  /** Replaces the call's model from config.ts; only scripts/eval.ts sets it. */
+  model?: ModelId;
 };
 
 /** Thinking off, per config.ts: Sonnet needs "between_tools", Opus takes no field. */
@@ -89,10 +91,12 @@ function readAnswer<T>(message: Message, schema: AiRequest["schema"]): { ok: tru
  * Sends one request with the call's model and effort from config.ts and the
  * answer format enforced by structured outputs. The SDK times out at 30 seconds
  * and retries once. There is no fallback to another model, so `model` is always
- * the configured one and the bake-off measures one model per run.
+ * the configured one (or the request's override) and the bake-off measures one
+ * model per run.
  */
 export async function askClaude<T>(call: AiCallName, request: AiRequest, api?: MessagesApi): Promise<AiOutcome<T>> {
-  const { model, effort } = CALLS[call];
+  const { effort } = CALLS[call];
+  const model = request.model ?? CALLS[call].model;
   const started = performance.now();
   const seconds = () => Math.round(performance.now() - started) / 1000;
 
