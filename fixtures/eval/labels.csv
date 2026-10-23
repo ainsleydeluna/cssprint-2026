@@ -1,25 +1,28 @@
 photo,stem,closest_stem,count,is_filler,counted_by,recount,note,source_url
-photo-01.jpg,Rose - pink,,8,false,Ian,,merged Ian's 2 fuchsia + 6 pink; no fuchsia row in the starter list,https://www.pexels.com/photo/elegant-bouquet-of-pink-roses-and-white-flowers-30891127/
-photo-02.jpg,Rose - red,,14,false,Ian,,,https://www.pexels.com/photo/assorted-color-of-bouquet-of-flowers-3117159/
+photo-01.jpg,Rose - pink,,12,false,Zach,,merged Ian's 2 fuchsia + 6 pink; no fuchsia row in the starter list,https://www.pexels.com/photo/elegant-bouquet-of-pink-roses-and-white-flowers-30891127/
+photo-02.jpg,Rose - red,,8,false,Zach,,,https://www.pexels.com/photo/assorted-color-of-bouquet-of-flowers-3117159/
+photo-02.jpg,Rose - orange,,6,false,Zach,,,https://www.pexels.com/photo/assorted-color-of-bouquet-of-flowers-3117159/
 photo-02.jpg,Rose - yellow,,6,false,Ian,,was 'dandelion',https://www.pexels.com/photo/assorted-color-of-bouquet-of-flowers-3117159/
 photo-02.jpg,Rose - pink,,4,false,Ian,,,https://www.pexels.com/photo/assorted-color-of-bouquet-of-flowers-3117159/
 photo-02.jpg,Rose - white,,4,false,Ian,,,https://www.pexels.com/photo/assorted-color-of-bouquet-of-flowers-3117159/
-photo-03.jpg,Rose - red,,3,false,Ian,,,https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
-photo-03.jpg,Gerbera - pink,,1,false,Ian,,was 'magenta',https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
-photo-03.jpg,Malaysian mums - purple,,4,false,Ian,,purple mum was missing; count it,https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
-photo-03.jpg,Daisy - white,,7,false,Ian,,,https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
-photo-03.jpg,Baby's breath - white,,3,true,Ian,,was 'red' with 4 bunches; it looks white; recount bunches (1-5),https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
+photo-03.jpg,Rose - red,,4,false,Ian,,,https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
+photo-03.jpg,Gerbera - red,,2,false,zach,,was 'magenta',https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
+photo-03.jpg,Crysanthemum - white,,5,false,zach,,,https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
+photo-03.jpg,Decorative Dahlia - pink,,3,false,zach,,,https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
+photo-03.jpg,Baby's breath - white,,6,true,Ian,,was 'red' with 4 bunches; it looks white; recount bunches (1-5),https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
 photo-03.jpg,Other,Eucalyptus - green,1,true,Ian,,greenery filler was missing (not the flowers' own leaves); count bunches or delete this row,https://www.pexels.com/photo/vibrant-bouquet-of-mixed-flowers-close-up-37329875/
-photo-04.jpg,Rose - pink,,5,false,Ian,,merged 6 pink + 14 magenta; may be spray roses: count STEMS not heads,https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/
-photo-04.jpg,Rose - yellow,,4,false,Ian,,spray roses? count stems,https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/
-photo-04.jpg,Rose - white,,8,false,Ian,,was 'cream',https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/
-photo-04.jpg,Rose - orange,,8,false,Ian,,,https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/
+photo-04.jpg,Rose - pink,,7,false,zach,,merged 6 pink + 14 magenta; may be spray roses: count STEMS not heads,https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/
+photo-04.jpg,Rose - yellow,,9,false,zach,,spray roses? count stems,https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/
+photo-04.jpg,Rose - white,,7,false,zach,,,https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/
+photo-04.jpg,Rose - orange,,9,false,zach,,,https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/
+photo-04.jpg,Rose - purple,,16,false,zach,,,https://www.pexels.com/photo/vibrant-multicolored-flower-bouquet-in-blue-wrap-30319663/
 photo-05.jpg,Tulip - yellow,,9,false,Ian,,,https://www.pexels.com/photo/vibrant-yellow-tulip-bouquet-close-up-37296942/
-photo-06.jpg,Tulip - pink,,18,false,Ian,,merged 9 pastel + 9 peach; no peach row,https://www.pexels.com/photo/elegant-bouquet-of-pink-and-peach-tulips-36686877/
+photo-06.jpg,Tulip - white,,9,false,zach,,,https://www.pexels.com/photo/elegant-bouquet-of-pink-and-peach-tulips-36686877/
+photo-06.jpg,Tulip - pink,,9,false,zach,,,https://www.pexels.com/photo/elegant-bouquet-of-pink-and-peach-tulips-36686877/
 photo-07.jpg,Rose - pink,,7,false,Ian,,,https://www.pexels.com/photo/elegant-floral-arrangement-in-woven-basket-36106445/
 photo-07.jpg,Alstroemeria - white,,12,false,Ian,,,https://www.pexels.com/photo/elegant-floral-arrangement-in-woven-basket-36106445/
 photo-07.jpg,Rose - white,,6,false,Ian,,,https://www.pexels.com/photo/elegant-floral-arrangement-in-woven-basket-36106445/
-photo-07.jpg,Other,Baby's breath - white,2,true,Ian,Ian's 'Other' filler had count 6; fillers are bunches 1-5; name the filler in this note,https://www.pexels.com/photo/elegant-floral-arrangement-in-woven-basket-36106445/
+photo-07.jpg,Baby's breath - white,2,true,Ian,Ian's 'Other' filler had count 6; fillers are bunches 1-5; name the filler in this note,https://www.pexels.com/photo/elegant-floral-arrangement-in-woven-basket-36106445/
 photo-07.jpg,Other,mimosa - yellow,4,true,Ian,,https://www.pexels.com/photo/elegant-floral-arrangement-in-woven-basket-36106445/
 photo-08.jpg,Anthurium - pink,,5,false,Ian,,was marked filler; it's a flower,https://www.pexels.com/photo/pink-flowers-in-bloom-13181203/
 photo-08.jpg,Dendrobium orchid - pink,,6,false,Ian,,"was 'Orchid - pink'; if not dendrobium, use stem Other with closest Dendrobium orchid - purple",https://www.pexels.com/photo/pink-flowers-in-bloom-13181203/
