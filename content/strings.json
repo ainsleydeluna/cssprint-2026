@@ -97,7 +97,19 @@
     "underwaterBanner": "{count} open quotes are now underwater",
     "statusDraft": "Draft",
     "statusSent": "Naipadala",
-    "statusExpired": "Expired"
+    "statusExpired": "Expired",
+    "loading": "Kinukuha ang mga quote…",
+    "empty": "Wala pang quote.",
+    "newQuote": "+ Bagong quote",
+    "underwater": "Underwater",
+    "timeToQuote": "Time-to-quote: {time}",
+    "rename": "I-rename",
+    "renameLabel": "Bagong pangalan",
+    "delete": "Burahin",
+    "confirmTitle": "Burahin ang {label}?",
+    "confirmBody": "Mabubura rin ang photo at mga linya nito. Hindi na ito maibabalik.",
+    "confirmYes": "Oo, burahin",
+    "deleting": "Binubura…"
   },
   "scan": {
     "title": "I-scan ang resibo",
