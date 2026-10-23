@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BudgetOption } from "@/lib/contract";
 import { t } from "@/lib/strings";
-import { emptyOptionsMessage, marginPercent, optionToLines, overBudgetAmount, parseBudget } from "./budget";
+import { emptyOptionsMessage, fallbackNote, marginPercent, optionToLines, overBudgetAmount, parseBudget } from "./budget";
 
 describe("parseBudget", () => {
   it("accepts ₱, commas and spaces", () => {
@@ -66,5 +66,21 @@ describe("emptyOptionsMessage (the route answered no options)", () => {
   });
   it("keeps 'no option found' when the quote is over budget", () => {
     expect(emptyOptionsMessage(2340, 2000)).toBe(t("quote", "noOptions"));
+  });
+});
+
+describe("fallbackNote (above the over-budget fallback card)", () => {
+  const card = (overBudgetBy: number) => ({ label: "Fewer roses", lines: [], recipeCost: 700, price: 2280, margin: 0.4, overBudgetBy });
+
+  it("shows when the only card is the over-budget fallback, with the budget", () => {
+    expect(fallbackNote([card(280)], 2000)).toBe(t("quote", "closestOnly", { budget: "2,000" }));
+  });
+  it("keeps the centavos of a budget that has them", () => {
+    expect(fallbackNote([card(280)], 2499.5)).toBe(t("quote", "closestOnly", { budget: "2,499.50" }));
+  });
+  it("is null when the cards fit the budget, or there are none", () => {
+    expect(fallbackNote([card(0)], 2000)).toBeNull();
+    expect(fallbackNote([card(0), card(0)], 2000)).toBeNull();
+    expect(fallbackNote([], 2000)).toBeNull();
   });
 });

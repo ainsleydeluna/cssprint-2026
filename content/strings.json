@@ -87,6 +87,7 @@
     "noOptions": "Walang nahanap na option. Subukan ulit, o i-edit ang mga linya.",
     "fitsBudget": "Pasok na sa budget.",
     "roomLeft": "{price} pa ang puwang.",
+    "closestOnly": "Walang option na pasok sa ₱{budget}. Ito ang pinakamalapit:",
     "margin": "Margin {n}%",
     "chooseOption": "Piliin ito"
   },

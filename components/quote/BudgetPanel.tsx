@@ -6,7 +6,7 @@ import { Button, Input } from "@/components/receipt/kit";
 import type { BudgetOption, BudgetOptionsResponse } from "@/lib/contract";
 import { t } from "@/lib/strings";
 import { ApiFailure, budgetOptions, isUnauthorized } from "./api";
-import { emptyOptionsMessage, marginPercent, optionToLines, overBudgetAmount, parseBudget } from "./budget";
+import { emptyOptionsMessage, fallbackNote, marginPercent, optionToLines, overBudgetAmount, parseBudget } from "./budget";
 import { peso } from "./format";
 import type { EditLine } from "./QuoteLineRow";
 
@@ -113,6 +113,9 @@ export function BudgetPanel({ quoteId, initialBudget, price, blocked, saveFirst,
             <p className="text-sm">{emptyOptionsMessage(price, result.budget)}</p>
           ) : (
             <>
+              {fallbackNote(result.answer.options, result.budget) && (
+                <p className="text-sm font-semibold">{fallbackNote(result.answer.options, result.budget)}</p>
+              )}
               <p className="text-sm text-zinc-600 dark:text-zinc-400">{t("quote", "chooseHint")}</p>
               <ul className="flex flex-col gap-2">
                 {result.answer.options.map((option, i) => (

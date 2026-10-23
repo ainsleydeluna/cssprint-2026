@@ -29,6 +29,19 @@ export function emptyOptionsMessage(price: number, budget: number): string {
 }
 
 /**
+ * The line above the cards when the only one is the over-budget fallback (the route found
+ * nothing within budget and minimum margin): "Walang option na pasok sa ₱2,000. Ito ang
+ * pinakamalapit:". The budget shows as typed, centavos and all.
+ */
+export function fallbackNote(options: Pick<BudgetOption, "overBudgetBy">[], budget: number): string | null {
+  if (options.length !== 1 || !(options[0].overBudgetBy > 0)) return null;
+  const digits = Number.isInteger(budget) ? 0 : 2;
+  return t("quote", "closestOnly", {
+    budget: budget.toLocaleString("en-PH", { minimumFractionDigits: digits, maximumFractionDigits: digits }),
+  });
+}
+
+/**
  * An option's recipe as new editor lines. No ids: PUT …/lines then replaces every line.
  * The florist chose these counts, so each is exact and sure of itself.
  */
