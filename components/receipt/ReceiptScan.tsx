@@ -1,11 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   type AddStemRequest,
   type ReceiptDraftLine,
-  type SaveReceiptResponse,
   type StemWithCost,
   stemName,
 } from "@/lib/contract";
@@ -16,9 +15,10 @@ import { Button, Input, Row } from "./kit";
 import { type DraftLine, hasEdits, saveBlocker, toInput } from "./lines";
 import { PhotoPicker } from "./PhotoPicker";
 import { ReceiptTable } from "./ReceiptTable";
+import { freshScan, type SavedNotice } from "./scan-state";
 
 type State =
-  | { step: "pick" }
+  | { step: "pick"; saved: SavedNotice | null }
   | { step: "working"; message: string }
   | {
       step: "table";
@@ -28,8 +28,7 @@ type State =
       note: string;
       /** The table as the AI read it, to tell whether the florist changed anything. */
       read: { lineCount: number; purchaseDate: string };
-    }
-  | { step: "saved"; result: SaveReceiptResponse };
+    };
 
 function toDraft(line: ReceiptDraftLine, i: number): DraftLine {
   return {
@@ -50,11 +49,37 @@ function toDraft(line: ReceiptDraftLine, i: number): DraftLine {
 
 export function ReceiptScan() {
   const router = useRouter();
-  const [state, setState] = useState<State>({ step: "pick" });
+  const [state, setState] = useState<State>(freshScan().state);
   const [lines, setLines] = useState<DraftLine[]>([]);
   const [stems, setStems] = useState<StemWithCost[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [confirmingRescan, setConfirmingRescan] = useState(false);
+
+  // A clean photo step: after a save (keeping only its result to show), "Mag-scan ulit", or leaving.
+  function startOver(saved: SavedNotice | null = null) {
+    const fresh = freshScan(saved);
+    setState(fresh.state);
+    setLines(fresh.lines);
+    setStems(fresh.stems);
+    setError(fresh.error);
+    setConfirmingRescan(fresh.confirmingRescan);
+  }
+
+  // Next keeps this page mounted but hidden after leaving it. Coming back to the photo step
+  // (say, after a save) starts clean; a table still being checked is kept.
+  const step = useRef(state.step);
+  useEffect(() => {
+    step.current = state.step;
+  }, [state.step]);
+  useLayoutEffect(
+    () => () => {
+      if (step.current !== "pick") return;
+      const fresh = freshScan();
+      setState(fresh.state);
+      setError(fresh.error);
+    },
+    [],
+  );
 
   async function run<T>(message: string, task: () => Promise<T>, fallback: State): Promise<T | null> {
     setError(null);
@@ -78,7 +103,7 @@ export function ReceiptScan() {
       setState({ step: "working", message: t("scan", "reading") });
       const [extract, stemList] = await Promise.all([extractReceipt(photoPath), listStems()]);
       return { photoPath, extract, stemList };
-    }, { step: "pick" });
+    }, freshScan().state);
     if (!result) return;
     const { photoPath, extract, stemList } = result;
     setStems(stemList);
@@ -95,12 +120,7 @@ export function ReceiptScan() {
   }
 
   // Back to the photo step without saving. The uploaded photo stays in storage.
-  function backToPhoto() {
-    setConfirmingRescan(false);
-    setError(null);
-    setLines([]);
-    setState({ step: "pick" });
-  }
+  const backToPhoto = () => startOver();
 
   async function handleAddStem(input: AddStemRequest) {
     try {
@@ -116,6 +136,7 @@ export function ReceiptScan() {
   if (state.step === "pick") {
     return (
       <div className="flex flex-col gap-3">
+        {state.saved && <SavedSummary saved={state.saved} />}
         <PhotoPicker source="both" onPhoto={handlePhoto} />
         {error && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{error}</p>}
       </div>
@@ -124,37 +145,6 @@ export function ReceiptScan() {
 
   if (state.step === "working") {
     return <p role="status" className="py-8 text-center">{state.message}</p>;
-  }
-
-  if (state.step === "saved") {
-    const { batches, underwaterQuoteIds } = state.result;
-    const byId = new Map(stems.map((s) => [s.id, s]));
-    return (
-      <div className="flex flex-col gap-4">
-        {underwaterQuoteIds.length > 0 && (
-          <p role="alert" className="rounded-xl border border-amber-400 bg-amber-50 p-3 font-semibold text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
-            {t("quotes", "underwaterBanner", { count: underwaterQuoteIds.length })}
-          </p>
-        )}
-        <p>{t("scan", "saved")}</p>
-        <ul className="flex flex-col gap-2">
-          {batches.map((b) => {
-            const s = byId.get(b.stemId);
-            return (
-              <Row key={b.id}>
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-medium">{s ? stemName(s) : b.stemId}</span>
-                  <span className="shrink-0">
-                    {peso.format(b.costPerStem)} {t("scan", s?.isFiller ? "perBunch" : "perStem")}
-                  </span>
-                </div>
-              </Row>
-            );
-          })}
-        </ul>
-        <Button onClick={() => setState({ step: "pick" })}>{t("scan", "scanAgain")}</Button>
-      </div>
-    );
   }
 
   const inputs = lines.map((l) => toInput(l, stems));
@@ -168,7 +158,8 @@ export function ReceiptScan() {
         purchaseDate: tableState.purchaseDate,
         lines: inputs.filter((x) => x !== null),
       }), tableState);
-    if (result) setState({ step: "saved", result });
+    // Saved: straight back to a clean photo step, showing what the save changed.
+    if (result) startOver({ result, stems });
   }
 
   // Ask first only when going back would throw away the florist's changes.
@@ -215,5 +206,36 @@ export function ReceiptScan() {
         )}
       </div>
     </div>
+  );
+}
+
+/** What the last save changed: the underwater banner, then each stem's new cost. */
+function SavedSummary({ saved }: { saved: SavedNotice }) {
+  const { batches, underwaterQuoteIds } = saved.result;
+  const byId = new Map(saved.stems.map((s) => [s.id, s]));
+  return (
+    <section aria-label={t("scan", "saved")} className="flex flex-col gap-3">
+      {underwaterQuoteIds.length > 0 && (
+        <p role="alert" className="rounded-xl border border-amber-400 bg-amber-50 p-3 font-semibold text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
+          {t("quotes", "underwaterBanner", { count: underwaterQuoteIds.length })}
+        </p>
+      )}
+      <p role="status" className="font-semibold text-green-800 dark:text-green-400">{t("scan", "saved")}</p>
+      <ul className="flex flex-col gap-2">
+        {batches.map((b) => {
+          const s = byId.get(b.stemId);
+          return (
+            <Row key={b.id}>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="font-medium">{s ? stemName(s) : b.stemId}</span>
+                <span className="shrink-0">
+                  {peso.format(b.costPerStem)} {t("scan", s?.isFiller ? "perBunch" : "perStem")}
+                </span>
+              </div>
+            </Row>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

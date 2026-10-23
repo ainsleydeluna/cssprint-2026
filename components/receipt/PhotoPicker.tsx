@@ -1,9 +1,11 @@
 // No "use client" here: onPhoto is a function, so the picker must be rendered
 // from a Client Component (like the scan page), which makes it client code too.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createTickets } from "@/components/quote/latest";
 import { t } from "@/lib/strings";
 import { Button } from "./kit";
-import { type CropRect, decodePreview, processPhoto, readSize, type Size } from "./process-photo";
+import { freshPicker, type PickerState } from "./picker-state";
+import { type CropRect, decodePreview, processPhoto, readSize } from "./process-photo";
 
 // The on-screen preview only needs to be sharp, not full size.
 const PREVIEW_LONG_EDGE_PX = 1600;
@@ -34,14 +36,31 @@ export function PhotoPicker({ onPhoto, source = "camera", label }: Props) {
   const previewRef = useRef<HTMLCanvasElement>(null);
   // Where the current drag started, and the box before it (restored if the drag was just a tap).
   const drag = useRef<{ start: Point; before: CropRect | null } | null>(null);
-  // The picked file and its upright size; the full-size image is never decoded.
-  const [photo, setPhoto] = useState<{ file: File; size: Size } | null>(null);
-  // Preview-size decode, at most PREVIEW_LONG_EDGE_PX on its long edge.
-  const [bitmap, setBitmap] = useState<ImageBitmap | null>(null);
-  // Crop box as fractions (0–1) of the photo, so it survives layout changes.
-  const [box, setBox] = useState<CropRect | null>(null);
+  // See PickerState: the file and size, a preview-size decode (at most PREVIEW_LONG_EDGE_PX),
+  // the crop box as fractions so it survives layout changes, and the busy and error states.
+  const [photo, setPhoto] = useState<PickerState["photo"]>(null);
+  const [bitmap, setBitmap] = useState<PickerState["bitmap"]>(null);
+  const [box, setBox] = useState<PickerState["box"]>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PickerState["error"]>(null);
+  // A decode still running when the florist leaves is ignored.
+  const tickets = useRef(createTickets());
+
+  // Next keeps a page mounted but hidden after leaving it. Leaving resets the picker: no photo,
+  // no crop box, and the preview's memory is freed (the effect below closes the bitmap when it
+  // is replaced), so coming back never draws a bitmap that was already closed.
+  useLayoutEffect(() => {
+    const current = tickets.current;
+    return () => {
+      current.cancel();
+      const fresh = freshPicker();
+      setPhoto(fresh.photo);
+      setBitmap(fresh.bitmap);
+      setBox(fresh.box);
+      setBusy(fresh.busy);
+      setError(fresh.error);
+    };
+  }, []);
 
   // Draw the decoded photo into the preview canvas; free its memory when replaced.
   useEffect(() => {
@@ -55,11 +74,15 @@ export function PhotoPicker({ onPhoto, source = "camera", label }: Props) {
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
+    const ticket = tickets.current.next();
     setBusy(true);
     setError(null);
     try {
       const size = await readSize(file);
-      setBitmap(await decodePreview(file, size, PREVIEW_LONG_EDGE_PX));
+      const preview = await decodePreview(file, size, PREVIEW_LONG_EDGE_PX);
+      // Left the page meanwhile: free the preview instead of showing it on return.
+      if (!tickets.current.isCurrent(ticket)) return preview.close();
+      setBitmap(preview);
       setPhoto({ file, size });
       setBox(WHOLE);
     } catch (e) {
@@ -72,10 +95,13 @@ export function PhotoPicker({ onPhoto, source = "camera", label }: Props) {
 
   async function finish() {
     if (!photo) return;
+    const ticket = tickets.current.next();
     setBusy(true);
     setError(null);
     try {
       const processed = await processPhoto(photo.file, photo.size, box && box !== WHOLE ? box : null);
+      // Left the page meanwhile: don't hand the photo on (it would start an upload out of sight).
+      if (!tickets.current.isCurrent(ticket)) return;
       setBitmap(null);
       setPhoto(null);
       setBox(null);
