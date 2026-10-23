@@ -1,7 +1,8 @@
 // fitToBudget: up to 3 versions of the recipe that keep the look and fit the
 // customer's budget (docs/spec.md C5, section 4 "Fit to budget"). The model
-// returns no prices; the route prices every option with lib/money.ts and drops
-// any over budget or below minimum margin.
+// returns no prices; it gets the most each option's flowers may cost, and the
+// route prices every option with lib/money.ts and drops any over budget or below
+// minimum margin.
 
 import type { FitToBudgetResult, StemWithCost } from "../contract";
 import { clampBouquet, clampCount } from "../money";
@@ -18,7 +19,7 @@ Keep the look, in this order:
 2. First reduce counts.
 3. Then swap other flowers to cheaper rows of the same color.
 4. Then swap to cheaper fillers.
-The price is the recipe cost with a markup plus fixed fees, so cut the recipe cost by a bigger share than the price must fall.
+An option's flower cost is count × cost, added up over its lines. The request gives the most each option's flowers may cost, and what they cost now. Keep every option at or under that most. Make a spread: one option close to the most the flowers may cost, the others cheaper.
 
 Each option is a full recipe, using only rows from the shop's list, copied exactly. Flowers are counted in stems, fillers in bunches.
 - label: a short name for the change, such as "Fewer stargazers" or "Carnations instead of white roses".
@@ -62,7 +63,16 @@ function mainFlower(recipe: Array<{ stem: string; count: number }>, stems: Row[]
 }
 
 export async function fitToBudget(
-  input: { recipe: Array<{ stem: string; count: number }>; budget: Money; currentPrice: Money; stems: Row[] },
+  input: {
+    recipe: Array<{ stem: string; count: number }>;
+    budget: Money;
+    currentPrice: Money;
+    /** What the current recipe's flowers cost at latest costs. */
+    currentRecipeCost: Money;
+    /** The highest recipe cost whose price fits the budget at the minimum margin (lib/money.ts maxRecipeCost). */
+    maxRecipeCost: Money;
+    stems: Row[];
+  },
   api?: MessagesApi,
 ): Promise<AiOutcome<FitToBudgetResult>> {
   const recipe = input.recipe.map(
@@ -75,6 +85,7 @@ export async function fitToBudget(
     `Main flower: ${main?.name ?? "none"}`,
     `Current price: ${pesos(input.currentPrice)}`,
     `Budget: ${pesos(input.budget)}`,
+    `Each option's flower cost (count × cost, added up over its lines) must be at most ${pesos(input.maxRecipeCost)}. The current flower cost is ${pesos(input.currentRecipeCost)}.`,
     stemList(input.stems, withCost),
   ].join("\n\n");
 

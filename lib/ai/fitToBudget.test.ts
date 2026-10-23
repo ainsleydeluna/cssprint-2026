@@ -10,6 +10,8 @@ const input = {
   ],
   budget: 1000,
   currentPrice: 1430,
+  currentRecipeCost: 700,
+  maxRecipeCost: 566.66,
   stems: [
     { name: "Rose - red", isFiller: false, hidden: false, latestCost: 22.5 },
     { name: "Carnation - red", isFiller: false, hidden: false, latestCost: 12 },
@@ -37,6 +39,17 @@ describe("fitToBudget", () => {
     expect(text).toContain("Current price: ₱1,430");
     expect(text).toContain("Carnation - red: ₱12 a stem");
     expect(text).toContain("Baby's breath - white: ₱80 a bunch");
+  });
+
+  test("gives the most each option's flowers may cost and the current flower cost, and asks for a spread", async () => {
+    const { request } = await fit();
+
+    const text = JSON.stringify(request.messages[0].content);
+    expect(text).toContain("Each option's flower cost (count × cost, added up over its lines) must be at most ₱566.66.");
+    expect(text).toContain("The current flower cost is ₱700.");
+    const system = JSON.stringify(request.system);
+    expect(system).toContain("one option close to the most the flowers may cost, the others cheaper");
+    expect(system).not.toContain("bigger share");
   });
 
   test("keeps at most 3 options", async () => {

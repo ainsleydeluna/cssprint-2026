@@ -29,7 +29,7 @@ import * as shopRoute from "./shop/route";
 import * as stemsRoute from "./stems/route";
 
 const signedIn = vi.hoisted(() => ({ client: null as SupabaseClient | null }));
-const ai = vi.hoisted(() => ({ answers: [] as AiOutcome<unknown>[] }));
+const ai = vi.hoisted(() => ({ answers: [] as AiOutcome<unknown>[], requests: [] as Array<{ content: unknown }> }));
 
 vi.mock("@/lib/server/auth", async (importOriginal) => {
   const auth = await importOriginal<typeof import("@/lib/server/auth")>();
@@ -38,7 +38,13 @@ vi.mock("@/lib/server/auth", async (importOriginal) => {
 
 vi.mock("@/lib/ai/client", async (importOriginal) => {
   const client = await importOriginal<typeof import("@/lib/ai/client")>();
-  return { ...client, askClaude: async () => ai.answers.shift() };
+  return {
+    ...client,
+    askClaude: async (_call: string, request: { content: unknown }) => {
+      ai.requests.push(request);
+      return ai.answers.shift();
+    },
+  };
 });
 
 const usage = { model: "claude-sonnet-5-5", seconds: 2.5, inputTokens: 1000, outputTokens: 200 } as const;
@@ -163,6 +169,30 @@ describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", 
     expect((await (await quoteRoute.GET(json("GET"), ctx(quote.id))).json()).quote.budget).toBe(budget);
     const logged = await client.from("ai_calls").select("call, ok").eq("quote_id", quote.id).eq("call", "fitToBudget");
     expect(logged.data).toEqual([{ call: "fitToBudget", ok: true }]);
+  });
+
+  test("budget options tell the AI the most the flowers may cost and what they cost now", async () => {
+    const { quote } = await create();
+    answer({ options: [], note: "" });
+    ai.requests.length = 0;
+    expect((await budgetRoute.POST(json("POST", { budget: 2000 }), ctx(quote.id))).status).toBe(200);
+
+    // (₱2,000 − ₱150 fees) ÷ 1.5 markup, rounded down to the centavo; its price is exactly ₱2,000.
+    const text = JSON.stringify(ai.requests[0].content);
+    expect(text).toContain("must be at most ₱1,233.33.");
+    const now = Math.round((12 * cost("Rose - red") + 6 * cost("Carnation - pink") + 2 * cost("Baby's breath - white")) * 100) / 100;
+    const shown = now.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(now) ? 0 : 2, maximumFractionDigits: 2 });
+    expect(text).toContain(`The current flower cost is ₱${shown}.`);
+  });
+
+  test("budget options for a budget no recipe can meet save the budget and answer no options without an AI call", async () => {
+    const { quote } = await create();
+    // Below the ₱150 fees: no recipe cost gives a price within it.
+    const response = await budgetRoute.POST(json("POST", { budget: 100 }), ctx(quote.id));
+    expect([response.status, await response.json()]).toEqual([200, { options: [], demo: false }]);
+    expect((await (await quoteRoute.GET(json("GET"), ctx(quote.id))).json()).quote.budget).toBe(100);
+    const logged = await client.from("ai_calls").select("call").eq("quote_id", quote.id).eq("call", "fitToBudget");
+    expect(logged.data).toEqual([]);
   });
 
   test("budget options refuse a missing budget and an unknown quote", async () => {
