@@ -2,6 +2,7 @@
 // typed with lib/contract.ts. A failure throws ApiFailure; screens check its `code`, never the text.
 // components/receipt/api.ts (#17) and the shop screens (#23) have the same small helper;
 // share one once they are merged.
+import type { Quote } from "@/lib/types";
 import type {
   ApiError,
   ApiErrorCode,
@@ -18,7 +19,6 @@ import type {
   UpdateQuoteLinesResponse,
   UploadPhotoResponse,
 } from "@/lib/contract";
-import type { Quote } from "@/lib/types";
 
 export class ApiFailure extends Error {
   /** The contract's error code, or null when the call failed without one (offline, server crash). */
