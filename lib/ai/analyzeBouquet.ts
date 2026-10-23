@@ -6,7 +6,7 @@ import type { AnalyzeBouquetResult, StemWithCost } from "../contract";
 import { clampBouquet, clampCount, prefillCount } from "../money";
 import type { Confidence, QuoteLine } from "../types";
 import { askClaude, type AiOutcome, type MessagesApi } from "./client";
-import { COUNT_PREFILL } from "./config";
+import { COUNT_PREFILL, type ModelId } from "./config";
 import { findFlower, findStem, photoBlock, schema, stemList, type AllowedStem, type Photo } from "./shared";
 
 const SYSTEM = `You look at a photo of a bouquet that a customer sent to a florist in Manila, and list what is in it so the florist can price it.
@@ -47,7 +47,7 @@ const SCHEMA = schema.object({
 });
 
 export async function analyzeBouquet(
-  input: { photo: Photo; stems: AllowedStem[] },
+  input: { photo: Photo; stems: AllowedStem[]; model?: ModelId },
   api?: MessagesApi,
 ): Promise<AiOutcome<AnalyzeBouquetResult>> {
   const outcome = await askClaude<AnalyzeBouquetResult>(
@@ -56,6 +56,7 @@ export async function analyzeBouquet(
       system: SYSTEM,
       content: [photoBlock(input.photo), { type: "text", text: stemList(input.stems) }],
       schema: SCHEMA,
+      model: input.model,
     },
     api,
   );
