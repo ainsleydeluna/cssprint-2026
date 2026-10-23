@@ -65,7 +65,8 @@ async function main() {
       return;
     }
     case "budget":
-      return print(await fitToBudget({ recipe, budget: 1000, currentPrice: 1430, stems }));
+      // At 50% markup and ₱150 fees: ₱1,430 is about ₱853.33 of flowers, and ₱1,000 allows ₱566.66.
+      return print(await fitToBudget({ recipe, budget: 1000, currentPrice: 1430, currentRecipeCost: 853.33, maxRecipeCost: 566.66, stems }));
     case "reply": {
       const lines = recipe.map((line) => ({ ...line, isFiller: findStem(stems, line.stem)?.isFiller ?? false }));
       return print(await draftReply({ shopName: "Bulaklak ni Liza", lines, price: 1430, validUntil: "2026-10-25" }));
