@@ -156,14 +156,20 @@ export function maxRecipeCost(
   shop: Pick<Shop, "markupPercent" | "wrapFee" | "laborFee" | "minimumMarginPercent">,
 ): Money | null {
   const fees = shop.wrapFee + shop.laborFee;
-  // Prices are whole ₱10s. From the highest price within the budget down, take
-  // the highest cost at that price, capped by the minimum margin there. A lower
-  // price never allows a higher cost, so the first that checks out is the answer.
-  for (let level = Math.floor(budget / 10) * 10; level > fees; level -= 10) {
-    const cost = Math.min(
-      floorMoney((level - fees) / (1 + shop.markupPercent / 100)),
-      floorMoney(level * (1 - shop.minimumMarginPercent / 100)),
-    );
+  const markup = 1 + shop.markupPercent / 100;
+  const keep = 1 - shop.minimumMarginPercent / 100;
+  let top = Math.floor(budget / 10) * 10;
+  // When the markup alone is below the minimum margin, a price P has a cost that
+  // prices at P and keeps the margin only while P < (fees + ₱10) ÷ (1 − keep ×
+  // markup), whatever the budget. Starting there, the first price or two check out.
+  const shortfall = 1 - keep * markup;
+  if (shortfall > 0) top = Math.min(top, Math.ceil((fees + 10) / shortfall / 10) * 10);
+  // Prices are whole ₱10s. From the highest price that can work down, take the
+  // highest cost at that price, capped by the minimum margin there. A lower price
+  // never allows a higher cost, so the first that checks out is the answer. The
+  // step limit is only a guard: the answer comes within a few steps.
+  for (let level = top, steps = 0; level > fees && steps < 1000; level -= 10, steps++) {
+    const cost = Math.min(floorMoney((level - fees) / markup), floorMoney(level * keep));
     const at = price(cost, shop);
     if (cost > 0 && at <= budget && !isUnderwater(at, cost, shop)) return cost;
   }

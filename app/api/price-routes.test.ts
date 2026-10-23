@@ -203,6 +203,16 @@ describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", 
     expect(text).toContain(`The current flower cost is ₱${shown}.`);
   });
 
+  test("budget options answer no options without an AI call when the flowers may cost less than one main-flower stem", async () => {
+    const { quote } = await create();
+    // (₱160 − ₱150) ÷ 1.5 = ₱6.66 of flowers: less than one red rose.
+    expect(cost("Rose - red")).toBeGreaterThan(6.66);
+    const response = await budgetRoute.POST(json("POST", { budget: 160 }), ctx(quote.id));
+    expect([response.status, await response.json()]).toEqual([200, { options: [], demo: false }]);
+    const logged = await client.from("ai_calls").select("call").eq("quote_id", quote.id).eq("call", "fitToBudget");
+    expect(logged.data).toEqual([]);
+  });
+
   test("budget options for a budget no recipe can meet save the budget and answer no options without an AI call", async () => {
     const { quote } = await create();
     // Below the ₱150 fees: no recipe cost gives a price within it.

@@ -228,6 +228,17 @@ describe("maxRecipeCost", () => {
   });
 
   test.each([
+    ["a 50% markup", shop, 6_666_566.66],
+    ["a 10% markup, capped by the minimum margin", { ...shop, markupPercent: 10 }, null],
+  ])("a ₱10,000,000 budget with %s is worked out in a few steps", (_case, s, expected) => {
+    const started = performance.now();
+    const max = maxRecipeCost(10_000_000, s);
+    expect(performance.now() - started).toBeLessThan(50);
+    // The minimum margin caps a 10% markup the same at any budget it does not reach.
+    expect(max).toBe(expected ?? maxRecipeCost(2000, s));
+  });
+
+  test.each([
     ["the budget is below the fees", 100],
     ["the budget only covers the fees", 150],
   ])("is null when %s", (_case, budget) => {

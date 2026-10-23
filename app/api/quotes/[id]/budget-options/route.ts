@@ -1,5 +1,5 @@
 import type { BudgetOptionsResponse } from "@/lib/contract";
-import { fitToBudget } from "@/lib/ai/fitToBudget";
+import { fitToBudget, mainFlower } from "@/lib/ai/fitToBudget";
 import { maxRecipeCost, price, recipeCost } from "@/lib/money";
 import { logAiCall } from "@/lib/server/ai-calls";
 import { requireShop } from "@/lib/server/auth";
@@ -41,10 +41,13 @@ export async function POST(request: Request, ctx: RouteContext<"/api/quotes/[id]
   const currentPrice = price(recipeCost(recipe.map(({ stem, count }) => ({ stemId: stem.id, count, costPerStem: stem.latestCost }))).cost, shop);
 
   // The most the flowers may cost for a price within the budget at the minimum
-  // margin. None when the budget does not cover the fees: no recipe can meet it,
-  // so the AI is not asked.
+  // margin. When the budget does not cover the fees, or the flowers may cost less
+  // than one stem of the main flower, no option can fit, so the AI is not asked.
   const maxCost = maxRecipeCost(budget, shop);
-  if (maxCost === null) return Response.json({ options: [], demo: false } satisfies BudgetOptionsResponse);
+  const main = mainFlower(recipe.map(({ stem, count }) => ({ stem: stem.name, count })), stems);
+  if (maxCost === null || (main !== undefined && maxCost < main.latestCost)) {
+    return Response.json({ options: [], demo: false } satisfies BudgetOptionsResponse);
+  }
   const currentRecipeCost = recipeCost(recipe.map(({ stem, count }) => ({ stemId: stem.id, count, costPerStem: stem.latestCost }))).cost;
   const outcome = await fitToBudget({
     recipe: recipe.map(({ stem, count }) => ({ stem: stem.name, count })),

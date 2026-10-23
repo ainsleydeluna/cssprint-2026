@@ -49,7 +49,7 @@ type Row = Pick<StemWithCost, "name" | "isFiller" | "hidden" | "latestCost">;
  * cost, count × cost per stem; on a tie, the higher cost per stem. The prompt
  * gives the model the same definition.
  */
-function mainFlower(recipe: Array<{ stem: string; count: number }>, stems: Row[]): Row | undefined {
+export function mainFlower(recipe: Array<{ stem: string; count: number }>, stems: Row[]): Row | undefined {
   let main: { row: Row; cost: number } | undefined;
   for (const line of recipe) {
     const row = findStem(stems, line.stem);
