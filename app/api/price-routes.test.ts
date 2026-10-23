@@ -29,7 +29,7 @@ import * as shopRoute from "./shop/route";
 import * as stemsRoute from "./stems/route";
 
 const signedIn = vi.hoisted(() => ({ client: null as SupabaseClient | null }));
-const ai = vi.hoisted(() => ({ answers: [] as AiOutcome<unknown>[] }));
+const ai = vi.hoisted(() => ({ answers: [] as AiOutcome<unknown>[], requests: [] as Array<{ content: unknown }> }));
 
 vi.mock("@/lib/server/auth", async (importOriginal) => {
   const auth = await importOriginal<typeof import("@/lib/server/auth")>();
@@ -38,7 +38,13 @@ vi.mock("@/lib/server/auth", async (importOriginal) => {
 
 vi.mock("@/lib/ai/client", async (importOriginal) => {
   const client = await importOriginal<typeof import("@/lib/ai/client")>();
-  return { ...client, askClaude: async () => ai.answers.shift() };
+  return {
+    ...client,
+    askClaude: async (_call: string, request: { content: unknown }) => {
+      ai.requests.push(request);
+      return ai.answers.shift();
+    },
+  };
 });
 
 const usage = { model: "claude-sonnet-5-5", seconds: 2.5, inputTokens: 1000, outputTokens: 200 } as const;
@@ -134,7 +140,7 @@ describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", 
       { stem: "Carnation - pink", count: 6, note: "" },
       { stem: "Baby's breath - white", count: 1, note: "" },
     ];
-    // The budget is exactly "Fewer roses"; the unchanged recipe costs more, so it is dropped.
+    // The budget is exactly "Fewer roses". The unchanged recipe costs more, so fitToBudget scales it down to fit.
     const budget = expectedPrice(6 * cost("Rose - red") + 6 * cost("Carnation - pink") + cost("Baby's breath - white"));
     answer({
       options: [
@@ -159,7 +165,14 @@ describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", 
         price: budget,
         overBudgetBy: 0,
       },
+      { label: "Same recipe · binawasan para pumasok sa budget", overBudgetBy: 0 },
     ]);
+    const scaled = options[1];
+    expect(scaled.price).toBeLessThanOrEqual(budget);
+    for (const line of scaled.lines) {
+      const original = bouquet.lines.find((b) => stems.get(b.stem)!.id === line.stemId)!;
+      expect(line.count).toBeLessThanOrEqual(original.countLow);
+    }
     expect((await (await quoteRoute.GET(json("GET"), ctx(quote.id))).json()).quote.budget).toBe(budget);
     const logged = await client.from("ai_calls").select("call, ok").eq("quote_id", quote.id).eq("call", "fitToBudget");
     expect(logged.data).toEqual([{ call: "fitToBudget", ok: true }]);
@@ -192,6 +205,45 @@ describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", 
     expect([response.status, (await response.json()).code]).toEqual([502, "ai_failed"]);
     const logged = await client.from("ai_calls").select("call, ok, quote_id").eq("error", error);
     expect(logged.data).toEqual([{ call: "fitToBudget", ok: false, quote_id: quote.id }]);
+  });
+
+  test("budget options tell the AI the most the flowers may cost and what they cost now", async () => {
+    const { quote } = await create();
+    answer({ options: [], note: "" });
+    ai.requests.length = 0;
+    // Below the quote's price, so the AI is asked (a budget it already fits answers no options).
+    const budget = quote.price! - 100;
+    expect((await budgetRoute.POST(json("POST", { budget }), ctx(quote.id))).status).toBe(200);
+    expect(ai.answers).toEqual([]);
+
+    // (budget − ₱150 fees) ÷ 1.5 markup, rounded down to the centavo: at 50% the minimum margin does not cap it.
+    const max = Math.floor(((budget - 150) / 1.5) * 100) / 100;
+    const peso = (amount: number) =>
+      amount.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(amount) ? 0 : 2, maximumFractionDigits: 2 });
+    const text = JSON.stringify(ai.requests[0].content);
+    expect(text).toContain(`must be at most ₱${peso(max)}.`);
+    const now = Math.round((12 * cost("Rose - red") + 6 * cost("Carnation - pink") + 2 * cost("Baby's breath - white")) * 100) / 100;
+    expect(text).toContain(`The current flower cost is ₱${peso(now)}.`);
+  });
+
+  test("budget options answer no options without an AI call when the flowers may cost less than one main-flower stem", async () => {
+    const { quote } = await create();
+    // (₱160 − ₱150) ÷ 1.5 = ₱6.66 of flowers: less than one red rose.
+    expect(cost("Rose - red")).toBeGreaterThan(6.66);
+    const response = await budgetRoute.POST(json("POST", { budget: 160 }), ctx(quote.id));
+    expect([response.status, await response.json()]).toEqual([200, { options: [], demo: false }]);
+    const logged = await client.from("ai_calls").select("call").eq("quote_id", quote.id).eq("call", "fitToBudget");
+    expect(logged.data).toEqual([]);
+  });
+
+  test("budget options for a budget no recipe can meet save the budget and answer no options without an AI call", async () => {
+    const { quote } = await create();
+    // Below the ₱150 fees: no recipe cost gives a price within it.
+    const response = await budgetRoute.POST(json("POST", { budget: 100 }), ctx(quote.id));
+    expect([response.status, await response.json()]).toEqual([200, { options: [], demo: false }]);
+    expect((await (await quoteRoute.GET(json("GET"), ctx(quote.id))).json()).quote.budget).toBe(100);
+    const logged = await client.from("ai_calls").select("call").eq("quote_id", quote.id).eq("call", "fitToBudget");
+    expect(logged.data).toEqual([]);
   });
 
   /**
