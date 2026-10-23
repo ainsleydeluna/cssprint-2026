@@ -85,6 +85,8 @@
     "fixLinesFirst": "Ayusin muna ang mga linya.",
     "chooseHint": "Papalitan ng napili ang lahat ng linya sa itaas.",
     "noOptions": "Walang nahanap na option. Subukan ulit, o i-edit ang mga linya.",
+    "fitsBudget": "Pasok na sa budget.",
+    "roomLeft": "{price} pa ang puwang.",
     "margin": "Margin {n}%",
     "chooseOption": "Piliin ito"
   },

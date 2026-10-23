@@ -112,7 +112,14 @@ export function QuoteEditor({ detail, shop, stems, demo, onReply }: Props) {
       <Button variant="secondary" onClick={addLine}>
         {t("quote", "addLine")}
       </Button>
-      <BudgetPanel quoteId={quoteId} initialBudget={detail.quote.budget} blocked={!!blocker} saveFirst={saveFirst} onChoose={edit} />
+      <BudgetPanel
+        quoteId={quoteId}
+        initialBudget={detail.quote.budget}
+        price={total}
+        blocked={!!blocker}
+        saveFirst={saveFirst}
+        onChoose={edit}
+      />
 
       {/* The total stays above the bottom bar (5rem + 1px border + home-indicator inset). */}
       <div className="sticky bottom-[calc(5rem+1px+env(safe-area-inset-bottom))] flex flex-col gap-1 border-t border-zinc-200 bg-white py-3 dark:border-zinc-800 dark:bg-zinc-950">

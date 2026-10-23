@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BudgetOption } from "@/lib/contract";
-import { marginPercent, optionToLines, overBudgetAmount, parseBudget } from "./budget";
+import { t } from "@/lib/strings";
+import { emptyOptionsMessage, marginPercent, optionToLines, overBudgetAmount, parseBudget } from "./budget";
 
 describe("parseBudget", () => {
   it("accepts ₱, commas and spaces", () => {
@@ -50,5 +51,20 @@ describe("optionToLines", () => {
       { key: "k2", stemId: "baby", count: 2, countLow: 2, countHigh: 2, confidence: "high", note: "filler", costPerStem: 60 },
     ]);
     expect(lines.every((l) => !("id" in l))).toBe(true);
+  });
+});
+
+describe("emptyOptionsMessage (the route answered no options)", () => {
+  it("says the quote already fits, with the room left in whole pesos", () => {
+    expect(emptyOptionsMessage(1460, 2000)).toBe(`${t("quote", "fitsBudget")} ${t("quote", "roomLeft", { price: "₱540" })}`);
+  });
+  it("counts a price exactly at the budget as fitting, with ₱0 left", () => {
+    expect(emptyOptionsMessage(2000, 2000)).toBe(`${t("quote", "fitsBudget")} ${t("quote", "roomLeft", { price: "₱0" })}`);
+  });
+  it("rounds the room down, so it never promises more than there is", () => {
+    expect(emptyOptionsMessage(1460, 2000.75)).toContain("₱540");
+  });
+  it("keeps 'no option found' when the quote is over budget", () => {
+    expect(emptyOptionsMessage(2340, 2000)).toBe(t("quote", "noOptions"));
   });
 });

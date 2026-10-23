@@ -6,7 +6,7 @@ import { Button, Input } from "@/components/receipt/kit";
 import type { BudgetOption, BudgetOptionsResponse } from "@/lib/contract";
 import { t } from "@/lib/strings";
 import { ApiFailure, budgetOptions, isUnauthorized } from "./api";
-import { marginPercent, optionToLines, overBudgetAmount, parseBudget } from "./budget";
+import { emptyOptionsMessage, marginPercent, optionToLines, overBudgetAmount, parseBudget } from "./budget";
 import { peso } from "./format";
 import type { EditLine } from "./QuoteLineRow";
 
@@ -14,6 +14,8 @@ type Props = {
   quoteId: string;
   /** The budget saved on the quote, if any. */
   initialBudget: number | null;
+  /** The quote's price now (the editor's live total), to tell "already fits" from "none found". */
+  price: number;
   /** True while a line has no flower or no count: the route would answer incomplete_quote. */
   blocked: boolean;
   /** Saves any pending edit, since the route reads the saved lines; false if that save failed. */
@@ -22,12 +24,13 @@ type Props = {
   onChoose: (lines: EditLine[]) => void;
 };
 
-export function BudgetPanel({ quoteId, initialBudget, blocked, saveFirst, onChoose }: Props) {
+export function BudgetPanel({ quoteId, initialBudget, price, blocked, saveFirst, onChoose }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(initialBudget?.toString() ?? "");
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<BudgetOptionsResponse | null>(null);
+  // The budget each answer was for, so editing the field doesn't change what an answer says.
+  const [result, setResult] = useState<{ answer: BudgetOptionsResponse; budget: number } | null>(null);
   const [problem, setProblem] = useState<"error" | "incomplete" | null>(null);
   const budget = parseBudget(text);
 
@@ -39,7 +42,7 @@ export function BudgetPanel({ quoteId, initialBudget, blocked, saveFirst, onChoo
     try {
       // A failed save already shows "Hindi na-save…" with its retry in the editor.
       if (!(await saveFirst())) return;
-      setResult(await budgetOptions(quoteId, budget));
+      setResult({ answer: await budgetOptions(quoteId, budget), budget });
     } catch (e) {
       if (isUnauthorized(e)) return router.push("/sign-in");
       if (e instanceof ApiFailure && e.code === "incomplete_quote") return setProblem("incomplete");
@@ -101,18 +104,18 @@ export function BudgetPanel({ quoteId, initialBudget, blocked, saveFirst, onChoo
 
       {result && (
         <>
-          {result.demo && (
+          {result.answer.demo && (
             <p className="self-start rounded-full bg-zinc-200 px-3 py-1 text-sm font-semibold text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
               {t("common", "demo")}
             </p>
           )}
-          {result.options.length === 0 ? (
-            <p className="text-sm">{t("quote", "noOptions")}</p>
+          {result.answer.options.length === 0 ? (
+            <p className="text-sm">{emptyOptionsMessage(price, result.budget)}</p>
           ) : (
             <>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">{t("quote", "chooseHint")}</p>
               <ul className="flex flex-col gap-2">
-                {result.options.map((option, i) => (
+                {result.answer.options.map((option, i) => (
                   <li key={i} className="flex flex-col gap-2 rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="min-w-0 font-semibold">{option.label}</span>

@@ -1,6 +1,8 @@
 // Rules for fitting a quote to the customer's budget. Pure, so budget.test.ts covers them.
 import { parseAmount } from "@/components/receipt/lines";
 import type { BudgetOption } from "@/lib/contract";
+import { t } from "@/lib/strings";
+import { peso } from "./format";
 import type { EditLine } from "./QuoteLineRow";
 
 /** The typed budget ("₱2,000" works), or null unless it is a number above 0. */
@@ -15,6 +17,16 @@ export const marginPercent = (margin: number) => Math.round(Number((margin * 100
 /** "Over budget by ₱X" in whole pesos, rounded up so it never understates. */
 export const overBudgetAmount = (amount: number) =>
   Math.ceil(amount).toLocaleString("en-PH", { maximumFractionDigits: 0 });
+
+/**
+ * What to say when the route answers no options. Fit to budget only makes cheaper versions,
+ * so a quote already at or under the budget gets none: say it fits, with the room left
+ * (rounded down, so it never promises more). Over budget with no options: none was found.
+ */
+export function emptyOptionsMessage(price: number, budget: number): string {
+  if (price > budget) return t("quote", "noOptions");
+  return `${t("quote", "fitsBudget")} ${t("quote", "roomLeft", { price: peso(Math.floor(budget - price)) })}`;
+}
 
 /**
  * An option's recipe as new editor lines. No ids: PUT …/lines then replaces every line.
