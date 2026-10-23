@@ -211,14 +211,19 @@ describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", 
     const { quote } = await create();
     answer({ options: [], note: "" });
     ai.requests.length = 0;
-    expect((await budgetRoute.POST(json("POST", { budget: 2000 }), ctx(quote.id))).status).toBe(200);
+    // Below the quote's price, so the AI is asked (a budget it already fits answers no options).
+    const budget = quote.price! - 100;
+    expect((await budgetRoute.POST(json("POST", { budget }), ctx(quote.id))).status).toBe(200);
+    expect(ai.answers).toEqual([]);
 
-    // (₱2,000 − ₱150 fees) ÷ 1.5 markup, rounded down to the centavo; its price is exactly ₱2,000.
+    // (budget − ₱150 fees) ÷ 1.5 markup, rounded down to the centavo: at 50% the minimum margin does not cap it.
+    const max = Math.floor(((budget - 150) / 1.5) * 100) / 100;
+    const peso = (amount: number) =>
+      amount.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(amount) ? 0 : 2, maximumFractionDigits: 2 });
     const text = JSON.stringify(ai.requests[0].content);
-    expect(text).toContain("must be at most ₱1,233.33.");
+    expect(text).toContain(`must be at most ₱${peso(max)}.`);
     const now = Math.round((12 * cost("Rose - red") + 6 * cost("Carnation - pink") + 2 * cost("Baby's breath - white")) * 100) / 100;
-    const shown = now.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(now) ? 0 : 2, maximumFractionDigits: 2 });
-    expect(text).toContain(`The current flower cost is ₱${shown}.`);
+    expect(text).toContain(`The current flower cost is ₱${peso(now)}.`);
   });
 
   test("budget options answer no options without an AI call when the flowers may cost less than one main-flower stem", async () => {
