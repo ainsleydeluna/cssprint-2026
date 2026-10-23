@@ -21,6 +21,14 @@ describe("liveStats", () => {
     ]);
   });
 
+  test("takes each call name's count from the count query, not from the rows read", () => {
+    const rows = [opus(4, 1500, 400), opus(10, 1000, 200), sonnet("draftReply", 3)];
+    expect(liveStats(rows, { analyzeBouquet: 1500, draftReply: 1 }).live).toEqual([
+      { call: "analyzeBouquet", calls: 1500, medianSeconds: 7, averageCostUsd: expect.closeTo(0.011, 9) },
+      { call: "draftReply", calls: 1, medianSeconds: 3, averageCostUsd: expect.closeTo(0.002, 9) },
+    ]);
+  });
+
   test("a quote costs the sum of its calls; receipt calls belong to no quote", () => {
     // Quote q1: $0.014 + $0.002 = $0.016. Quote q2: $0.008. Average $0.012.
     const rows = [opus(4, 1500, 400, "q1"), sonnet("draftReply", 2, "q1"), opus(5, 1000, 200, "q2"), sonnet("extractReceipt", 6)];

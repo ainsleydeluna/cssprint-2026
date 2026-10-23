@@ -79,6 +79,7 @@ function ReceiptLineRow({
       onUpdate({ stemId: added.id });
       setAdding(false);
     } catch (e) {
+      console.error(e);
       setAddError(
         e instanceof ApiFailure && e.code === "invalid_bundle_size" ? t("scan", "bundleSizeNeeded") : t("common", "error"),
       );

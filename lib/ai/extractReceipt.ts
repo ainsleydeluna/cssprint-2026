@@ -14,7 +14,7 @@ const SYSTEM = `You read photos of flower receipts and buy lists from Dangwa flo
 
 Return one line per purchase written on the receipt.
 - rawText: the line exactly as written.
-- stem: the shop's row this line is, copied exactly from the allowed list, or null if no row fits or you cannot tell which.
+- stem: the shop's row this line is, copied exactly from the allowed list, or null if no row fits or you cannot tell which. When the line does not write the color and the list has more than one color of that flower, you cannot tell which: use null, so the florist picks the color.
 - quantity, unit, bundleSize, unitPrice, totalPaid: as written; null when not written. Never compute a missing number.
 - unit: the unit written on this line, not the flower's usual unit. "dz" or "doz" is dozen, "per 10" is per10, "bndl" or "bdl" is bundle, "pc" or "pcs" is piece. "20pc @15" is 20 piece at 15 each.
 - A filler (listed under Fillers) sold per bundle is one bunch: use unit bunch and bundleSize null.
@@ -24,7 +24,9 @@ Return one line per purchase written on the receipt.
 - note: a few words on anything unclear or assumed; "" if nothing.
 
 purchaseDate: the purchase date as YYYY-MM-DD if written, else null.
-note: a few words about the whole receipt if something matters; "" if nothing.`;
+note: a few words about the whole receipt if something matters; "" if nothing.
+
+The florist reads every note. Write notes in short, simple Taglish, such as "Hindi nakasulat ang kulay", "Wala sa listahan mo: petunia" or "Malabo ang presyo". Never write "allowed list", "row" or other words from these instructions in a note.`;
 
 const SCHEMA = schema.object({
   purchaseDate: schema.nullable("string"),

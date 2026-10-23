@@ -2,6 +2,7 @@
 // the bake-off results scripts/eval.ts writes, and live numbers from ai_calls
 // (decision 13) with cost from the token prices in lib/ai/config.ts.
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { CALLS, TOKEN_PRICES, type ModelId } from "../ai/config";
@@ -29,17 +30,34 @@ function averageKnown(values: Array<number | null>): number | null {
   return known.length === 0 ? null : known.reduce((sum, value) => sum + value, 0) / known.length;
 }
 
+/** Per call name, how many calls the shop has made: one count query each, so no row cap applies. */
+export async function countCalls(supabase: SupabaseClient): Promise<CallCounts> {
+  const names = Object.keys(CALLS) as AiCallName[];
+  const counts = await Promise.all(
+    names.map(async (call) => {
+      const { count, error } = await supabase.from("ai_calls").select("*", { count: "exact", head: true }).eq("call", call);
+      if (error) throw new Error(`Counting AI calls failed: ${error.message}`);
+      return [call, count ?? 0] as const;
+    }),
+  );
+  return Object.fromEntries(counts);
+}
+
+export type CallCounts = Partial<Record<AiCallName, number>>;
+
 /**
  * Per call name: count, median seconds and average cost. Per quote: the sum of
  * its calls' costs, averaged over quotes. Failed calls count too: they took time
  * and may have used tokens. A call of unknown cost is left out of the cost
- * averages, and so is a quote with one.
+ * averages, and so is a quote with one. `counts` (from countCalls) gives the
+ * full count per call name when `rows` is only the newest calls; without it,
+ * the rows are counted.
  */
-export function liveStats(rows: CallRow[]): Pick<AccuracyResponse, "live" | "averageCostPerQuoteUsd"> {
+export function liveStats(rows: CallRow[], counts: CallCounts = {}): Pick<AccuracyResponse, "live" | "averageCostPerQuoteUsd"> {
   const live = (Object.keys(CALLS) as AiCallName[]).flatMap((call) => {
     const calls = rows.filter((row) => row.call === call);
     if (calls.length === 0) return [];
-    return [{ call, calls: calls.length, medianSeconds: median(calls.map((row) => row.seconds)), averageCostUsd: averageKnown(calls.map(costUsd)) }];
+    return [{ call, calls: counts[call] ?? calls.length, medianSeconds: median(calls.map((row) => row.seconds)), averageCostUsd: averageKnown(calls.map(costUsd)) }];
   });
 
   const perQuote = new Map<string, number | null>();
