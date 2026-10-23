@@ -125,10 +125,13 @@ export const accuracy = {
     { model: "claude-opus-5-5", photoPx: 1600, stemRowAccuracy: 0.93, countsWithin2: 0.85, totalsWithin10Percent: 0.8, receiptLineAccuracy: 0.96, medianSeconds: 9.5 },
     { model: "claude-sonnet-5-5", photoPx: 1600, stemRowAccuracy: 0.9, countsWithin2: 0.6, totalsWithin10Percent: 0.65, receiptLineAccuracy: 0.97, medianSeconds: 5.2 },
   ],
+  // All five call names, as the real route answers; no calls yet means null median and cost.
   live: [
     { call: "analyzeBouquet", calls: 12, medianSeconds: 9.8, averageCostUsd: 0.021 },
     { call: "extractReceipt", calls: 5, medianSeconds: 6.1, averageCostUsd: 0.008 },
+    { call: "fitToBudget", calls: 0, medianSeconds: null, averageCostUsd: null },
     { call: "draftReply", calls: 9, medianSeconds: 2.4, averageCostUsd: 0.002 },
+    { call: "priceUpdate", calls: 0, medianSeconds: null, averageCostUsd: null },
   ],
   averageCostPerQuoteUsd: 0.025,
 } satisfies AccuracyResponse;

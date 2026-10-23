@@ -68,9 +68,9 @@ function expectedPrice(recipe: number): number {
 /** 12 red roses, 6 pink carnations and 2 bunches of baby's breath: every line complete. */
 const bouquet = {
   lines: [
-    { stem: "Rose - red", color: "red", countLow: 12, countHigh: 12, confidence: "high", closestStem: null, note: "" },
-    { stem: "Carnation - pink", color: "pink", countLow: 6, countHigh: 6, confidence: "high", closestStem: null, note: "" },
-    { stem: "Baby's breath - white", color: "white", countLow: 2, countHigh: 2, confidence: "high", closestStem: null, note: "" },
+    { stem: "Rose - red", color: "red", countLow: 12, countHigh: 12, confidence: "high", closestStem: null, closestColor: false, note: "" },
+    { stem: "Carnation - pink", color: "pink", countLow: 6, countHigh: 6, confidence: "high", closestStem: null, closestColor: false, note: "" },
+    { stem: "Baby's breath - white", color: "white", countLow: 2, countHigh: 2, confidence: "high", closestStem: null, closestColor: false, note: "" },
   ],
   note: "",
 };
@@ -176,6 +176,17 @@ describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", 
     expect((await (await quoteRoute.GET(json("GET"), ctx(quote.id))).json()).quote.budget).toBe(budget);
     const logged = await client.from("ai_calls").select("call, ok").eq("quote_id", quote.id).eq("call", "fitToBudget");
     expect(logged.data).toEqual([{ call: "fitToBudget", ok: true }]);
+  });
+
+  test("budget options for a quote already within the budget save the budget and answer no options without an AI call", async () => {
+    const { quote } = await create();
+    // Well above the price, so a receipt saved meanwhile by another test cannot push the price over it.
+    const budget = quote.price! + 500;
+    const response = await budgetRoute.POST(json("POST", { budget }), ctx(quote.id));
+    expect([response.status, await response.json()]).toEqual([200, { options: [], demo: false }]);
+    expect((await (await quoteRoute.GET(json("GET"), ctx(quote.id))).json()).quote.budget).toBe(budget);
+    const logged = await client.from("ai_calls").select("call").eq("quote_id", quote.id).eq("call", "fitToBudget");
+    expect(logged.data).toEqual([]);
   });
 
   test("budget options refuse a missing budget and an unknown quote", async () => {
