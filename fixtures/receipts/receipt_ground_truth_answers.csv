@@ -1,109 +1,109 @@
 receipt,stem,quantity,unit,bundle_size,unit_price,total_paid,purchase_date
 receipt-01.1.jpg,Rose - red,2,dozen,,,300,2026-10-23
 receipt-01.1.jpg,Baby's breath - white,1,bunch,,,100,2026-10-23
-receipt-01.1.jpg,Carnation - pink,10,piece,,,200,2026-10-23
+receipt-01.1.jpg,,10,piece,,,200,2026-10-23
 receipt-01.2.jpg,Rose - red,2,dozen,,,300,2026-10-23
 receipt-01.2.jpg,Baby's breath - white,1,bunch,,,100,2026-10-23
-receipt-01.2.jpg,Carnation - pink,10,piece,,,200,2026-10-23
+receipt-01.2.jpg,,10,piece,,,200,2026-10-23
 receipt-01.3.jpg,Rose - red,2,dozen,,,300,2026-10-23
 receipt-01.3.jpg,Baby's breath - white,1,bunch,,,100,2026-10-23
-receipt-01.3.jpg,Carnation - pink,10,piece,,,200,2026-10-23
+receipt-01.3.jpg,,10,piece,,,200,2026-10-23
 receipt-01.4.jpg,Rose - red,2,dozen,,,300,2026-10-23
 receipt-01.4.jpg,Baby's breath - white,1,bunch,,,100,2026-10-23
-receipt-01.4.jpg,Carnation - pink,10,piece,,,200,2026-10-23
-receipt-02.1.jpg,Anthurium - red,3,dozen,,,450,2026-10-23
-receipt-02.1.jpg,Tulip - yellow,2,bundle,10,,250,2026-10-23
-receipt-02.1.jpg,Stargazer lily - magenta,15,piece,,,350,2026-10-23
-receipt-02.2.jpg,Anthurium - red,3,dozen,,,450,2026-10-23
-receipt-02.2.jpg,Tulip - yellow,2,bundle,10,,250,2026-10-23
-receipt-02.2.jpg,Stargazer lily - magenta,15,piece,,,350,2026-10-23
-receipt-02.3.jpg,Anthurium - red,3,dozen,,,450,2026-10-23
-receipt-02.3.jpg,Tulip - yellow,2,bundle,10,,250,2026-10-23
-receipt-02.3.jpg,Stargazer lily - magenta,15,piece,,,350,2026-10-23
-receipt-02.4.jpg,Anthurium - red,3,dozen,,,450,2026-10-23
-receipt-02.4.jpg,Tulip - yellow,2,bundle,10,,250,2026-10-23
-receipt-02.4.jpg,Stargazer lily - magenta,15,piece,,,350,2026-10-23
-receipt-03.1.jpg,Stargazer lily - magenta,1,dozen,,,100,2026-10-23
-receipt-03.1.jpg,Sunflower - yellow,3,bundle,10,,300,2026-10-23
-receipt-03.1.jpg,Gerbera - red,8,piece,,,180,2026-10-23
-receipt-03.2.jpg,Stargazer lily - magenta,1,dozen,,,100,2026-10-23
-receipt-03.2.jpg,Sunflower - yellow,3,bundle,10,,300,2026-10-23
-receipt-03.2.jpg,Gerbera - red,8,piece,,,180,2026-10-23
-receipt-03.3.jpg,Stargazer lily - magenta,1,dozen,,,100,2026-10-23
-receipt-03.3.jpg,Sunflower - yellow,3,bundle,10,,300,2026-10-23
-receipt-03.3.jpg,Gerbera - red,8,piece,,,180,2026-10-23
-receipt-03.4.jpg,Stargazer lily - magenta,1,dozen,,,100,2026-10-23
-receipt-03.4.jpg,Sunflower - yellow,3,bundle,10,,300,2026-10-23
-receipt-03.4.jpg,Gerbera - red,8,piece,,,180,2026-10-23
-receipt-04.1.jpg,Petunia - purple,1,bundle,10,,100,2026-10-23
-receipt-04.1.jpg,Dendrobium orchid - white,10,piece,,,220,2026-10-23
-receipt-04.1.jpg,Anthurium - red,2,dozen,,,250,2026-10-23
-receipt-04.2.jpg,Petunia - purple,1,bundle,10,,100,2026-10-23
-receipt-04.2.jpg,Dendrobium orchid - white,10,piece,,,220,2026-10-23
-receipt-04.2.jpg,Anthurium - red,2,dozen,,,250,2026-10-23
-receipt-04.3.jpg,Petunia - purple,1,bundle,10,,100,2026-10-23
-receipt-04.3.jpg,Dendrobium orchid - white,10,piece,,,220,2026-10-23
-receipt-04.3.jpg,Anthurium - red,2,dozen,,,250,2026-10-23
-receipt-04.4.jpg,Petunia - purple,1,bundle,10,,100,2026-10-23
-receipt-04.4.jpg,Dendrobium orchid - white,10,piece,,,220,2026-10-23
-receipt-04.4.jpg,Anthurium - red,2,dozen,,,250,2026-10-23
-receipt-05.1.jpg,Tulip - yellow,3,bundle,10,,350,2026-10-23
-receipt-05.1.jpg,Stargazer lily - magenta,15,piece,,,280,2026-10-23
+receipt-01.4.jpg,,10,piece,,,200,2026-10-23
+receipt-02.1.jpg,,3,dozen,,,450,2026-10-23
+receipt-02.1.jpg,,2,bundle,,,250,2026-10-23
+receipt-02.1.jpg,,15,piece,,,350,2026-10-23
+receipt-02.2.jpg,,3,dozen,,,450,2026-10-23
+receipt-02.2.jpg,,2,bundle,,,250,2026-10-23
+receipt-02.2.jpg,,15,piece,,,350,2026-10-23
+receipt-02.3.jpg,,3,dozen,,,450,2026-10-23
+receipt-02.3.jpg,,2,bundle,,,250,2026-10-23
+receipt-02.3.jpg,,15,piece,,,350,2026-10-23
+receipt-02.4.jpg,,3,dozen,,,450,2026-10-23
+receipt-02.4.jpg,,2,bundle,,,250,2026-10-23
+receipt-02.4.jpg,,15,piece,,,350,2026-10-23
+receipt-03.1.jpg,,1,dozen,,,100,2026-10-23
+receipt-03.1.jpg,Sunflower - yellow,3,bundle,,,300,2026-10-23
+receipt-03.1.jpg,,8,piece,,,180,2026-10-23
+receipt-03.2.jpg,,1,dozen,,,100,2026-10-23
+receipt-03.2.jpg,Sunflower - yellow,3,bundle,,,300,2026-10-23
+receipt-03.2.jpg,,8,piece,,,180,2026-10-23
+receipt-03.3.jpg,,1,dozen,,,100,2026-10-23
+receipt-03.3.jpg,Sunflower - yellow,3,bundle,,,300,2026-10-23
+receipt-03.3.jpg,,8,piece,,,180,2026-10-23
+receipt-03.4.jpg,,1,dozen,,,100,2026-10-23
+receipt-03.4.jpg,Sunflower - yellow,3,bundle,,,300,2026-10-23
+receipt-03.4.jpg,,8,piece,,,180,2026-10-23
+receipt-04.1.jpg,,1,bundle,,,100,2026-10-23
+receipt-04.1.jpg,,10,piece,,,220,2026-10-23
+receipt-04.1.jpg,,2,dozen,,,250,2026-10-23
+receipt-04.2.jpg,,1,bundle,,,100,2026-10-23
+receipt-04.2.jpg,,10,piece,,,220,2026-10-23
+receipt-04.2.jpg,,2,dozen,,,250,2026-10-23
+receipt-04.3.jpg,,1,bundle,,,100,2026-10-23
+receipt-04.3.jpg,,10,piece,,,220,2026-10-23
+receipt-04.3.jpg,,2,dozen,,,250,2026-10-23
+receipt-04.4.jpg,,1,bundle,,,100,2026-10-23
+receipt-04.4.jpg,,10,piece,,,220,2026-10-23
+receipt-04.4.jpg,,2,dozen,,,250,2026-10-23
+receipt-05.1.jpg,,3,bundle,,,350,2026-10-23
+receipt-05.1.jpg,,15,piece,,,280,2026-10-23
 receipt-05.1.jpg,Sunflower - yellow,3,dozen,,,310,2026-10-23
-receipt-05.2.jpg,Tulip - yellow,3,bundle,10,,350,2026-10-23
-receipt-05.2.jpg,Stargazer lily - magenta,15,piece,,,280,2026-10-23
+receipt-05.2.jpg,,3,bundle,,,350,2026-10-23
+receipt-05.2.jpg,,15,piece,,,280,2026-10-23
 receipt-05.2.jpg,Sunflower - yellow,3,dozen,,,310,2026-10-23
-receipt-05.3.jpg,Tulip - yellow,3,bundle,10,,350,2026-10-23
-receipt-05.3.jpg,Stargazer lily - magenta,15,piece,,,280,2026-10-23
+receipt-05.3.jpg,,3,bundle,,,350,2026-10-23
+receipt-05.3.jpg,,15,piece,,,280,2026-10-23
 receipt-05.3.jpg,Sunflower - yellow,3,dozen,,,310,2026-10-23
-receipt-05.4.jpg,Tulip - yellow,3,bundle,10,,350,2026-10-23
-receipt-05.4.jpg,Stargazer lily - magenta,15,piece,,,280,2026-10-23
+receipt-05.4.jpg,,3,bundle,,,350,2026-10-23
+receipt-05.4.jpg,,15,piece,,,280,2026-10-23
 receipt-05.4.jpg,Sunflower - yellow,3,dozen,,,310,2026-10-23
-receipt-06.1.jpg,Petunia - purple,11,piece,,,250,2026-10-23
-receipt-06.1.jpg,Anthurium - red,1,bundle,10,,180,2026-10-23
-receipt-06.1.jpg,Tulip - yellow,3,dozen,,,290,2026-10-23
-receipt-06.2.jpg,Petunia - purple,11,piece,,,250,2026-10-23
-receipt-06.2.jpg,Anthurium - red,1,bundle,10,,180,2026-10-23
-receipt-06.2.jpg,Tulip - yellow,3,dozen,,,290,2026-10-23
-receipt-06.3.jpg,Petunia - purple,11,piece,,,250,2026-10-23
-receipt-06.3.jpg,Anthurium - red,1,bundle,10,,180,2026-10-23
-receipt-06.3.jpg,Tulip - yellow,3,dozen,,,290,2026-10-23
-receipt-06.4.jpg,Petunia - purple,11,piece,,,250,2026-10-23
-receipt-06.4.jpg,Anthurium - red,1,bundle,10,,180,2026-10-23
-receipt-06.4.jpg,Tulip - yellow,3,dozen,,,290,2026-10-23
+receipt-06.1.jpg,,11,piece,,,250,2026-10-23
+receipt-06.1.jpg,,1,bundle,,,180,2026-10-23
+receipt-06.1.jpg,,3,dozen,,,290,2026-10-23
+receipt-06.2.jpg,,11,piece,,,250,2026-10-23
+receipt-06.2.jpg,,1,bundle,,,180,2026-10-23
+receipt-06.2.jpg,,3,dozen,,,290,2026-10-23
+receipt-06.3.jpg,,11,piece,,,250,2026-10-23
+receipt-06.3.jpg,,1,bundle,,,180,2026-10-23
+receipt-06.3.jpg,,3,dozen,,,290,2026-10-23
+receipt-06.4.jpg,,11,piece,,,250,2026-10-23
+receipt-06.4.jpg,,1,bundle,,,180,2026-10-23
+receipt-06.4.jpg,,3,dozen,,,290,2026-10-23
 receipt-07.1.jpg,Baby's breath - white,2,bunch,,,250,2026-10-23
-receipt-07.1.jpg,Stargazer lily - magenta,7,piece,,,140,2026-10-23
-receipt-07.1.jpg,Sunflower - yellow,2,dozen,,,230,2026-10-23
+receipt-07.1.jpg,,7,piece,,,140,2026-10-23
+receipt-07.1.jpg,,2,dozen,,,230,2026-10-23
 receipt-07.2.jpg,Baby's breath - white,2,bunch,,,250,2026-10-23
-receipt-07.2.jpg,Stargazer lily - magenta,7,piece,,,140,2026-10-23
-receipt-07.2.jpg,Sunflower - yellow,2,dozen,,,230,2026-10-23
+receipt-07.2.jpg,,7,piece,,,140,2026-10-23
+receipt-07.2.jpg,,2,dozen,,,230,2026-10-23
 receipt-07.3.jpg,Baby's breath - white,2,bunch,,,250,2026-10-23
-receipt-07.3.jpg,Stargazer lily - magenta,7,piece,,,140,2026-10-23
-receipt-07.3.jpg,Sunflower - yellow,2,dozen,,,230,2026-10-23
+receipt-07.3.jpg,,7,piece,,,140,2026-10-23
+receipt-07.3.jpg,,2,dozen,,,230,2026-10-23
 receipt-07.4.jpg,Baby's breath - white,2,bunch,,,250,2026-10-23
-receipt-07.4.jpg,Stargazer lily - magenta,7,piece,,,140,2026-10-23
-receipt-07.4.jpg,Sunflower - yellow,2,dozen,,,230,2026-10-23
-receipt-08.1.jpg,Dendrobium orchid - white,3,bundle,10,,380,2026-10-23
+receipt-07.4.jpg,,7,piece,,,140,2026-10-23
+receipt-07.4.jpg,,2,dozen,,,230,2026-10-23
+receipt-08.1.jpg,,3,bundle,,,380,2026-10-23
 receipt-08.1.jpg,Rose - orange,9,piece,,,190,2026-10-23
-receipt-08.1.jpg,Tulip - yellow,1,dozen,,,170,2026-10-23
-receipt-08.2.jpg,Dendrobium orchid - white,3,bundle,10,,380,2026-10-23
+receipt-08.1.jpg,,1,dozen,,,170,2026-10-23
+receipt-08.2.jpg,,3,bundle,,,380,2026-10-23
 receipt-08.2.jpg,Rose - orange,9,piece,,,190,2026-10-23
-receipt-08.2.jpg,Tulip - yellow,1,dozen,,,170,2026-10-23
-receipt-08.3.jpg,Dendrobium orchid - white,3,bundle,10,,380,2026-10-23
+receipt-08.2.jpg,,1,dozen,,,170,2026-10-23
+receipt-08.3.jpg,,3,bundle,,,380,2026-10-23
 receipt-08.3.jpg,Rose - orange,9,piece,,,190,2026-10-23
-receipt-08.3.jpg,Tulip - yellow,1,dozen,,,170,2026-10-23
-receipt-08.4.jpg,Dendrobium orchid - white,3,bundle,10,,380,2026-10-23
+receipt-08.3.jpg,,1,dozen,,,170,2026-10-23
+receipt-08.4.jpg,,3,bundle,,,380,2026-10-23
 receipt-08.4.jpg,Rose - orange,9,piece,,,190,2026-10-23
-receipt-08.4.jpg,Tulip - yellow,1,dozen,,,170,2026-10-23
-receipt-09.1.jpg,Gerbera - red,2,bundle,10,,240,2026-10-23
-receipt-09.1.jpg,Petunia - purple,2,piece,,,240,2026-10-23
-receipt-09.1.jpg,Anthurium - red,5,dozen,,,100,2026-10-23
-receipt-09.2.jpg,Gerbera - red,2,bundle,10,,240,2026-10-23
-receipt-09.2.jpg,Petunia - purple,2,piece,,,240,2026-10-23
-receipt-09.2.jpg,Anthurium - red,5,dozen,,,100,2026-10-23
-receipt-09.3.jpg,Gerbera - red,2,bundle,10,,240,2026-10-23
-receipt-09.3.jpg,Petunia - purple,2,piece,,,240,2026-10-23
-receipt-09.3.jpg,Anthurium - red,5,dozen,,,100,2026-10-23
-receipt-09.4.jpg,Gerbera - red,2,bundle,10,,240,2026-10-23
-receipt-09.4.jpg,Petunia - purple,2,piece,,,240,2026-10-23
-receipt-09.4.jpg,Anthurium - red,5,dozen,,,100,2026-10-23
+receipt-08.4.jpg,,1,dozen,,,170,2026-10-23
+receipt-09.1.jpg,,2,bundle,,,240,2026-10-23
+receipt-09.1.jpg,,2,dozen,,,240,2026-10-23
+receipt-09.1.jpg,,5,piece,,,100,2026-10-23
+receipt-09.2.jpg,,2,bundle,,,240,2026-10-23
+receipt-09.2.jpg,,2,dozen,,,240,2026-10-23
+receipt-09.2.jpg,,5,piece,,,100,2026-10-23
+receipt-09.3.jpg,,2,bundle,,,240,2026-10-23
+receipt-09.3.jpg,,2,dozen,,,240,2026-10-23
+receipt-09.3.jpg,,5,piece,,,100,2026-10-23
+receipt-09.4.jpg,,2,bundle,,,240,2026-10-23
+receipt-09.4.jpg,,2,dozen,,,240,2026-10-23
+receipt-09.4.jpg,,5,piece,,,100,2026-10-23

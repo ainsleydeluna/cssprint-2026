@@ -3,13 +3,16 @@ import { requireShop } from "@/lib/server/auth";
 import { stemsWithCost } from "@/lib/server/costs";
 import { parseQuoteLines } from "@/lib/server/fields";
 import { errorResponse, readJson } from "@/lib/server/http";
+import { recipeChanged } from "@/lib/server/quote-rules";
 import { quotePrice, readQuote } from "@/lib/server/quotes";
 import { toColumns } from "@/lib/server/rows";
 
 // Autosave: the whole recipe, debounced on every edit. Counts are saved as the
 // florist typed them. Each line costs its stem's latest cost, and the server
-// reprices the quote. Only a draft's lines change: a sent quote's price changes
-// through the price update.
+// reprices the quote. A change of stems, counts or price clears its saved reply
+// text.
+// Only a draft's lines change: a sent quote's price changes through the price
+// update.
 export async function PUT(request: Request, ctx: RouteContext<"/api/quotes/[id]/lines">) {
   const session = await requireShop();
   if (session instanceof Response) return session;
@@ -49,8 +52,13 @@ export async function PUT(request: Request, ctx: RouteContext<"/api/quotes/[id]/
     if (error) throw new Error(`Adding quote lines failed: ${error.message}`);
   }
 
+  // A saved reply names the old recipe and price, so a new recipe or a new price
+  // (latest costs moved since the last save) clears it. An autosave that changes
+  // neither keeps the florist's edited reply.
   const price = quotePrice(lines.map((line) => line.fields), shop);
-  const { error } = await supabase.from("quotes").update({ price }).eq("id", detail.quote.id);
+  const stale = recipeChanged(detail.lines, parsed.value) || price !== detail.quote.price;
+  const changes = stale ? { price, reply_text: "" } : { price };
+  const { error } = await supabase.from("quotes").update(changes).eq("id", detail.quote.id);
   if (error) throw new Error(`Repricing the quote failed: ${error.message}`);
   return Response.json((await readQuote(supabase, detail.quote.id))! satisfies UpdateQuoteLinesResponse);
 }
