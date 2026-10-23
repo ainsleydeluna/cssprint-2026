@@ -8,13 +8,17 @@ import { QUOTE_COLUMNS, toColumns, toQuote } from "@/lib/server/rows";
 
 // The first copy sends the quote: it stamps the sent time and the valid-until
 // date (sent date plus the shop's valid-for days, Manila). Later copies save
-// only the text. Answers incomplete_quote while the quote has no lines, or any
-// line has a blank count or is a "pick a flower" line.
+// only the text. Answers invalid_request for an expired or underwater quote, and
+// incomplete_quote while the quote has no lines, or any line has a blank count
+// or is a "pick a flower" line.
 export async function POST(request: Request, ctx: RouteContext<"/api/quotes/[id]/copied">) {
   const session = await requireShop();
   if (session instanceof Response) return session;
   const detail = await readQuote(session.supabase, (await ctx.params).id);
   if (!detail) return errorResponse("not_found", "Quote not found");
+  if (detail.quote.status === "expired") return errorResponse("invalid_request", "This quote has expired");
+  // The margin alarm flagged it: the price update sends the new price instead.
+  if (detail.quote.underwaterAt !== null) return errorResponse("invalid_request", "This quote needs a price update");
   const parsed = parseCopied(await readJson(request));
   if (!parsed.ok) return errorResponse(parsed.code, parsed.error);
 
