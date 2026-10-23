@@ -2,12 +2,19 @@
 // typed with lib/contract.ts. A failure throws ApiFailure; screens check its `code`, never the text.
 // components/receipt/api.ts (#17) and the shop screens (#23) have the same small helper;
 // share one once they are merged.
+import type { Quote } from "@/lib/types";
 import type {
   ApiError,
   ApiErrorCode,
+  BudgetOptionsRequest,
+  BudgetOptionsResponse,
+  CopiedRequest,
+  CopiedResponse,
   CreateQuoteRequest,
   CreateQuoteResponse,
+  DraftReplyResponse,
   PhotoKind,
+  QuoteResponse,
   ShopResponse,
   StemListResponse,
   UpdateQuoteLinesRequest,
@@ -24,6 +31,9 @@ export class ApiFailure extends Error {
     super(message);
   }
 }
+
+/** The session ended: send the florist to /sign-in. */
+export const isUnauthorized = (e: unknown) => e instanceof ApiFailure && e.code === "unauthorized";
 
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
   let res: Response;
@@ -51,9 +61,35 @@ export function uploadPhoto(photo: File, kind: PhotoKind) {
   return call<UploadPhotoResponse>("/api/photos", { method: "POST", body: form });
 }
 
+// GET /api/quotes/[id] has no demo flag, so remember which quotes this tab created in demo mode.
+const demoQuoteIds = new Set<string>();
+export const createdInDemo = (quoteId: string) => demoQuoteIds.has(quoteId);
+
 /** Runs analyzeBouquet on the photo and saves a draft quote. */
 export const createQuote = (photoPath: string) =>
-  call<CreateQuoteResponse>("/api/quotes", json("POST", { photoPath } satisfies CreateQuoteRequest));
+  call<CreateQuoteResponse>("/api/quotes", json("POST", { photoPath } satisfies CreateQuoteRequest)).then((created) => {
+    if (created.demo) demoQuoteIds.add(created.quote.id);
+    return created;
+  });
+
+const quoteUrl = (quoteId: string, rest = "") => `/api/quotes/${encodeURIComponent(quoteId)}${rest}`;
+
+export const getQuote = (quoteId: string) => call<QuoteResponse>(quoteUrl(quoteId));
+
+/** Drafts the reply from the saved lines (a draft quote keeps the text). Each call is a new AI call. */
+export const draftReply = (quoteId: string) => call<DraftReplyResponse>(quoteUrl(quoteId, "/reply"), { method: "POST" });
+
+/** Saves the florist's edited reply text (PATCH /api/quotes/[id]); the route answers the quote. */
+export const updateReplyText = (quoteId: string, replyText: string) =>
+  call<Quote>(quoteUrl(quoteId), json("PATCH", { replyText }));
+
+/** After copying: the first copy sends the quote (sentAt, validUntil); later copies save the text. */
+export const markCopied = (quoteId: string, replyText: string) =>
+  call<CopiedResponse>(quoteUrl(quoteId, "/copied"), json("POST", { replyText } satisfies CopiedRequest));
+
+/** Saves the budget and answers up to 3 cheaper recipes, priced by code. Each call is a new AI call. */
+export const budgetOptions = (quoteId: string, budget: number) =>
+  call<BudgetOptionsResponse>(quoteUrl(quoteId, "/budget-options"), json("POST", { budget } satisfies BudgetOptionsRequest));
 
 export const getShop = () => call<ShopResponse>("/api/shop");
 
@@ -62,4 +98,4 @@ export const listStems = () => call<StemListResponse>("/api/stems").then((r) => 
 
 /** Replaces the whole recipe; the server reprices it. Lines without an id are new. */
 export const updateLines = (quoteId: string, req: UpdateQuoteLinesRequest) =>
-  call<UpdateQuoteLinesResponse>(`/api/quotes/${encodeURIComponent(quoteId)}/lines`, json("PUT", req));
+  call<UpdateQuoteLinesResponse>(quoteUrl(quoteId, "/lines"), json("PUT", req));

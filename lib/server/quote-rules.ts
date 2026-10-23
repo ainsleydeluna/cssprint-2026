@@ -74,6 +74,15 @@ export function cannotSend(lines: Pick<QuoteLine, "stemId" | "count">[]): boolea
 }
 
 /**
+ * True when two recipes differ in their stems or counts. Line order, notes and
+ * confidence do not count, so an autosave that changes nothing is no change.
+ */
+export function recipeChanged(before: Pick<QuoteLine, "stemId" | "count">[], after: Pick<QuoteLine, "stemId" | "count">[]): boolean {
+  const key = (lines: Pick<QuoteLine, "stemId" | "count">[]) => lines.map((line) => `${line.stemId}:${line.count}`).sort().join(",");
+  return key(before) !== key(after);
+}
+
+/**
  * What copying the reply changes (spec section 4, "Taglish reply"). Refused
  * while the quote has no lines, or any line has a blank count or is a "pick a
  * flower" line (cannotSend). The first copy

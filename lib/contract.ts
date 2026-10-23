@@ -32,6 +32,12 @@ export type AnalyzeBouquetResult = {
     confidence: Confidence;
     /** From allowedStems when stem is "Other". */
     closestStem: string | null;
+    /**
+     * True when the photo's color of this flower has no row of its own and the
+     * AI picked the flower's row with the closest color. False otherwise, and
+     * for "Other".
+     */
+    closestColor: boolean;
     note: string;
   }>;
   note: string;
@@ -231,7 +237,9 @@ export type DeleteQuoteResponse = { deleted: true };
 
 // PUT /api/quotes/[id]/lines — replaces the whole recipe (debounced on every
 // edit). The server sets each line's costPerStem to the stem's latest cost and
-// reprices the quote. Lines without an id are new.
+// reprices the quote. When the stems, counts or price change, it clears the
+// saved reply text (it quotes the old price); a save that changes none of them
+// keeps it. Lines without an id are new.
 export type UpdateQuoteLinesRequest = {
   lines: Array<
     Pick<QuoteLine, "stemId" | "count" | "countLow" | "countHigh" | "confidence" | "note"> & { id?: string }
@@ -239,17 +247,22 @@ export type UpdateQuoteLinesRequest = {
 };
 export type UpdateQuoteLinesResponse = QuoteDetail;
 
-// POST /api/quotes/[id]/reply — drafts the Taglish reply. Saves nothing; the
-// text is saved when copied.
+// POST /api/quotes/[id]/reply — drafts the Taglish reply, and saves its text on
+// a draft quote whose price and lines did not change meanwhile. Answers
+// invalid_request ("This quote has expired") for an expired quote.
 export type DraftReplyResponse = { message: string; demo: boolean };
 // POST /api/quotes/[id]/copied — first copy sets status "sent", stamps sentAt
-// and validUntil; later copies only save the text. Answers incomplete_quote
-// while any line has a blank count or is a "pick a flower" line.
+// and validUntil; later copies only save the text. Answers invalid_request
+// for an expired quote ("This quote has expired") or an underwater one ("This
+// quote needs a price update": the price update is its path), and
+// incomplete_quote while any line has a blank count or is a "pick a flower" line.
 export type CopiedRequest = { replyText: string };
 export type CopiedResponse = Quote;
 
 // POST /api/quotes/[id]/budget-options — fitToBudget, priced and checked by code.
-// Saves the budget on the quote. Choosing an option sends its lines to PUT
+// Saves the budget on the quote. When the price at latest costs is already
+// within the budget, answers { options: [], demo: false } without an AI call.
+// Choosing an option sends its lines to PUT
 // /api/quotes/[id]/lines, which replaces every line. Answers incomplete_quote,
 // before saving or any AI call, for a quote with no lines, a blank count or a
 // "pick a flower" line, and ai_failed when the AI call fails after its retry.
@@ -305,11 +318,13 @@ export type EvalResult = {
 export type AccuracyResponse = {
   eval: EvalResult[];
   /**
-   * From the ai_calls table. A call whose model is missing from TOKEN_PRICES
-   * has an unknown cost and is left out of the averages; null when every
-   * call's cost is unknown.
+   * From the ai_calls table, one row per call name, always all five. `calls`
+   * counts all of the shop's calls; medianSeconds and averageCostUsd cover the
+   * latest 1,000 calls and are null for a name with none among them. A call
+   * whose model is missing from TOKEN_PRICES has an unknown cost and is left out
+   * of the average; null when every call's cost is unknown.
    */
-  live: Array<{ call: AiCallName; calls: number; medianSeconds: number; averageCostUsd: number | null }>;
+  live: Array<{ call: AiCallName; calls: number; medianSeconds: number | null; averageCostUsd: number | null }>;
   /** Each quote's calls summed, averaged over quotes; null when there are none of known cost. */
   averageCostPerQuoteUsd: number | null;
 };
