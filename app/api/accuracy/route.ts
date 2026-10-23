@@ -1,8 +1,11 @@
 import type { AccuracyResponse } from "@/lib/contract";
-import { liveStats, readEvalResults } from "@/lib/server/accuracy";
+import { countCalls, liveStats, readEvalResults } from "@/lib/server/accuracy";
 import { requireShop } from "@/lib/server/auth";
 
-/** The Data API answers at most 1,000 rows by default, so live numbers cover the newest 1,000 calls. */
+/**
+ * The Data API answers at most 1,000 rows by default, so median seconds and
+ * costs cover the newest 1,000 calls; the call counts come from count queries.
+ */
 const MAX_CALLS = 1000;
 
 // The bake-off results from fixtures/eval/results.json (empty until
@@ -10,8 +13,9 @@ const MAX_CALLS = 1000;
 export async function GET() {
   const session = await requireShop();
   if (session instanceof Response) return session;
-  const [results, calls] = await Promise.all([
+  const [results, counts, calls] = await Promise.all([
     readEvalResults(),
+    countCalls(session.supabase),
     session.supabase
       .from("ai_calls")
       .select("call, model, seconds, input_tokens, output_tokens, quote_id")
@@ -28,5 +32,5 @@ export async function GET() {
     outputTokens: Number(row.output_tokens),
     quoteId: row.quote_id === null ? null : String(row.quote_id),
   }));
-  return Response.json({ eval: results, ...liveStats(rows) } satisfies AccuracyResponse);
+  return Response.json({ eval: results, ...liveStats(rows, counts) } satisfies AccuracyResponse);
 }

@@ -7,6 +7,7 @@ const photo = { data: new Uint8Array([0xff, 0xd8, 0xff]), mediaType: "image/jpeg
 const stems = [
   { name: "Rose - red", isFiller: false, hidden: false },
   { name: "Carnation - pink", isFiller: false, hidden: false },
+  { name: "Gerbera - mixed", isFiller: false, hidden: false },
   { name: "Baby's breath - white", isFiller: true, hidden: false },
   { name: "Sunflower - yellow", isFiller: false, hidden: true },
 ];
@@ -19,6 +20,7 @@ const line = (overrides: Partial<Line>): Line => ({
   countHigh: 12,
   confidence: "high",
   closestStem: null,
+  closestColor: false,
   note: "",
   ...overrides,
 });
@@ -38,6 +40,117 @@ describe("analyzeBouquet", () => {
     expect(request.system).toContain("not Greenery");
     expect(request.system).toContain("by price and size, not by name");
     expect(request.system).toContain("Count stems, not individual blooms");
+  });
+
+  test("asks for the flower's closest-color row, and Other only for a flower not on the list", async () => {
+    const { request } = await analyze();
+
+    expect(request.system).toContain("pick that flower's row with the closest color");
+    expect(request.system).toContain('Use "Other" only for a flower that is not on the list at all');
+  });
+
+  test("asks for notes in short, simple Taglish that never mention the allowed list", async () => {
+    const { request } = await analyze();
+
+    expect(request.system).toContain("short, simple Taglish");
+    expect(request.system).toContain("Wala sa listahan mo");
+    expect(request.system).toContain('Never write "allowed list"');
+  });
+
+  test("merges lines naming the same row: counts added, lowest confidence, notes joined", async () => {
+    const { lines } = await analyze(
+      line({ color: "blush pink", countLow: 6, countHigh: 8, confidence: "high", note: "Mas mapusyaw" }),
+      line({ stem: "Carnation - pink", color: "pink", countLow: 3, countHigh: 3 }),
+      line({ stem: "rose - RED", color: "fuchsia", countLow: 3, countHigh: 4, confidence: "medium", note: "Mas matingkad" }),
+      line({ stem: "Rose - red", color: "fuchsia", countLow: 1, countHigh: 1, confidence: "high", note: "" }),
+    );
+
+    expect(lines).toEqual([
+      line({ color: "blush pink, fuchsia", countLow: 10, countHigh: 13, confidence: "medium", note: "Mas mapusyaw; Mas matingkad" }),
+      line({ stem: "Carnation - pink", color: "pink", countLow: 3, countHigh: 3 }),
+    ]);
+  });
+
+  test("asks per line whether the photo's color has no row and the closest color was picked", async () => {
+    const { request } = await analyze();
+
+    expect(request.system).toContain("closestColor: true when");
+  });
+
+  test("caps a closest-color line at medium and names the color seen, not the row", async () => {
+    const { lines } = await analyze(line({ color: "fuchsia", closestColor: true, confidence: "high", note: "" }));
+
+    expect(lines[0]).toMatchObject({
+      stem: "Rose - red",
+      closestColor: true,
+      confidence: "medium",
+      note: "Fuchsia ang nakita; pinakamalapit na kulay ang ginamit",
+    });
+  });
+
+  test("leaves a line alone when the model did not pick the closest color, however the color is worded", async () => {
+    const { lines } = await analyze(
+      line({ color: "crimson", confidence: "high" }),
+      line({ stem: "Carnation - pink", color: "blush", confidence: "high" }),
+      line({ stem: "Baby's breath - white", color: "ivory", confidence: "high" }),
+    );
+
+    expect(lines.map((l) => [l.confidence, l.note])).toEqual([
+      ["high", ""],
+      ["high", ""],
+      ["high", ""],
+    ]);
+  });
+
+  test("keeps a low confidence low and the AI's own note after the closest-color note", async () => {
+    const { lines } = await analyze(line({ color: "fuchsia", closestColor: true, confidence: "low", note: "Malabo" }));
+
+    expect(lines[0]).toMatchObject({ confidence: "low", note: "Fuchsia ang nakita; pinakamalapit na kulay ang ginamit; Malabo" });
+  });
+
+  test("does not repeat a color the AI's own note already names", async () => {
+    const { lines } = await analyze(line({ color: "fuchsia", closestColor: true, note: "Fuchsia ang kulay" }));
+
+    expect(lines[0].note).toBe("Pinakamalapit na kulay ang ginamit; Fuchsia ang kulay");
+  });
+
+  test("caps a merged line when any part was a closest color, and names every part's colors", async () => {
+    const { lines } = await analyze(
+      line({ color: "deep red", confidence: "high", note: "" }),
+      line({ color: "fuchsia", closestColor: true, confidence: "high", note: "" }),
+    );
+
+    expect(lines).toEqual([
+      line({
+        color: "deep red, fuchsia",
+        closestColor: true,
+        countLow: 20,
+        countHigh: 24,
+        confidence: "medium",
+        note: "Deep red, fuchsia ang nakita; pinakamalapit na kulay ang ginamit",
+      }),
+    ]);
+  });
+
+  test("ignores the closest-color flag on Other lines", async () => {
+    const { lines } = await analyze(line({ stem: "Other", closestStem: "Carnation - pink", closestColor: true, note: "Peony" }));
+
+    expect(lines[0]).toMatchObject({ confidence: "high", note: "Peony" });
+  });
+
+  test("merges before the clamps, and keeps Other lines apart", async () => {
+    const { lines } = await analyze(
+      line({ countLow: 60, countHigh: 70 }),
+      line({ countLow: 50, countHigh: 60 }),
+      line({ stem: "Other", closestStem: "Carnation - pink", note: "Peony" }),
+      line({ stem: "Other", closestStem: "Carnation - pink", note: "Ranunculus" }),
+    );
+
+    expect(lines.map((l) => [l.stem, l.countLow, l.countHigh, l.note])).toEqual([
+      ["Rose - red", 100, 100, ""],
+      ["Other", 10, 12, "Peony"],
+      ["Other", 10, 12, "Ranunculus"],
+    ]);
   });
 
   test("matches a row name ignoring capital letters and returns the shop's spelling", async () => {

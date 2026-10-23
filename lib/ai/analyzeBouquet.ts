@@ -4,7 +4,7 @@
 
 import type { AnalyzeBouquetResult, StemWithCost } from "../contract";
 import { clampBouquet, clampCount, prefillCount } from "../money";
-import type { QuoteLine } from "../types";
+import type { Confidence, QuoteLine } from "../types";
 import { askClaude, type AiOutcome, type MessagesApi } from "./client";
 import { COUNT_PREFILL } from "./config";
 import { findFlower, findStem, photoBlock, schema, stemList, type AllowedStem, type Photo } from "./shared";
@@ -12,19 +12,22 @@ import { findFlower, findStem, photoBlock, schema, stemList, type AllowedStem, t
 const SYSTEM = `You look at a photo of a bouquet that a customer sent to a florist in Manila, and list what is in it so the florist can price it.
 
 Return one line per kind of flower and one line per filler you can see.
-- stem: the shop's row for this flower and color, copied exactly from the allowed list, or "Other" if the flower is not in the list.
+- stem: the shop's row for this flower and color, copied exactly from the allowed list. If the flower is on the list but its exact color is not, pick that flower's row with the closest color, and write the real color in color and in note. Use "Other" only for a flower that is not on the list at all.
 - color: your own words for the color, such as "deep red" or "blush pink".
 - countLow, countHigh: how many the bouquet holds. The low end is what you can see; the high end adds the ones likely hidden. Flowers are counted in stems. A filler (listed under Fillers) is counted in bunches, usually 1 to 3.
 - confidence: high when the row and count are clear, medium when one is a guess, low when both are.
 - closestStem: when stem is "Other", the row a florist would use in its place: a row under Flowers, never a filler. Otherwise null.
-- note: when stem is "Other", start with the flower's real name. Otherwise a few words on anything unsure; "" if nothing.
+- closestColor: true when the flower is on the list but the color you see has no row of its own, so you picked the flower's row with the closest color. False when the row's color is the one you see, and for "Other".
+- note: when stem is "Other", start with the flower's real name. When you picked the closest color, the real color. Otherwise a few words on anything unsure; "" if nothing.
 
 Rules:
 1. A flower's own leaves and stems are not Greenery. Only a separate filler counts as a filler line. No filler seen, no filler line.
 2. For "Other", choose closestStem by price and size, not by name.
 3. Count stems, not individual blooms. For flowers that grow in clusters, such as alstroemeria and spray roses, estimate the number of stems.
 
-note: a few words about the whole photo if something matters, such as a blurry or cropped bouquet; "" if nothing.`;
+note: a few words about the whole photo if something matters, such as a blurry or cropped bouquet; "" if nothing.
+
+The florist reads every note. Write notes in short, simple Taglish, such as "Wala sa listahan mo: peony", "Fuchsia ang kulay" or "Malabo ang litrato". Never write "allowed list", "row" or other words from these instructions in a note.`;
 
 const SCHEMA = schema.object({
   lines: {
@@ -36,6 +39,7 @@ const SCHEMA = schema.object({
       countHigh: { type: "integer" },
       confidence: schema.confidence,
       closestStem: schema.nullable("string"),
+      closestColor: { type: "boolean" },
       note: { type: "string" },
     }),
   },
@@ -57,17 +61,76 @@ export async function analyzeBouquet(
   );
   if (!outcome.ok) return outcome;
 
-  const lines = outcome.result.lines.map((line) => {
+  const named = outcome.result.lines.map((line) => {
     const stem = findStem(input.stems, line.stem);
     // A filler closest stem is dropped, so the line becomes a "pick a flower" line.
     const closest = stem ? undefined : findFlower(input.stems, line.closestStem);
-    // Other is counted as a flower, like its closest stem.
-    const isFiller = stem?.isFiller ?? false;
-    const low = clampCount(Math.min(line.countLow, line.countHigh), isFiller);
-    const high = clampCount(Math.max(line.countLow, line.countHigh), isFiller);
-    return { ...line, stem: stem?.name ?? "Other", closestStem: closest?.name ?? null, countLow: low, countHigh: high };
+    return {
+      ...line,
+      stem: stem?.name ?? "Other",
+      closestStem: closest?.name ?? null,
+      countLow: Math.min(line.countLow, line.countHigh),
+      countHigh: Math.max(line.countLow, line.countHigh),
+      // Other is counted as a flower, like its closest stem.
+      isFiller: stem?.isFiller ?? false,
+      // Only a shop row can stand in for a color; an answer saved without the field reads as false.
+      closestColor: stem ? line.closestColor === true : false,
+    };
   });
+  const lines = mergeSameRow(named).map(({ isFiller, ...line }) => ({
+    ...line,
+    countLow: clampCount(line.countLow, isFiller),
+    countHigh: clampCount(line.countHigh, isFiller),
+    // A closest-color line is highlighted on the quote screen and says what was seen.
+    ...(line.closestColor && {
+      confidence: line.confidence === "high" ? ("medium" as const) : line.confidence,
+      note: closestColorNote(line.color, line.note),
+    }),
+  }));
   return { ...outcome, result: { lines, note: outcome.result.note } };
+}
+
+/**
+ * "Fuchsia ang nakita; pinakamalapit na kulay ang ginamit", then the AI's own
+ * note. It names the color seen, not the row, so it stays true if the florist
+ * picks another row. A color the AI's note already names is not repeated.
+ */
+function closestColorNote(colors: string, note: string): string {
+  const seen = colors.split(", ").filter((color) => color !== "" && !note.toLowerCase().includes(color.toLowerCase()));
+  const lead = seen.length > 0 ? `${capitalize(seen.join(", "))} ang nakita; pinakamalapit na kulay ang ginamit` : "Pinakamalapit na kulay ang ginamit";
+  return note === "" ? lead : `${lead}; ${note}`;
+}
+
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+const CONFIDENCE_ORDER: Confidence[] = ["low", "medium", "high"];
+
+/**
+ * One line per shop row: lines naming the same row are added together (count
+ * ranges summed, the lowest confidence, colors and notes joined, a closest
+ * color if any part was), in the order the row first appears. Other lines stay
+ * apart: each is a different flower.
+ */
+function mergeSameRow<L extends AnalyzeBouquetResult["lines"][number]>(lines: L[]): L[] {
+  const merged: L[] = [];
+  for (const line of lines) {
+    const same = line.stem === "Other" ? undefined : merged.find((kept) => kept.stem === line.stem);
+    if (!same) {
+      merged.push({ ...line });
+      continue;
+    }
+    same.countLow += line.countLow;
+    same.countHigh += line.countHigh;
+    if (CONFIDENCE_ORDER.indexOf(line.confidence) < CONFIDENCE_ORDER.indexOf(same.confidence)) same.confidence = line.confidence;
+    same.color = joinDistinct([same.color, line.color], ", ");
+    same.note = joinDistinct([same.note, line.note], "; ");
+    same.closestColor ||= line.closestColor;
+  }
+  return merged;
+}
+
+function joinDistinct(parts: string[], separator: string): string {
+  return [...new Set(parts.flatMap((part) => part.split(separator)).filter((part) => part !== ""))].join(separator);
 }
 
 /** A new quote line before it is saved. */
