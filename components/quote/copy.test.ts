@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { t } from "@/lib/strings";
 import type { Quote } from "@/lib/types";
-import { copyBlocker, copyReply, quoteLock, replyEdited } from "./copy";
+import { copyBlocker, copyReply, quoteLock, replyEdited, savesReplyText } from "./copy";
 
 const line = (stemId: string | null, count: number | null) => ({ stemId, count });
 
@@ -80,16 +80,26 @@ describe("quoteLock (what a sent quote's state blocks)", () => {
     expect(quoteLock(q({ status: "draft", validUntil: null }), today)).toBeNull();
     expect(quoteLock(q({}), today)).toBeNull();
   });
-  it("blocks Copy, but not Draft, on an underwater quote", () => {
+  it("locks an underwater quote (Gumawa ulit and Copy off) until the price update", () => {
     expect(quoteLock(q({ underwaterAt: "2026-10-23T01:00:00Z" }), today)).toEqual({
+      kind: "underwater",
       reason: t("quote", "underwaterBlock"),
-      draftToo: false,
     });
   });
-  it("blocks Draft and Copy on an expired quote, even one the page still shows as sent", () => {
-    const expired = { reason: t("quote", "expired"), draftToo: true };
+  it("locks an expired quote, even one the page still shows as sent", () => {
+    const expired = { kind: "expired", reason: t("quote", "expired") };
     expect(quoteLock(q({ status: "expired" }), today)).toEqual(expired);
     expect(quoteLock(q({ validUntil: "2026-10-22" }), today)).toEqual(expired);
     expect(quoteLock(q({ status: "expired", underwaterAt: "2026-10-20T01:00:00Z" }), today)).toEqual(expired);
+  });
+});
+
+describe("savesReplyText (PATCH replyText only while a draft)", () => {
+  it("saves a draft's edited text", () => {
+    expect(savesReplyText({ status: "draft" })).toBe(true);
+  });
+  it("keeps a sent or expired quote's edits on screen only: its saved text is what the customer got", () => {
+    expect(savesReplyText({ status: "sent" })).toBe(false);
+    expect(savesReplyText({ status: "expired" })).toBe(false);
   });
 });

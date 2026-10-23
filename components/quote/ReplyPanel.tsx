@@ -9,7 +9,7 @@ import { t } from "@/lib/strings";
 import type { Quote } from "@/lib/types";
 import { ApiFailure, draftReply, isUnauthorized, markCopied, updateReplyText } from "./api";
 import type { SaveState } from "./autosave";
-import { copyBlocker, copyReply, quoteLock, replyEdited } from "./copy";
+import { copyBlocker, copyReply, quoteLock, replyEdited, savesReplyText } from "./copy";
 import { formatDuration } from "./duration";
 import { QuoteLockNotice } from "./QuoteLockNotice";
 import { replySaver } from "./reply-save";
@@ -31,7 +31,7 @@ type Problem = "error" | "incomplete" | "clipboard" | "notSaved";
 export function ReplyPanel({ detail, demo, onBack, onCopied, onText, newPrice }: Props) {
   const router = useRouter();
   const { quote, lines } = detail;
-  // Expired: no new draft and no copy. Underwater: no copy until the price update.
+  // Expired or underwater: no new draft and no copy (see QuoteLockNotice for the way on).
   const lock = quoteLock(quote, manilaToday(new Date()));
   // A draft quote keeps its last drafted text; a sent quote keeps what was copied.
   const [message, setMessage] = useState(quote.replyText);
@@ -39,14 +39,23 @@ export function ReplyPanel({ detail, demo, onBack, onCopied, onText, newPrice }:
   const [serverText, setServerText] = useState(quote.replyText);
   const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
   const [draftDemo, setDraftDemo] = useState(false);
-  const [busy, setBusy] = useState<"drafting" | "copying" | null>(quote.replyText || lock?.draftToo ? null : "drafting");
+  const [busy, setBusy] = useState<"drafting" | "copying" | null>(quote.replyText || lock ? null : "drafting");
   const [problem, setProblem] = useState<Problem | null>(null);
   const [copied, setCopied] = useState(false);
   const started = useRef(false);
   const [save, setSave] = useState<SaveState>("saved");
-  // Edited text is saved after a pause in typing; leaving the screen saves it at once.
+  // A draft's edited text is saved after a pause in typing; leaving the screen saves it at once.
+  // A sent quote's edits stay on screen only (savesReplyText): copying saves them.
   const [saver] = useState(() => replySaver(quote.replyText, (text) => updateReplyText(quote.id, text), setSave));
   useEffect(() => () => void saver.flush(), [saver]);
+
+  // A text save still waiting goes first, so it can't arrive after the next lines save.
+  const [leaving, setLeaving] = useState(false);
+  async function goBack() {
+    setLeaving(true);
+    await saver.flush();
+    onBack();
+  }
 
   function showText(text: string) {
     setMessage(text);
@@ -65,8 +74,7 @@ export function ReplyPanel({ detail, demo, onBack, onCopied, onText, newPrice }:
       const reply = await draftReply(quote.id);
       showText(reply.message);
       setServerText(reply.message);
-      // The reply route saves a draft quote's text itself; a sent quote's goes through PATCH.
-      if (quote.status !== "draft") saver.edit(reply.message);
+      // The reply route saves a draft's text itself; a sent quote's new draft is saved when copied.
       setDraftDemo(reply.demo);
     } catch (e) {
       // ai_failed and anything else: the general error with "Subukan ulit".
@@ -78,7 +86,7 @@ export function ReplyPanel({ detail, demo, onBack, onCopied, onText, newPrice }:
 
   // No text yet: draft one on opening. The ref keeps React's dev double-run from drafting twice.
   useEffect(() => {
-    if (started.current || quote.replyText || lock?.draftToo) return;
+    if (started.current || quote.replyText || lock) return;
     started.current = true;
     void fetchDraft();
     // Only on opening; fetchDraft reads the quote id, which never changes here.
@@ -118,7 +126,7 @@ export function ReplyPanel({ detail, demo, onBack, onCopied, onText, newPrice }:
 
   return (
     <div className="flex flex-col gap-4">
-      <Button variant="secondary" className="self-start" onClick={onBack}>
+      <Button variant="secondary" className="self-start" disabled={leaving} onClick={goBack}>
         {t("quote", "backToLines")}
       </Button>
       {(demo || draftDemo) && (
@@ -135,7 +143,7 @@ export function ReplyPanel({ detail, demo, onBack, onCopied, onText, newPrice }:
           readOnly={busy === "drafting"}
           onChange={(e) => {
             showText(e.target.value);
-            saver.edit(e.target.value);
+            if (savesReplyText(quote)) saver.edit(e.target.value);
             setCopied(false);
           }}
         />
@@ -154,7 +162,7 @@ export function ReplyPanel({ detail, demo, onBack, onCopied, onText, newPrice }:
           )}
         </p>
       )}
-      <QuoteLockNotice quoteId={quote.id} lock={lock} newPrice={lock && !lock.draftToo ? newPrice : null} />
+      <QuoteLockNotice quoteId={quote.id} lock={lock} newPrice={lock?.kind === "underwater" ? newPrice : null} />
 
       {/* Main actions stay above the bottom bar (5rem + 1px border + home-indicator inset). */}
       <div className="sticky bottom-[calc(5rem+1px+env(safe-area-inset-bottom))] flex flex-col gap-2 bg-white py-3 dark:bg-zinc-950">
@@ -200,7 +208,7 @@ export function ReplyPanel({ detail, demo, onBack, onCopied, onText, newPrice }:
         <div className="grid grid-cols-2 gap-2">
           <Button
             variant="secondary"
-            disabled={busy !== null || confirmingRegenerate || !!lock?.draftToo}
+            disabled={busy !== null || confirmingRegenerate || !!lock}
             // Ask first only when a new draft would throw away the florist's edits.
             onClick={() => (replyEdited(message, serverText) ? setConfirmingRegenerate(true) : regenerate())}
           >

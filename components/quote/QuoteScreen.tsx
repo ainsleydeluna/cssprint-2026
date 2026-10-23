@@ -89,6 +89,7 @@ export function QuoteScreen({ id }: { id: string }) {
           shop={shop}
           stems={stems}
           demo={demo}
+          onSaved={setQuote}
           onReply={(lines) => {
             keepLines(lines);
             setStep("reply");
@@ -117,7 +118,7 @@ function SentLines({ detail, shop, stems, onReply }: SentProps) {
         </span>
       </div>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">{t("quote", "readOnly")}</p>
-      <QuoteLockNotice quoteId={quote.id} lock={lock} newPrice={lock && !lock.draftToo ? priceAtLatest(lines, stems, shop) : null} />
+      <QuoteLockNotice quoteId={quote.id} lock={lock} newPrice={lock?.kind === "underwater" ? priceAtLatest(lines, stems, shop) : null} />
       <ul className="flex flex-col gap-2">
         {lines.map((line) => {
           const stem = line.stemId ? byId.get(line.stemId) : undefined;
