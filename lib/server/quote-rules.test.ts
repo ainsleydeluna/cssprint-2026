@@ -1,5 +1,5 @@
 // Quote rules the routes share (docs/spec.md decisions 5, 15 and section 4):
-// Manila dates, expiry, the first copy, labels and time-to-quote.
+// Manila dates, expiry, the first copy, labels, time-to-quote and recipe changes.
 
 import { describe, expect, test } from "vitest";
 import {
@@ -7,6 +7,7 @@ import {
   copyChanges,
   manilaToday,
   nextInquiryLabel,
+  recipeChanged,
   statusOn,
   timeToQuoteSeconds,
   validUntilOnSend,
@@ -120,5 +121,28 @@ describe("copyChanges", () => {
     ["no lines at all", []],
   ])("refuses a quote with %s as incomplete_quote", (_case, lines) => {
     expect(copyChanges(draft, lines, "Hi po!", now, 2)).toEqual({ ok: false, code: "incomplete_quote" });
+  });
+});
+
+describe("recipeChanged", () => {
+  const recipe = [
+    { stemId: "rose", count: 12 },
+    { stemId: "carnation", count: 6 },
+    { stemId: null, count: 3 },
+  ];
+
+  test("the same stems and counts, in any order, are no change", () => {
+    expect(recipeChanged(recipe, [...recipe].reverse())).toBe(false);
+  });
+
+  test.each([
+    ["a count", [{ stemId: "rose", count: 13 }, recipe[1], recipe[2]]],
+    ["a blank count", [{ stemId: "rose", count: null }, recipe[1], recipe[2]]],
+    ["a stem", [{ stemId: "tulip", count: 12 }, recipe[1], recipe[2]]],
+    ["a picked flower", [recipe[0], recipe[1], { stemId: "sunflower", count: 3 }]],
+    ["a removed line", [recipe[0], recipe[1]]],
+    ["an added line", [...recipe, { stemId: "rose", count: 12 }]],
+  ])("changing %s is a change", (_case, after) => {
+    expect(recipeChanged(recipe, after)).toBe(true);
   });
 });

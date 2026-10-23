@@ -27,7 +27,8 @@ import * as shopRoute from "./shop/route";
 import * as stemsRoute from "./stems/route";
 
 const signedIn = vi.hoisted(() => ({ client: null as SupabaseClient | null }));
-const ai = vi.hoisted(() => ({ answers: [] as AiOutcome<unknown>[] }));
+// An answer can be a function, to run something while the call is "on its way".
+const ai = vi.hoisted(() => ({ answers: [] as Array<AiOutcome<unknown> | (() => Promise<AiOutcome<unknown>>)> }));
 
 vi.mock("@/lib/server/auth", async (importOriginal) => {
   const auth = await importOriginal<typeof import("@/lib/server/auth")>();
@@ -36,7 +37,13 @@ vi.mock("@/lib/server/auth", async (importOriginal) => {
 
 vi.mock("@/lib/ai/client", async (importOriginal) => {
   const client = await importOriginal<typeof import("@/lib/ai/client")>();
-  return { ...client, askClaude: async () => ai.answers.shift() };
+  return {
+    ...client,
+    askClaude: async () => {
+      const next = ai.answers.shift();
+      return typeof next === "function" ? next() : next;
+    },
+  };
 });
 
 /** Claude's next answer. */
@@ -310,6 +317,39 @@ describe.skipIf(!testAccountsReady)("quote routes", { timeout: 20_000 }, () => {
     expect((await client.from("quotes").select("reply_text").eq("id", detail.quote.id).single()).data).toEqual({ reply_text: "" });
   });
 
+  test("saving a draft's lines with the same stems and counts keeps its saved reply", async () => {
+    const detail = await completed();
+    await quoteRoute.PATCH(json("PATCH", { replyText: "Hi po! Edited by the florist" }), ctx(detail.quote.id));
+
+    // An autosave of the same recipe, with only a note changed.
+    const [rose, ...rest] = editable(detail);
+    const saved: QuoteDetail = await (await putLines(detail.quote.id, [{ ...rose, note: "Long stems" }, ...rest])).json();
+    expect(saved.quote.replyText).toBe("Hi po! Edited by the florist");
+  });
+
+  test("saving a draft's lines clears its saved reply when the price changes, even with the same stems and counts", async () => {
+    const detail = await completed();
+    await quoteRoute.PATCH(json("PATCH", { replyText: "Hi po! ₱500 po" }), ctx(detail.quote.id));
+    // As if a receipt changed the latest costs since the last save.
+    await client.from("quotes").update({ price: 500 }).eq("id", detail.quote.id);
+
+    const saved: QuoteDetail = await (await putLines(detail.quote.id, editable(detail))).json();
+    expect([saved.quote.price, saved.quote.replyText]).toEqual([detail.quote.price, ""]);
+  });
+
+  test("a reply drafted while the lines change is answered but not saved over the new recipe", async () => {
+    const detail = await completed();
+    const [rose, ...rest] = editable(detail);
+    // The florist edits a count while the draft is still on its way.
+    ai.answers.push(async () => {
+      expect((await putLines(detail.quote.id, [{ ...rose, count: rose.count! + 1 }, ...rest])).status).toBe(200);
+      return { ok: true, result: { message: "Hi po! {price}, valid hanggang {validUntil}.", note: "" }, model: "claude-opus-5-5", seconds: 30, inputTokens: 1500, outputTokens: 400 };
+    });
+    const response = await replyRoute.POST(json("POST"), ctx(detail.quote.id));
+    expect(response.status).toBe(200);
+    expect((await client.from("quotes").select("reply_text").eq("id", detail.quote.id).single()).data).toEqual({ reply_text: "" });
+  });
+
   test("an expired quote's reply cannot be drafted or copied", async () => {
     const { quote } = await completed();
     await copiedRoute.POST(json("POST", { replyText: "Hi po!" }), ctx(quote.id));
@@ -325,6 +365,16 @@ describe.skipIf(!testAccountsReady)("quote routes", { timeout: 20_000 }, () => {
       reply_text: "Hi po!",
     });
     expect((await client.from("ai_calls").select("id").eq("quote_id", quote.id).eq("call", "draftReply")).data).toEqual([]);
+  });
+
+  test("an underwater quote's reply cannot be copied: the price update is its path", async () => {
+    const { quote } = await completed();
+    await copiedRoute.POST(json("POST", { replyText: "Hi po!" }), ctx(quote.id));
+    await client.from("quotes").update({ underwater_at: new Date().toISOString() }).eq("id", quote.id);
+
+    const copied = await copiedRoute.POST(json("POST", { replyText: "Hi po! Again" }), ctx(quote.id));
+    expect([copied.status, await copied.json()]).toEqual([400, { code: "invalid_request", error: "This quote needs a price update" }]);
+    expect((await client.from("quotes").select("reply_text").eq("id", quote.id).single()).data).toEqual({ reply_text: "Hi po!" });
   });
 
   test("a failed reply draft answers 502 ai_failed, keeps the saved text and still logs the call", async () => {
