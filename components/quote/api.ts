@@ -6,6 +6,8 @@ import type { Quote } from "@/lib/types";
 import type {
   ApiError,
   ApiErrorCode,
+  BudgetOptionsRequest,
+  BudgetOptionsResponse,
   CopiedRequest,
   CopiedResponse,
   CreateQuoteRequest,
@@ -84,6 +86,10 @@ export const updateReplyText = (quoteId: string, replyText: string) =>
 /** After copying: the first copy sends the quote (sentAt, validUntil); later copies save the text. */
 export const markCopied = (quoteId: string, replyText: string) =>
   call<CopiedResponse>(quoteUrl(quoteId, "/copied"), json("POST", { replyText } satisfies CopiedRequest));
+
+/** Saves the budget and answers up to 3 cheaper recipes, priced by code. Each call is a new AI call. */
+export const budgetOptions = (quoteId: string, budget: number) =>
+  call<BudgetOptionsResponse>(quoteUrl(quoteId, "/budget-options"), json("POST", { budget } satisfies BudgetOptionsRequest));
 
 export const getShop = () => call<ShopResponse>("/api/shop");
 

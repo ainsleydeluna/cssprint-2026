@@ -76,7 +76,20 @@
     "underwater": "Underwater: hindi na abot ng presyong ito ang minimum margin sa bagong cost.",
     "newPrice": "Bagong presyo: {price}",
     "underwaterBlock": "Huwag munang kopyahin: luma na ang presyo. Mag-draft muna ng price update.",
-    "expired": "Expired na. Gumawa ng bagong quote."
+    "expired": "Expired na. Gumawa ng bagong quote.",
+    "fitToBudget": "I-fit sa budget",
+    "budget": "Budget ng customer (₱)",
+    "budgetNeeded": "Maglagay ng budget na higit sa ₱0.",
+    "findOptions": "Hanapin ang mga option",
+    "fitting": "Naghahanap ng mga option…",
+    "fixLinesFirst": "Ayusin muna ang mga linya.",
+    "chooseHint": "Papalitan ng napili ang lahat ng linya sa itaas.",
+    "noOptions": "Walang nahanap na option. Subukan ulit, o i-edit ang mga linya.",
+    "fitsBudget": "Pasok na sa budget.",
+    "roomLeft": "{price} pa ang puwang.",
+    "closestOnly": "Walang option na pasok sa ₱{budget}. Ito ang pinakamalapit:",
+    "margin": "Margin {n}%",
+    "chooseOption": "Piliin ito"
   },
   "quotes": {
     "title": "Mga quote",
