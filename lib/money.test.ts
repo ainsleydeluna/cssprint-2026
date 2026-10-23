@@ -6,6 +6,7 @@ import {
   isUnderwater,
   latestCost,
   margin,
+  maxRecipeCost,
   prefillCount,
   price,
   receiptLineTotal,
@@ -184,6 +185,55 @@ describe("isUnderwater", () => {
 
   test("is false for a quote with a price of 0", () => {
     expect([isUnderwater(0, 0, shop), isUnderwater(0, 50, shop)]).toEqual([false, false]);
+  });
+});
+
+describe("maxRecipeCost", () => {
+  const shop = { markupPercent: 50, wrapFee: 50, laborFee: 100, minimumMarginPercent: 20 };
+
+  /** The answer by trying every cost, centavo by centavo, from the budget down. */
+  function bruteForce(budget: number, s: typeof shop): number | null {
+    for (let centavos = budget * 100; centavos > 0; centavos--) {
+      const cost = centavos / 100;
+      const p = price(cost, s);
+      if (p <= budget && !isUnderwater(p, cost, s)) return cost;
+    }
+    return null;
+  }
+
+  test("is the highest cost whose price fits the budget: (₱2,000 − ₱150) ÷ 1.5, to the centavo", () => {
+    expect(maxRecipeCost(2000, shop)).toBe(1233.33);
+    expect(price(1233.33, shop)).toBe(2000);
+    expect(price(1233.34, shop)).toBe(2010);
+    expect(bruteForce(2000, shop)).toBe(1233.33);
+  });
+
+  test("a budget between ₱10 steps fits the price below it", () => {
+    expect(maxRecipeCost(2005, shop)).toBe(1233.33);
+  });
+
+  test("a low markup is capped by the minimum margin, not the budget", () => {
+    const thin = { ...shop, markupPercent: 10 };
+    const max = maxRecipeCost(2000, thin);
+    expect(max).toBe(bruteForce(2000, thin));
+    // The budget alone would allow (₱2,000 − ₱150) ÷ 1.1 = ₱1,681.81.
+    expect(max).toBeLessThan(1681.81);
+  });
+
+  test("a markup too low for the minimum margin leaves only a tiny cost, from the ₱10 rounding", () => {
+    // At 10% markup with no fees, only rounding up to ₱10 gives the 20% margin: ₱64 sells for ₱80.
+    const tooLow = { ...shop, markupPercent: 10, wrapFee: 0, laborFee: 0 };
+    expect(maxRecipeCost(2000, tooLow)).toBe(64);
+    expect(bruteForce(2000, tooLow)).toBe(64);
+  });
+
+  test.each([
+    ["the budget is below the fees", 100],
+    ["the budget only covers the fees", 150],
+  ])("is null when %s", (_case, budget) => {
+    const s = shop;
+    expect(maxRecipeCost(budget, s)).toBeNull();
+    expect(bruteForce(budget, s)).toBeNull();
   });
 });
 

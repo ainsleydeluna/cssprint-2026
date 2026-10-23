@@ -141,6 +141,35 @@ export function isUnderwater(
   return margin(price, recipeCostAtLatest) < shop.minimumMarginPercent / 100;
 }
 
+/** Rounds down to centavos, trimming float error first as roundMoney does. */
+function floorMoney(amount: number): Money {
+  return Math.floor(Number((amount * 100).toPrecision(15))) / 100;
+}
+
+/**
+ * The highest recipe cost whose price fits the budget and still meets the
+ * shop's minimum margin; null when none does (the budget is below the fees, or
+ * the markup is too low for the minimum margin at every price that fits).
+ */
+export function maxRecipeCost(
+  budget: Money,
+  shop: Pick<Shop, "markupPercent" | "wrapFee" | "laborFee" | "minimumMarginPercent">,
+): Money | null {
+  const fees = shop.wrapFee + shop.laborFee;
+  // Prices are whole ₱10s. From the highest price within the budget down, take
+  // the highest cost at that price, capped by the minimum margin there. A lower
+  // price never allows a higher cost, so the first that checks out is the answer.
+  for (let level = Math.floor(budget / 10) * 10; level > fees; level -= 10) {
+    const cost = Math.min(
+      floorMoney((level - fees) / (1 + shop.markupPercent / 100)),
+      floorMoney(level * (1 - shop.minimumMarginPercent / 100)),
+    );
+    const at = price(cost, shop);
+    if (cost > 0 && at <= budget && !isUnderwater(at, cost, shop)) return cost;
+  }
+  return null;
+}
+
 /** Count limits from spec decisions 8 and 25. */
 export const COUNT_LIMITS = { stemsPerLine: 100, bunchesPerLine: 5, stemsPerBouquet: 200 } as const;
 
