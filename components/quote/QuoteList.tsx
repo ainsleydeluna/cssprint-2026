@@ -6,11 +6,11 @@ import { useEffect, useState } from "react";
 import { Button, Input } from "@/components/receipt/kit";
 import type { QuoteListItem, QuoteListResponse } from "@/lib/contract";
 import { t } from "@/lib/strings";
-import type { QuoteStatus } from "@/lib/types";
+import type { Quote, QuoteStatus } from "@/lib/types";
 import { ApiFailure, deleteQuote, isUnauthorized, listQuotes, renameQuote } from "./api";
 import { formatDuration } from "./duration";
 import { peso } from "./format";
-import { cleanLabel, underwaterCount } from "./list";
+import { cleanLabel, showsUnderwater, underwaterCount, withoutQuote, withRenamed } from "./list";
 
 const STATUS: Record<QuoteStatus, "statusDraft" | "statusSent" | "statusExpired"> = {
   draft: "statusDraft",
@@ -47,9 +47,12 @@ export function QuoteList() {
   }
 
   const { quotes, averageTimeToQuoteSeconds } = list;
-  const replace = (next: QuoteListItem) => setList({ ...list, quotes: quotes.map((q) => (q.id === next.id ? next : q)) });
+  // Always from the newest list, so answers arriving out of order can't undo each other.
+  const change = (next: (quotes: QuoteListItem[]) => QuoteListItem[]) =>
+    setList((prev) => (prev && typeof prev === "object" ? { ...prev, quotes: next(prev.quotes) } : prev));
+  const replace = (saved: Quote) => change((qs) => withRenamed(qs, saved));
   // The average is the route's; after a delete it is a little stale until the next load.
-  const remove = (id: string) => setList({ ...list, quotes: quotes.filter((q) => q.id !== id) });
+  const remove = (id: string) => change((qs) => withoutQuote(qs, id));
   const underwater = underwaterCount(quotes);
 
   if (quotes.length === 0) {
@@ -82,7 +85,7 @@ export function QuoteList() {
   );
 }
 
-type RowProps = { quote: QuoteListItem; onRenamed: (quote: QuoteListItem) => void; onDeleted: () => void };
+type RowProps = { quote: QuoteListItem; onRenamed: (quote: Quote) => void; onDeleted: () => void };
 
 function QuoteRow({ quote, onRenamed, onDeleted }: RowProps) {
   const router = useRouter();
@@ -112,7 +115,7 @@ function QuoteRow({ quote, onRenamed, onDeleted }: RowProps) {
     run(async () => {
       if (!newLabel) return;
       const saved = await renameQuote(quote.id, newLabel);
-      onRenamed({ ...quote, ...saved });
+      onRenamed(saved);
       setMode("view");
     });
   const remove = () =>
@@ -126,7 +129,7 @@ function QuoteRow({ quote, onRenamed, onDeleted }: RowProps) {
       <Link href={`/quotes/${quote.id}`} className="flex flex-col gap-1 p-3">
         <span className="flex flex-wrap items-center gap-2">
           <span className={`${chip} bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200`}>{t("quotes", STATUS[quote.status])}</span>
-          {quote.underwaterAt !== null && (
+          {showsUnderwater(quote) && (
             <span className={`${chip} bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100`}>{t("quotes", "underwater")}</span>
           )}
         </span>
