@@ -22,9 +22,9 @@ Small florists in Metro Manila who buy stock at Dangwa and sell custom bouquets 
 
 A mobile-first web app. The florist:
 
-1\. Snaps the supplier receipt → Pitas reads it into cost per stem.
+1\. Snaps the supplier receipt → Tangkay reads it into cost per stem.
 
-2\. Uploads the customer's bouquet photo → Pitas reverse-engineers it into a stem-by-stem recipe, priced on today's costs.
+2\. Uploads the customer's bouquet photo → Tangkay reverse-engineers it into a stem-by-stem recipe, priced on today's costs.
 
 3\. Adjusts counts or swaps flowers, fits it to the customer's budget, and copies a ready-to-send Taglish reply.
 
@@ -50,7 +50,7 @@ Next.js, TypeScript, Tailwind, shadcn/ui; Supabase (database, sign-in, storage, 
 
 \## How we'll measure it
 
-Time to quote (manual versus Pitas); accuracy on 20 hand-counted bouquet photos (flower types, counts within ±2 stems, quote total within ±10%); receipt reading accuracy.
+Time to quote (manual versus Tangkay); accuracy on 20 hand-counted bouquet photos (flower types, counts within ±2 stems, quote total within ±10%); receipt reading accuracy.
 
 
 
@@ -68,5 +68,5 @@ Thursday: planning, receipt to cost, photo to quote. Friday: budget fit and repl
 
 \## AI tools used to build
 
-Claude Code (building), Codex (code reviews), Gemini (research and docs). Full credits will be in the README.
+Claude Code (building). Full credits will be in the README.
 

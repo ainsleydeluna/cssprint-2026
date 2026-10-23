@@ -1,10 +1,17 @@
+import Link from "next/link";
+import { ReceiptScan } from "@/components/receipt/ReceiptScan";
+import { t } from "@/lib/strings";
+
 export default function ScanReceiptPage() {
   return (
-    <section>
-      <h1 className="text-2xl font-bold">I-scan ang resibo</h1>
-      <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-        Dito kukunan ng picture ang resibo ng supplier. (Placeholder)
-      </p>
+    <section className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">{t("scan", "title")}</h1>
+        <Link href="/receipts" className="flex min-h-12 shrink-0 items-center font-medium text-green-800 dark:text-green-400">
+          {t("receipts", "link")}
+        </Link>
+      </div>
+      <ReceiptScan />
     </section>
   );
 }
