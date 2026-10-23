@@ -47,11 +47,16 @@ describe.skipIf(!testAccountsReady)("shop and stem routes", () => {
   });
 
   test("PATCH /api/shop changes only the shop settings, ignoring id and ownerId", async () => {
+    // Changes the name, not a fee: other test files price quotes for Shop A at the same time.
     const before = (await (await shopRoute.GET()).json()) as Shop;
-    const wrapFee = before.wrapFee === 50 ? 60 : 50;
-    const response = await shopRoute.PATCH(request("PATCH", { wrapFee, id: crypto.randomUUID(), ownerId: crypto.randomUUID() }));
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ...before, wrapFee });
+    const name = `Test shop ${crypto.randomUUID().slice(0, 8)}`;
+    try {
+      const response = await shopRoute.PATCH(request("PATCH", { name, id: crypto.randomUUID(), ownerId: crypto.randomUUID() }));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ ...before, name });
+    } finally {
+      await shopRoute.PATCH(request("PATCH", { name: before.name }));
+    }
   });
 
   test("GET /api/stems answers the starter list at sample prices", async () => {

@@ -38,8 +38,9 @@ async function call<T>(url: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(url, init);
-  } catch {
-    throw new ApiFailure(null, `Network error: ${url}`);
+  } catch (e) {
+    // Keep the browser's own reason (e.g. "TypeError: Failed to fetch") for the console.
+    throw new ApiFailure(null, `Network error: ${url} (${e})`);
   }
   if (res.ok) return (await res.json()) as T;
   const body = (await res.json().catch(() => null)) as Partial<ApiError> | null;
