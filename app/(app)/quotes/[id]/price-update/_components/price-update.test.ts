@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ApiFailure } from "@/app/(app)/_components/api";
-import { copyMessage, mentionsNewPrice, problemFor, saveDraft, wholePesos } from "./price-update";
+import { copyMessage, leadButton, mentionsNewPrice, problemFor, saveDraft, wholePesos } from "./price-update";
 
 describe("problemFor", () => {
   it("sends a signed-out florist to sign-in", () => {
@@ -79,5 +79,19 @@ describe("copyMessage", () => {
 
   it("says so when the phone refuses the clipboard", async () => {
     expect(await copyMessage(() => Promise.reject(new Error("denied")), "Hi po!")).toBe(false);
+  });
+});
+
+describe("leadButton after saving", () => {
+  it("leads with Kopyahin right after a clean save", () => {
+    expect(leadButton({ stillUnderwater: false, copied: false })).toBe("copy");
+  });
+
+  it("leads with going back once the message is copied", () => {
+    expect(leadButton({ stillUnderwater: false, copied: true })).toBe("back");
+  });
+
+  it("leads with going back when the saved price is still too low, so sending it is not the nudge", () => {
+    expect(leadButton({ stillUnderwater: true, copied: false })).toBe("back");
   });
 });

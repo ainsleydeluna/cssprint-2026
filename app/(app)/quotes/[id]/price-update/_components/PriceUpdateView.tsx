@@ -8,7 +8,7 @@ import { formatDate } from "@/components/receipt/format";
 import { Button } from "@/components/receipt/kit";
 import type { PriceUpdateResponse } from "@/lib/contract";
 import { t } from "@/lib/strings";
-import { copyMessage, problemFor, saveDraft, wholePesos, type Problem } from "./price-update";
+import { copyMessage, leadButton, problemFor, saveDraft, wholePesos, type Problem } from "./price-update";
 
 type Step =
   | { name: "start" }
@@ -160,10 +160,7 @@ export function PriceUpdateView({ id }: { id: string }) {
               {t("priceUpdate", "stillUnderwater")}
             </p>
           )}
-          <Button variant={step.copied ? "secondary" : "primary"} onClick={() => copy(step)}>
-            {t("priceUpdate", "copy")}
-          </Button>
-          {step.copied && (
+          {leadButton(step) === "back" && (
             <Link
               href={`/quotes/${encodeURIComponent(id)}`}
               className="flex min-h-12 items-center justify-center rounded-xl bg-green-800 px-4 font-semibold text-white"
@@ -171,6 +168,9 @@ export function PriceUpdateView({ id }: { id: string }) {
               {t("priceUpdate", "backToQuote")}
             </Link>
           )}
+          <Button variant={leadButton(step) === "copy" ? "primary" : "secondary"} onClick={() => copy(step)}>
+            {t("priceUpdate", "copy")}
+          </Button>
         </>
       )}
 

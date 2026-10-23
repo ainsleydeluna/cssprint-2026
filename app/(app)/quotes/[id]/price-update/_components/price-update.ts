@@ -70,3 +70,11 @@ export async function copyMessage(writeClipboard: (text: string) => Promise<void
     return false;
   }
 }
+
+/**
+ * After saving, which button is the main one. "back" once the message is copied, and
+ * also when the server kept the underwater flag: the saved price is still too low, so
+ * the screen should not nudge the florist to send it.
+ */
+export const leadButton = (saved: { stillUnderwater: boolean; copied: boolean }): "copy" | "back" =>
+  saved.stillUnderwater || saved.copied ? "back" : "copy";
