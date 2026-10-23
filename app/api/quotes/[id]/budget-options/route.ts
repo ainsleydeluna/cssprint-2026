@@ -10,7 +10,9 @@ import { priceBudgetOptions } from "@/lib/server/price-rules";
 import { cannotSend } from "@/lib/server/quote-rules";
 import { readQuote } from "@/lib/server/quotes";
 
-// Saves the budget on the quote, asks fitToBudget for up to 3 cheaper recipes,
+// Saves the budget on the quote. When the recipe's price at latest costs is
+// already within it, answers no options without an AI call. Otherwise asks
+// fitToBudget for up to 3 cheaper recipes,
 // prices each at latest costs and keeps those within budget and minimum margin;
 // when none fit, only the cheapest, with overBudgetBy set. Choosing an option
 // sends its lines to PUT /api/quotes/[id]/lines, replacing every line, so a
@@ -39,6 +41,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/quotes/[id]
   // Every line has a stem and a count (cannotSend above), and stems are never deleted.
   const recipe = detail.lines.map((line) => ({ stem: byId.get(line.stemId!)!, count: line.count! }));
   const currentPrice = price(recipeCost(recipe.map(({ stem, count }) => ({ stemId: stem.id, count, costPerStem: stem.latestCost }))).cost, shop);
+  if (currentPrice <= budget) return Response.json({ options: [], demo: false } satisfies BudgetOptionsResponse);
 
   const outcome = await fitToBudget({ recipe: recipe.map(({ stem, count }) => ({ stem: stem.name, count })), budget, currentPrice, stems });
   await logAiCall(supabase, shop.id, {
