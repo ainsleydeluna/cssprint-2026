@@ -1,11 +1,11 @@
 // fitToBudget: up to 3 versions of the recipe that keep the look and fit the
 // customer's budget (docs/spec.md C5, section 4 "Fit to budget"). The model
-// returns no prices; it gets the most each option's flowers may cost, and the
-// route prices every option with lib/money.ts and drops any over budget or below
-// minimum margin.
+// returns no prices; it gets the most each option's flowers may cost, and an
+// option over it is scaled down here. The route prices every option with
+// lib/money.ts and drops any over budget or below minimum margin.
 
 import type { FitToBudgetResult, StemWithCost } from "../contract";
-import { clampBouquet, clampCount } from "../money";
+import { clampBouquet, clampCount, recipeCost } from "../money";
 import type { Money } from "../types";
 import { askClaude, type AiOutcome, type MessagesApi } from "./client";
 import { countText, findStem, pesos, schema, stemList } from "./shared";
@@ -19,7 +19,7 @@ Keep the look, in this order:
 2. First reduce counts.
 3. Then swap other flowers to cheaper rows of the same color.
 4. Then swap to cheaper fillers.
-An option's flower cost is count × cost, added up over its lines. The request gives the most each option's flowers may cost, and what they cost now. Keep every option at or under that most. Make a spread: one option close to the most the flowers may cost, the others cheaper.
+An option's flower cost is count × cost, added up over its lines. The request gives the most each option's flowers may cost, and what they cost now. Keep every option at or under that most. Before answering, add up count × cost for each option; if an option is over the most, cut it further until it is not. Make a spread: one option close to the most the flowers may cost, the others cheaper.
 
 Each option is a full recipe, using only rows from the shop's list, copied exactly. Flowers are counted in stems, fillers in bunches.
 - label: a short name for the change, such as "Fewer stargazers" or "Carnations instead of white roses".
@@ -60,6 +60,33 @@ function mainFlower(recipe: Array<{ stem: string; count: number }>, stems: Row[]
     }
   }
   return main?.row;
+}
+
+type Line = { stem: string; count: number; note: string };
+
+/** What an option's flowers cost at latest costs. */
+function flowerCost(lines: Line[], stems: Row[]): Money {
+  return recipeCost(lines.map(({ stem, count }) => ({ stemId: stem, count, costPerStem: findStem(stems, stem)!.latestCost }))).cost;
+}
+
+/**
+ * An option over the most its flowers may cost, with every count scaled down by
+ * the same share (rounded down) until it fits. The main flower and any filler
+ * it keeps stay at 1 or more; another flower that rounds down to 0 is dropped.
+ * An option that cannot fit even so comes back as it was, for the route to drop.
+ */
+function underCap(option: { label: string; lines: Line[] }, cap: Money, main: Row | undefined, stems: Row[]) {
+  const total = flowerCost(option.lines, stems);
+  if (total <= cap) return option;
+  for (let share = cap / total; share > 0; share -= 0.01) {
+    const lines = option.lines.flatMap((line) => {
+      const row = findStem(stems, line.stem)!;
+      const count = Math.max(row === main || row.isFiller ? 1 : 0, Math.floor(line.count * share));
+      return count === 0 ? [] : [{ ...line, count }];
+    });
+    if (flowerCost(lines, stems) <= cap) return { ...option, lines };
+  }
+  return option;
 }
 
 export async function fitToBudget(
@@ -106,7 +133,15 @@ export async function fitToBudget(
         isFiller: row!.isFiller,
       })),
     ).map(({ stem, count, note }) => ({ stem, count, note }));
-    return [{ label: option.label, lines }];
+    return [underCap({ label: option.label, lines }, input.maxRecipeCost, main, input.stems)];
   });
-  return { ...outcome, result: { options: options.slice(0, 3), note: outcome.result.note } };
+  // Scaling can make two options the same recipe: keep the first.
+  const seen = new Set<string>();
+  const unique = options.filter((option) => {
+    const recipe = option.lines.map((line) => `${line.stem}:${line.count}`).sort().join(",");
+    if (seen.has(recipe)) return false;
+    seen.add(recipe);
+    return true;
+  });
+  return { ...outcome, result: { options: unique.slice(0, 3), note: outcome.result.note } };
 }
