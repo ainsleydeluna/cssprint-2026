@@ -189,7 +189,7 @@ export function ReceiptScan() {
       />
       <ReceiptTable lines={lines} stems={stems} onChange={setLines} onAddStem={handleAddStem} />
       {/* Main action stays above the bottom bar (5rem + 1px border + home-indicator inset). */}
-      <div className="sticky bottom-[calc(5rem+1px+env(safe-area-inset-bottom))] flex flex-col gap-2 bg-white py-3 dark:bg-zinc-950">
+      <div className="sticky bottom-[calc(5rem+1px+env(safe-area-inset-bottom))] flex flex-col gap-2 bg-background py-3">
         {(blocker || error) && (
           <p role="status" className="text-sm text-red-700 dark:text-red-400">{error ?? blocker}</p>
         )}

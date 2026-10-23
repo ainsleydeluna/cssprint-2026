@@ -165,7 +165,7 @@ export function ReplyPanel({ detail, demo, onBack, onCopied, onText, newPrice }:
       <QuoteLockNotice quoteId={quote.id} lock={lock} newPrice={lock?.kind === "underwater" ? newPrice : null} />
 
       {/* Main actions stay above the bottom bar (5rem + 1px border + home-indicator inset). */}
-      <div className="sticky bottom-[calc(5rem+1px+env(safe-area-inset-bottom))] flex flex-col gap-2 bg-white py-3 dark:bg-zinc-950">
+      <div className="sticky bottom-[calc(5rem+1px+env(safe-area-inset-bottom))] flex flex-col gap-2 bg-background py-3">
         <p role="status" className="text-sm">
           {busy === "copying" && t("quote", "copying")}
           {busy === null && copied && <span className="font-semibold text-green-800 dark:text-green-400">{t("quote", "copied")}</span>}

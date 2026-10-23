@@ -95,7 +95,7 @@ export function ShopForm() {
           />
         ))}
       </div>
-      <div className="sticky bottom-[calc(5rem+1px+env(safe-area-inset-bottom))] flex flex-col gap-2 bg-white py-3 dark:bg-zinc-950">
+      <div className="sticky bottom-[calc(5rem+1px+env(safe-area-inset-bottom))] flex flex-col gap-2 bg-background py-3">
         {status === "saved" && <p role="status" className="text-sm text-green-800 dark:text-green-400">{t("shop", "saved")}</p>}
         {status === "error" && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{t("common", "error")}</p>}
         <Button disabled={invalid || unchanged || status === "saving"} onClick={save}>

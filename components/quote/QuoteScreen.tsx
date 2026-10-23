@@ -134,7 +134,7 @@ function SentLines({ detail, shop, stems, onReply }: SentProps) {
           );
         })}
       </ul>
-      <div className="sticky bottom-[calc(5rem+1px+env(safe-area-inset-bottom))] flex flex-col gap-2 border-t border-zinc-200 bg-white py-3 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="sticky bottom-[calc(5rem+1px+env(safe-area-inset-bottom))] flex flex-col gap-2 border-t border-dashed border-ink/30 bg-background py-3">
         {quote.price !== null && (
           <div className="flex items-baseline justify-between gap-3">
             <span className="font-semibold">{t("quote", "total")}</span>
