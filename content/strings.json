@@ -105,6 +105,24 @@
     "bunch": "Bunch",
     "piece": "Piraso"
   },
+  "receipts": {
+    "title": "Mga resibo",
+    "link": "Mga resibo",
+    "loading": "Kinukuha ang mga resibo…",
+    "empty": "Wala pang na-save na resibo.",
+    "scanFirst": "I-scan ang resibo",
+    "lines": "{n} linya",
+    "back": "← Mga resibo",
+    "notFound": "Hindi makita ang resibong ito.",
+    "readOnly": "Hindi na mae-edit ang na-save na resibo. Para ayusin, burahin ito at i-scan ulit.",
+    "delete": "Burahin ang resibo",
+    "confirmTitle": "Burahin ang resibong ito?",
+    "confirmBody": "Mabubura rin ang photo nito at lahat ng linya nito. Babalik ang cost ng mga stem sa naunang resibo, o sa sample price kung wala.",
+    "confirmYes": "Oo, burahin",
+    "deleting": "Binubura…",
+    "deleted": "Nabura na ang resibo, kasama ang photo at mga linya nito.",
+    "alreadyGone": "Wala na ang resibong ito. Baka nabura na."
+  },
   "shop": {
     "title": "Setup ng shop",
     "wrapFee": "Wrap fee",

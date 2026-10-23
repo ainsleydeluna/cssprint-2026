@@ -11,6 +11,7 @@ import {
 } from "@/lib/contract";
 import { t } from "@/lib/strings";
 import { addStem, extractReceipt, isUnauthorized, listStems, saveReceipt, uploadPhoto } from "./api";
+import { peso } from "./format";
 import { Button, Input, Row } from "./kit";
 import { type DraftLine, hasEdits, saveBlocker, toInput } from "./lines";
 import { PhotoPicker } from "./PhotoPicker";
@@ -29,8 +30,6 @@ type State =
       read: { lineCount: number; purchaseDate: string };
     }
   | { step: "saved"; result: SaveReceiptResponse };
-
-const peso = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
 function toDraft(line: ReceiptDraftLine, i: number): DraftLine {
   return {
