@@ -56,3 +56,9 @@ export function formatDuration(totalSeconds: number): string {
       : [t("quote", "seconds", { n: seconds })];
   return parts.filter((p) => p !== null).join(" ");
 }
+
+/**
+ * True once the florist changed the reply from the text the server last gave (the draft,
+ * or the saved text). "Gumawa ulit" then asks first, since a new draft replaces it.
+ */
+export const replyEdited = (message: string, serverText: string) => message !== serverText;

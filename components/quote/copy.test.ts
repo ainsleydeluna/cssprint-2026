@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { t } from "@/lib/strings";
 import type { Quote } from "@/lib/types";
-import { copyBlocker, copyReply, formatDuration } from "./copy";
+import { copyBlocker, copyReply, formatDuration, replyEdited } from "./copy";
 
 const line = (stemId: string | null, count: number | null) => ({ stemId, count });
 
@@ -65,5 +65,19 @@ describe("formatDuration (time-to-quote)", () => {
     expect(formatDuration(120)).toBe(t("quote", "minutes", { n: 2 }));
     expect(formatDuration(252)).toBe(`${t("quote", "minutes", { n: 4 })} ${t("quote", "seconds", { n: 12 })}`);
     expect(formatDuration(3900)).toBe(`${t("quote", "hours", { n: 1 })} ${t("quote", "minutes", { n: 5 })}`);
+  });
+});
+
+describe("replyEdited (ask before \"Gumawa ulit\" replaces the text)", () => {
+  it("is false while the text is exactly what the server last gave", () => {
+    expect(replyEdited("Hi po! ₱3,780", "Hi po! ₱3,780")).toBe(false);
+    expect(replyEdited("", "")).toBe(false);
+  });
+  it("is true once the florist changed the text", () => {
+    expect(replyEdited("Hi po! ₱3,780 lang", "Hi po! ₱3,780")).toBe(true);
+    expect(replyEdited("", "Hi po!")).toBe(true);
+  });
+  it("is true for text typed after a failed draft left nothing", () => {
+    expect(replyEdited("Hello po", "")).toBe(true);
   });
 });

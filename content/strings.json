@@ -66,6 +66,8 @@
     "drafting": "Ginagawa ang reply…",
     "reply": "Reply sa customer",
     "regenerate": "Gumawa ulit",
+    "regenerateConfirmTitle": "Palitan ang binago mong reply?",
+    "regenerateConfirmBody": "Mawawala ang mga binago mo sa text, at gagawa ng bagong reply.",
     "copying": "Kinokopya…",
     "clipboardFailed": "Hindi nakopya. Pindutin nang matagal ang text para kopyahin ito.",
     "notSaved": "Nakopya ang reply, pero hindi na-save na naipadala.",

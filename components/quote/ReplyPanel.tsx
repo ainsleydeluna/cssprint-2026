@@ -8,7 +8,7 @@ import { timeToQuoteSeconds } from "@/lib/server/quote-rules";
 import { t } from "@/lib/strings";
 import type { Quote } from "@/lib/types";
 import { ApiFailure, draftReply, isUnauthorized, markCopied } from "./api";
-import { copyBlocker, copyReply, formatDuration } from "./copy";
+import { copyBlocker, copyReply, formatDuration, replyEdited } from "./copy";
 
 type Props = {
   detail: QuoteDetail;
@@ -25,11 +25,14 @@ export function ReplyPanel({ detail, demo, onBack, onCopied }: Props) {
   const { quote, lines } = detail;
   // A draft quote keeps its last drafted text; a sent quote keeps what was copied.
   const [message, setMessage] = useState(quote.replyText);
+  // The text the server last gave, to tell whether the florist has edited the message.
+  const [serverText, setServerText] = useState(quote.replyText);
+  const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
   const [draftDemo, setDraftDemo] = useState(false);
   const [busy, setBusy] = useState<"drafting" | "copying" | null>(quote.replyText ? null : "drafting");
   const [problem, setProblem] = useState<Problem | null>(null);
   const [copied, setCopied] = useState(false);
-  const drafted = useRef(false);
+  const started = useRef(false);
 
   function fail(e: unknown, fallback: Problem) {
     if (isUnauthorized(e)) return router.push("/sign-in");
@@ -42,6 +45,7 @@ export function ReplyPanel({ detail, demo, onBack, onCopied }: Props) {
     try {
       const reply = await draftReply(quote.id);
       setMessage(reply.message);
+      setServerText(reply.message);
       setDraftDemo(reply.demo);
     } catch (e) {
       // ai_failed and anything else: the general error with "Subukan ulit".
@@ -53,14 +57,15 @@ export function ReplyPanel({ detail, demo, onBack, onCopied }: Props) {
 
   // No text yet: draft one on opening. The ref keeps React's dev double-run from drafting twice.
   useEffect(() => {
-    if (drafted.current || quote.replyText) return;
-    drafted.current = true;
+    if (started.current || quote.replyText) return;
+    started.current = true;
     void fetchDraft();
     // Only on opening; fetchDraft reads the quote id, which never changes here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function regenerate() {
+    setConfirmingRegenerate(false);
     setBusy("drafting");
     setProblem(null);
     setCopied(false);
@@ -77,6 +82,7 @@ export function ReplyPanel({ detail, demo, onBack, onCopied }: Props) {
     setBusy(null);
     if (result.ok) {
       setCopied(true);
+      setServerText(result.quote.replyText);
       onCopied(result.quote);
     } else if (result.failed === "clipboard") setProblem("clipboard");
     else fail(result.error, "notSaved");
@@ -140,8 +146,23 @@ export function ReplyPanel({ detail, demo, onBack, onCopied }: Props) {
             )}
           </div>
         )}
+        {confirmingRegenerate && (
+          <div role="alertdialog" aria-labelledby="regenerate-title" className="flex flex-col gap-3 rounded-xl border border-red-300 p-3 dark:border-red-800">
+            <p id="regenerate-title" className="font-semibold">{t("quote", "regenerateConfirmTitle")}</p>
+            <p className="text-sm">{t("quote", "regenerateConfirmBody")}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="danger" onClick={regenerate}>{t("quote", "regenerate")}</Button>
+              <Button variant="secondary" onClick={() => setConfirmingRegenerate(false)}>{t("common", "cancel")}</Button>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="secondary" disabled={busy !== null} onClick={regenerate}>
+          <Button
+            variant="secondary"
+            disabled={busy !== null || confirmingRegenerate}
+            // Ask first only when a new draft would throw away the florist's edits.
+            onClick={() => (replyEdited(message, serverText) ? setConfirmingRegenerate(true) : regenerate())}
+          >
             {t("quote", "regenerate")}
           </Button>
           <Button disabled={busy !== null || !!blocker || !message.trim()} onClick={copy}>
