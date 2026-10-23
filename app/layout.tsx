@@ -20,9 +20,7 @@ export const metadata: Metadata = {
     title: "Tangkay",
     statusBarStyle: "black-translucent",
   },
-  icons: {
-    apple: [{ url: "/icon/192", sizes: "192x192", type: "image/png" }],
-  },
+  // Icons: app/icon.png and app/apple-icon.png (the logo, padded); the manifest's are in public/icons.
 };
 
 export const viewport: Viewport = {
