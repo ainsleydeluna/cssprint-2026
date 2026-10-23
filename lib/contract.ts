@@ -32,6 +32,12 @@ export type AnalyzeBouquetResult = {
     confidence: Confidence;
     /** From allowedStems when stem is "Other". */
     closestStem: string | null;
+    /**
+     * True when the photo's color of this flower has no row of its own and the
+     * AI picked the flower's row with the closest color. False otherwise, and
+     * for "Other".
+     */
+    closestColor: boolean;
     note: string;
   }>;
   note: string;

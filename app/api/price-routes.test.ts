@@ -62,9 +62,9 @@ function expectedPrice(recipe: number): number {
 /** 12 red roses, 6 pink carnations and 2 bunches of baby's breath: every line complete. */
 const bouquet = {
   lines: [
-    { stem: "Rose - red", color: "red", countLow: 12, countHigh: 12, confidence: "high", closestStem: null, note: "" },
-    { stem: "Carnation - pink", color: "pink", countLow: 6, countHigh: 6, confidence: "high", closestStem: null, note: "" },
-    { stem: "Baby's breath - white", color: "white", countLow: 2, countHigh: 2, confidence: "high", closestStem: null, note: "" },
+    { stem: "Rose - red", color: "red", countLow: 12, countHigh: 12, confidence: "high", closestStem: null, closestColor: false, note: "" },
+    { stem: "Carnation - pink", color: "pink", countLow: 6, countHigh: 6, confidence: "high", closestStem: null, closestColor: false, note: "" },
+    { stem: "Baby's breath - white", color: "white", countLow: 2, countHigh: 2, confidence: "high", closestStem: null, closestColor: false, note: "" },
   ],
   note: "",
 };
