@@ -5,9 +5,13 @@
 import type {
   ApiError,
   ApiErrorCode,
+  CopiedRequest,
+  CopiedResponse,
   CreateQuoteRequest,
   CreateQuoteResponse,
+  DraftReplyResponse,
   PhotoKind,
+  QuoteResponse,
   ShopResponse,
   StemListResponse,
   UpdateQuoteLinesRequest,
@@ -24,6 +28,9 @@ export class ApiFailure extends Error {
     super(message);
   }
 }
+
+/** The session ended: send the florist to /sign-in. */
+export const isUnauthorized = (e: unknown) => e instanceof ApiFailure && e.code === "unauthorized";
 
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
   let res: Response;
@@ -51,9 +58,27 @@ export function uploadPhoto(photo: File, kind: PhotoKind) {
   return call<UploadPhotoResponse>("/api/photos", { method: "POST", body: form });
 }
 
+// GET /api/quotes/[id] has no demo flag, so remember which quotes this tab created in demo mode.
+const demoQuoteIds = new Set<string>();
+export const createdInDemo = (quoteId: string) => demoQuoteIds.has(quoteId);
+
 /** Runs analyzeBouquet on the photo and saves a draft quote. */
 export const createQuote = (photoPath: string) =>
-  call<CreateQuoteResponse>("/api/quotes", json("POST", { photoPath } satisfies CreateQuoteRequest));
+  call<CreateQuoteResponse>("/api/quotes", json("POST", { photoPath } satisfies CreateQuoteRequest)).then((created) => {
+    if (created.demo) demoQuoteIds.add(created.quote.id);
+    return created;
+  });
+
+const quoteUrl = (quoteId: string, rest = "") => `/api/quotes/${encodeURIComponent(quoteId)}${rest}`;
+
+export const getQuote = (quoteId: string) => call<QuoteResponse>(quoteUrl(quoteId));
+
+/** Drafts the reply from the saved lines (a draft quote keeps the text). Each call is a new AI call. */
+export const draftReply = (quoteId: string) => call<DraftReplyResponse>(quoteUrl(quoteId, "/reply"), { method: "POST" });
+
+/** After copying: the first copy sends the quote (sentAt, validUntil); later copies save the text. */
+export const markCopied = (quoteId: string, replyText: string) =>
+  call<CopiedResponse>(quoteUrl(quoteId, "/copied"), json("POST", { replyText } satisfies CopiedRequest));
 
 export const getShop = () => call<ShopResponse>("/api/shop");
 
@@ -62,4 +87,4 @@ export const listStems = () => call<StemListResponse>("/api/stems").then((r) => 
 
 /** Replaces the whole recipe; the server reprices it. Lines without an id are new. */
 export const updateLines = (quoteId: string, req: UpdateQuoteLinesRequest) =>
-  call<UpdateQuoteLinesResponse>(`/api/quotes/${encodeURIComponent(quoteId)}/lines`, json("PUT", req));
+  call<UpdateQuoteLinesResponse>(quoteUrl(quoteId, "/lines"), json("PUT", req));
