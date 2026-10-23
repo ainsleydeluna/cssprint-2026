@@ -38,6 +38,21 @@ describe("extractReceipt", () => {
     expect(JSON.stringify(content)).toContain("Baby's breath - white");
   });
 
+  test("asks for no stem when the color is not written and the flower has more than one color", async () => {
+    const { request } = await extract({ purchaseDate: null, lines: [], note: "" });
+
+    expect(request.system).toContain("When the line does not write the color and the list has more than one color of that flower");
+  });
+
+  test("asks for notes in short, simple Taglish that never mention the allowed list", async () => {
+    const { request } = await extract({ purchaseDate: null, lines: [], note: "" });
+
+    expect(request.system).toContain("short, simple Taglish");
+    expect(request.system).toContain("Hindi nakasulat ang kulay");
+    expect(request.system).toContain("Wala sa listahan mo");
+    expect(request.system).toContain('Never write "allowed list"');
+  });
+
   test("matches a row name ignoring capital letters and returns the shop's spelling", async () => {
     const { outcome } = await extract({ purchaseDate: "2026-10-22", lines: [line({ stem: "rose - RED" })], note: "" });
 
