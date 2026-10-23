@@ -12,7 +12,7 @@ const stems = pricedStems([
 ]);
 
 function line(stem: string, countLow: number, countHigh: number, closestStem: string | null = null) {
-  return { stem, color: "", countLow, countHigh, confidence: "high" as const, closestStem, note: "" };
+  return { stem, color: "", countLow, countHigh, confidence: "high" as const, closestStem, closestColor: false, note: "" };
 }
 
 function bouquet(lines: AnalyzeBouquetResult["lines"], seconds = 8): AiOutcome<AnalyzeBouquetResult> {

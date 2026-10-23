@@ -129,6 +129,7 @@ function fakeAnswer(job: Job): AnalyzeBouquetResult | ExtractReceiptResult {
       countHigh: line.count + 1,
       confidence: "high" as const,
       closestStem: line.closestStem,
+      closestColor: false,
       note: "",
     }));
     return { lines, note: "Dry run" };
