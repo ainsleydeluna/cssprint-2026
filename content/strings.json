@@ -39,7 +39,11 @@
     "copyReply": "Kopyahin ang reply",
     "copied": "Nakopya na",
     "overBudgetBy": "Over budget by ₱{amount}",
-    "draftPriceUpdate": "Draft price update"
+    "draftPriceUpdate": "Draft price update",
+    "underwater": "Kulang na sa margin sa bagong puhunan",
+    "newPrice": "Bagong presyo",
+    "underwaterBlock": "Tumaas ang puhunan kaya kulang na sa minimum margin. I-update muna ang presyo bago i-send.",
+    "expired": "Expired na ang quote na ito."
   },
   "quotes": {
     "title": "Mga quote",
