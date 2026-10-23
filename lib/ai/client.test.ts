@@ -37,6 +37,7 @@ describe("askClaude", () => {
 
     await askClaude("extractReceipt", request, api);
     await askClaude("analyzeBouquet", request, api);
+    await askClaude("analyzeBouquet", { ...request, model: "claude-opus-5-5" }, api);
 
     expect(requests[0]).toMatchObject({
       model: "claude-sonnet-5-5",
@@ -45,8 +46,11 @@ describe("askClaude", () => {
       system: "Read the receipt.",
       messages: [{ role: "user", content: "hello" }],
     });
-    expect(requests[1]).toMatchObject({ model: "claude-opus-5-5", output_config: { effort: "low" } });
-    expect(requests[1]).not.toHaveProperty("thinking");
+    // analyzeBouquet is on Sonnet 5.5 since the bake-off.
+    expect(requests[1]).toMatchObject({ model: "claude-sonnet-5-5", thinking: { type: "between_tools" }, output_config: { effort: "low" } });
+    // Opus sends no thinking field: it rejects every way of turning thinking off.
+    expect(requests[2]).toMatchObject({ model: "claude-opus-5-5", output_config: { effort: "low" } });
+    expect(requests[2]).not.toHaveProperty("thinking");
   });
 
   test("asks one model only, with no fallback, and logs the configured model", async () => {
@@ -136,7 +140,7 @@ describe("askClaude", () => {
     expect(await askClaude("analyzeBouquet", request, api)).toMatchObject({
       ok: false,
       error: "Claude API error 500",
-      model: "claude-opus-5-5",
+      model: "claude-sonnet-5-5",
       inputTokens: 0,
       outputTokens: 0,
     });
