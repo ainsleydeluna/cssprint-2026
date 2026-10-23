@@ -1,0 +1,56 @@
+[
+  {
+    "model": "claude-haiku-5-5",
+    "photoPx": 1280,
+    "stemRowAccuracy": 0.5636363636363636,
+    "countsWithin2": 0.5897435897435898,
+    "totalsWithin10Percent": 0.15,
+    "receiptLineAccuracy": 0.8888888888888888,
+    "medianSeconds": 2.624
+  },
+  {
+    "model": "claude-haiku-5-5",
+    "photoPx": 1600,
+    "stemRowAccuracy": 0.5344827586206896,
+    "countsWithin2": 0.6410256410256411,
+    "totalsWithin10Percent": 0.2,
+    "receiptLineAccuracy": 0.8703703703703703,
+    "medianSeconds": 2.5765000000000002
+  },
+  {
+    "model": "claude-sonnet-5-5",
+    "photoPx": 1280,
+    "stemRowAccuracy": 0.625,
+    "countsWithin2": 0.5384615384615384,
+    "totalsWithin10Percent": 0.25,
+    "receiptLineAccuracy": 1,
+    "medianSeconds": 3.9370000000000003
+  },
+  {
+    "model": "claude-sonnet-5-5",
+    "photoPx": 1600,
+    "stemRowAccuracy": 0.5961538461538461,
+    "countsWithin2": 0.5384615384615384,
+    "totalsWithin10Percent": 0.2,
+    "receiptLineAccuracy": 0.9727272727272728,
+    "medianSeconds": 4.3100000000000005
+  },
+  {
+    "model": "claude-opus-5-5",
+    "photoPx": 1280,
+    "stemRowAccuracy": 0.6153846153846154,
+    "countsWithin2": 0.46153846153846156,
+    "totalsWithin10Percent": 0.15,
+    "receiptLineAccuracy": 0.9814814814814815,
+    "medianSeconds": 4.191000000000001
+  },
+  {
+    "model": "claude-opus-5-5",
+    "photoPx": 1600,
+    "stemRowAccuracy": 0.5555555555555556,
+    "countsWithin2": 0.48717948717948717,
+    "totalsWithin10Percent": 0.15,
+    "receiptLineAccuracy": 0.9722222222222222,
+    "medianSeconds": 4.134
+  }
+]
