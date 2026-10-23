@@ -5,10 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button, Row } from "@/components/receipt/kit";
 import { type QuoteDetail, type StemWithCost, stemName } from "@/lib/contract";
+import { manilaToday } from "@/lib/server/quote-rules";
 import { t } from "@/lib/strings";
 import type { Quote, Shop } from "@/lib/types";
 import { ApiFailure, createdInDemo, getQuote, getShop, isUnauthorized, listStems } from "./api";
+import { quoteLock } from "./copy";
 import { peso } from "./format";
+import { priceAtLatest } from "./price";
+import { QuoteLockNotice } from "./QuoteLockNotice";
 import { QuoteEditor } from "./QuoteEditor";
 import type { EditLine } from "./QuoteLineRow";
 import { ReplyPanel } from "./ReplyPanel";
@@ -53,16 +57,27 @@ export function QuoteScreen({ id }: { id: string }) {
   }
 
   const { detail, shop, stems } = loaded;
-  const setQuote = (quote: Quote) => setLoaded({ ...loaded, detail: { ...detail, quote } });
+  // Always from the newest state: a save answering late must not undo a newer change.
+  const update = (change: (detail: QuoteDetail) => QuoteDetail) =>
+    setLoaded((prev) => (prev && typeof prev === "object" ? { ...prev, detail: change(prev.detail) } : prev));
+  const setQuote = (quote: Quote) => update((d) => ({ ...d, quote }));
+  // The reply text as the florist left it, so coming back shows it without a new AI draft.
+  const setReplyText = (replyText: string) => update((d) => ({ ...d, quote: { ...d.quote, replyText } }));
   // The editor's saved lines, so going back to them from the reply keeps every edit.
   const keepLines = (lines: EditLine[]) =>
-    setLoaded({
-      ...loaded,
-      detail: { ...detail, lines: lines.map(({ key, ...l }) => ({ ...l, id: l.id ?? key, quoteId: id, shopId: detail.quote.shopId })) },
-    });
+    update((d) => ({ ...d, lines: lines.map(({ key, ...l }) => ({ ...l, id: l.id ?? key, quoteId: id, shopId: d.quote.shopId })) }));
 
   if (step === "reply") {
-    return <ReplyPanel detail={detail} demo={demo} onBack={() => setStep("lines")} onCopied={setQuote} />;
+    return (
+      <ReplyPanel
+        detail={detail}
+        demo={demo}
+        newPrice={priceAtLatest(detail.lines, stems, shop)}
+        onBack={() => setStep("lines")}
+        onCopied={setQuote}
+        onText={setReplyText}
+      />
+    );
   }
 
   return (
@@ -80,16 +95,19 @@ export function QuoteScreen({ id }: { id: string }) {
           }}
         />
       ) : (
-        <SentLines detail={detail} stems={stems} onReply={() => setStep("reply")} />
+        <SentLines detail={detail} shop={shop} stems={stems} onReply={() => setStep("reply")} />
       )}
     </div>
   );
 }
 
+type SentProps = { detail: QuoteDetail; shop: Shop; stems: StemWithCost[]; onReply: () => void };
+
 /** A sent or expired quote: the customer has its price, so its lines no longer change. */
-function SentLines({ detail, stems, onReply }: { detail: QuoteDetail; stems: StemWithCost[]; onReply: () => void }) {
+function SentLines({ detail, shop, stems, onReply }: SentProps) {
   const { quote, lines } = detail;
   const byId = new Map(stems.map((s) => [s.id, s]));
+  const lock = quoteLock(quote, manilaToday(new Date()));
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
@@ -99,6 +117,7 @@ function SentLines({ detail, stems, onReply }: { detail: QuoteDetail; stems: Ste
         </span>
       </div>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">{t("quote", "readOnly")}</p>
+      <QuoteLockNotice quoteId={quote.id} lock={lock} newPrice={lock && !lock.draftToo ? priceAtLatest(lines, stems, shop) : null} />
       <ul className="flex flex-col gap-2">
         {lines.map((line) => {
           const stem = line.stemId ? byId.get(line.stemId) : undefined;

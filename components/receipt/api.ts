@@ -5,9 +5,11 @@ import type {
   AddStemResponse,
   ApiError,
   ApiErrorCode,
+  DeleteReceiptResponse,
   ExtractReceiptRequest,
   ExtractReceiptResponse,
   PhotoKind,
+  ReceiptListResponse,
   SaveReceiptRequest,
   SaveReceiptResponse,
   StemListResponse,
@@ -67,3 +69,10 @@ export const listStems = () => call<StemListResponse>("/api/stems").then((r) => 
 export const addStem = (req: AddStemRequest) => call<AddStemResponse>("/api/stems", json("POST", req));
 
 export const saveReceipt = (req: SaveReceiptRequest) => call<SaveReceiptResponse>("/api/receipts", json("POST", req));
+
+/** Newest purchase date first. There is no single-receipt route, so a receipt's screen reads this list. */
+export const listReceipts = () => call<ReceiptListResponse>("/api/receipts").then((r) => r.receipts);
+
+/** Also deletes the photo and batches. Throws ApiFailure "not_found" when it is already gone. */
+export const deleteReceipt = (id: string) =>
+  call<DeleteReceiptResponse>(`/api/receipts/${encodeURIComponent(id)}`, { method: "DELETE" });

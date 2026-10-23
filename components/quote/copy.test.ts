@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { t } from "@/lib/strings";
 import type { Quote } from "@/lib/types";
-import { copyBlocker, copyReply, replyEdited } from "./copy";
+import { copyBlocker, copyReply, quoteLock, replyEdited } from "./copy";
 
 const line = (stemId: string | null, count: number | null) => ({ stemId, count });
 
@@ -69,5 +69,27 @@ describe("replyEdited (ask before \"Gumawa ulit\" replaces the text)", () => {
   });
   it("is true for text typed after a failed draft left nothing", () => {
     expect(replyEdited("Hello po", "")).toBe(true);
+  });
+});
+
+describe("quoteLock (what a sent quote's state blocks)", () => {
+  const today = "2026-10-23";
+  const q = (patch: Partial<Quote>) => ({ status: "sent", validUntil: "2026-10-25", underwaterAt: null, ...patch }) as Quote;
+
+  it("blocks nothing on a draft or an open sent quote", () => {
+    expect(quoteLock(q({ status: "draft", validUntil: null }), today)).toBeNull();
+    expect(quoteLock(q({}), today)).toBeNull();
+  });
+  it("blocks Copy, but not Draft, on an underwater quote", () => {
+    expect(quoteLock(q({ underwaterAt: "2026-10-23T01:00:00Z" }), today)).toEqual({
+      reason: t("quote", "underwaterBlock"),
+      draftToo: false,
+    });
+  });
+  it("blocks Draft and Copy on an expired quote, even one the page still shows as sent", () => {
+    const expired = { reason: t("quote", "expired"), draftToo: true };
+    expect(quoteLock(q({ status: "expired" }), today)).toEqual(expired);
+    expect(quoteLock(q({ validUntil: "2026-10-22" }), today)).toEqual(expired);
+    expect(quoteLock(q({ status: "expired", underwaterAt: "2026-10-20T01:00:00Z" }), today)).toEqual(expired);
   });
 });
