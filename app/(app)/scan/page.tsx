@@ -7,7 +7,7 @@ export default function ScanReceiptPage() {
     <section className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{t("scan", "title")}</h1>
-        <Link href="/receipts" className="flex min-h-12 shrink-0 items-center font-medium text-green-800 dark:text-green-400">
+        <Link href="/receipts" className="btn btn-secondary shrink-0">
           {t("receipts", "link")}
         </Link>
       </div>

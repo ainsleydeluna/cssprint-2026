@@ -39,7 +39,7 @@ export function QuoteScreen({ id }: { id: string }) {
   }, [id, attempt, router]);
 
   const header = (
-    <Link href="/quotes" className="flex min-h-12 items-center self-start font-medium text-green-800 dark:text-green-400">
+    <Link href="/quotes" className="btn btn-secondary self-start">
       {t("quote", "back")}
     </Link>
   );

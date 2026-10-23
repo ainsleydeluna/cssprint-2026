@@ -1,12 +1,13 @@
 // Temporary building blocks for Pat's screens until Ian's components/ui (#13) lands.
 // Swapping to components/ui means changing the imports of this one file.
 // Shared by the receipt and shop branches as one commit: don't edit it on just one branch.
+// Look comes from the theme classes in app/globals.css (btn, field-unsure).
 import type { ComponentProps, ReactNode } from "react";
 
 const buttonStyles = {
-  primary: "bg-green-800 text-white",
-  secondary: "border border-zinc-300 dark:border-zinc-700",
-  danger: "border border-red-300 text-red-700 dark:border-red-800 dark:text-red-400",
+  primary: "btn-primary",     // Sage Mist: main action
+  secondary: "btn-secondary", // Mint Frost: other actions
+  danger: "btn-danger",       // Blush Sky with red text: delete, remove, regenerate
 };
 
 export function Button({
@@ -18,23 +19,23 @@ export function Button({
     <button
       type="button"
       {...props}
-      className={`min-h-12 rounded-xl px-4 font-semibold disabled:opacity-50 ${buttonStyles[variant]} ${className}`}
+      className={`btn min-h-12 ${buttonStyles[variant]} ${className}`}
     />
   );
 }
 
 // text-base (16px) stops iPhones zooming in when a field is focused.
 const fieldStyles =
-  "min-h-12 w-full min-w-0 rounded-xl border border-zinc-300 bg-white px-3 text-base dark:border-zinc-700 dark:bg-zinc-950";
+  "min-h-12 w-full min-w-0 rounded-xl border-2 border-ink/60 bg-white px-3 text-base text-ink focus:border-ink focus:outline-3 focus:outline-offset-2 focus:outline-ink";
 
 type FieldProps = { label: string; hint?: string };
 
 function Field({ label, hint, children }: FieldProps & { children: ReactNode }) {
   return (
     <label className="flex min-w-0 flex-col gap-1 text-sm">
-      <span className="font-medium">{label}</span>
+      <span className="font-semibold">{label}</span>
       {children}
-      {hint && <span className="text-zinc-500 dark:text-zinc-400">{hint}</span>}
+      {hint && <span className="text-muted-foreground">{hint}</span>}
     </label>
   );
 }
@@ -55,16 +56,20 @@ export function Select({ label, hint, className = "", ...props }: ComponentProps
   );
 }
 
-/** One item in a list. `highlight` marks a line that needs the florist's attention. */
-export function Row({ highlight = false, children }: { highlight?: boolean; children: ReactNode }) {
+/** "blocking": the line stops saving or copying. "unsure": the AI wasn't sure ("Hindi sigurado"). */
+export type RowTone = "blocking" | "unsure" | null;
+
+const rowTones = {
+  // The error style (alert-error): soft pink, red text, red left edge.
+  blocking: "alert-error font-medium",
+  // Lavender Dusk, clearly not an error.
+  unsure: "field-unsure border-2 border-ink",
+};
+
+/** One item in a list, coloured by `tone` when the line needs the florist's attention. */
+export function Row({ tone = null, children }: { tone?: RowTone; children: ReactNode }) {
   return (
-    <li
-      className={`flex flex-col gap-3 rounded-xl border p-3 ${
-        highlight
-          ? "border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950"
-          : "border-zinc-200 dark:border-zinc-800"
-      }`}
-    >
+    <li className={`flex flex-col gap-3 rounded-xl p-3 ${tone ? rowTones[tone] : "border border-border bg-white/70"}`}>
       {children}
     </li>
   );

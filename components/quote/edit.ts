@@ -1,6 +1,7 @@
 // How a florist's edit changes the recipe, and the recipe the lines route is sent. Pure: edit.test.ts.
 import type { UpdateQuoteLinesRequest, UpdateQuoteLinesResponse } from "@/lib/contract";
 import type { Quote } from "@/lib/types";
+import type { RowTone } from "@/components/receipt/kit";
 import type { EditLine } from "./QuoteLineRow";
 
 /**
@@ -9,6 +10,13 @@ import type { EditLine } from "./QuoteLineRow";
  */
 export const editLine = (lines: EditLine[], key: string, patch: Partial<EditLine>): EditLine[] =>
   lines.map((l) => (l.key === key ? { ...l, ...patch, confidence: "high" } : l));
+
+/**
+ * A line's row colour: "blocking" for a "pick a flower" line or a blank count, which keep
+ * the reply from being copied (copy.ts copyBlocker); else "unsure" while the AI wasn't sure.
+ */
+export const lineTone = (line: Pick<EditLine, "stemId" | "count" | "confidence">): RowTone =>
+  line.stemId === null || line.count === null ? "blocking" : line.confidence !== "high" ? "unsure" : null;
 
 /** The whole recipe for PUT /api/quotes/[id]/lines; new lines have no id yet. */
 export const toRequest = (lines: EditLine[]): UpdateQuoteLinesRequest => ({

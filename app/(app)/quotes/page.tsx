@@ -8,7 +8,7 @@ export default function QuotesPage() {
       {/* Keep this link: it is the way into shop setup. */}
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{t("quotes", "title")}</h1>
-        <Link href="/shop" className="flex min-h-12 shrink-0 items-center font-medium text-green-800 dark:text-green-400">
+        <Link href="/shop" className="btn btn-secondary shrink-0">
           {t("shop", "link")}
         </Link>
       </div>

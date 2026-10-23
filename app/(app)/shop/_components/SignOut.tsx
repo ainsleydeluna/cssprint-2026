@@ -12,18 +12,18 @@ export function SignOut() {
   const details = useRef<HTMLDetailsElement>(null);
   return (
     <details ref={details} className="group mt-8">
-      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-center rounded-xl border border-zinc-300 px-4 font-semibold group-open:hidden dark:border-zinc-700 [&::-webkit-details-marker]:hidden">
+      <summary className="btn btn-secondary w-full cursor-pointer list-none group-open:hidden [&::-webkit-details-marker]:hidden">
         {t("shop", "signOut")}
       </summary>
       <form action="/auth/sign-out" method="post" className="flex flex-col gap-3">
         <p className="text-lg font-semibold">{t("shop", "signOutConfirm")}</p>
-        <button type="submit" className="min-h-12 rounded-xl bg-red-700 px-4 font-semibold text-white">
+        <button type="submit" className="btn btn-danger w-full">
           {t("shop", "signOutYes")}
         </button>
         <button
           type="button"
           onClick={() => details.current?.removeAttribute("open")}
-          className="min-h-12 rounded-xl border border-zinc-300 px-4 font-semibold dark:border-zinc-700"
+          className="btn btn-secondary w-full"
         >
           {t("shop", "signOutNo")}
         </button>

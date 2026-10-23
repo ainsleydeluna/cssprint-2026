@@ -10,8 +10,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#ffffff",
-    theme_color: "#166534",
+    background_color: "#fdfbf7",
+    theme_color: "#fdfbf7",
     // The logo at 76% on its own sage background, so Android's maskable crop (centre 80%) keeps it whole.
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

@@ -57,7 +57,7 @@ export function StemList() {
         {unitName(stem.unit)}
         {stem.unit === "bundle" && stem.bundleSize ? ` (${stem.bundleSize})` : ""}
         {stem.isSample && (
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-900 dark:text-amber-100">
+          <span className="rounded-full bg-lavender px-2 py-0.5 text-xs font-semibold text-[#4a2f4a]">
             {t("common", "sample")}
           </span>
         )}

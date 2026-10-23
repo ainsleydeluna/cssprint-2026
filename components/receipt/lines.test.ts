@@ -6,6 +6,7 @@ import {
   hasEdits,
   isMatched,
   lineProblems,
+  lineTone,
   parseAmount,
   sampleFromLine,
   saveBlocker,
@@ -112,5 +113,23 @@ describe("hasEdits (ask before scanning again)", () => {
   });
   it("is true once the purchase date changed", () => {
     expect(hasEdits(asRead, "2026-10-21", read)).toBe(true);
+  });
+});
+
+describe("lineTone (row colour)", () => {
+  it("is blocking for a line that keeps the receipt from saving, even if the AI was sure", () => {
+    expect(lineTone(line({ stemId: null }), stems)).toBe("blocking");
+    expect(lineTone(line({ stemId: "sunflower" }), stems)).toBe("blocking"); // hidden row = unmatched
+    expect(lineTone(line({ quantity: "" }), stems)).toBe("blocking");
+    expect(lineTone(line({ stemId: null, confidence: "low" }), stems)).toBe("blocking");
+  });
+
+  it("is unsure for a complete line the AI wasn't sure of, until the florist edits it", () => {
+    expect(lineTone(line({ confidence: "medium" }), stems)).toBe("unsure");
+    expect(lineTone(line({ confidence: "low", edited: true }), stems)).toBeNull();
+  });
+
+  it("is plain for a complete, sure line", () => {
+    expect(lineTone(line(), stems)).toBeNull();
   });
 });

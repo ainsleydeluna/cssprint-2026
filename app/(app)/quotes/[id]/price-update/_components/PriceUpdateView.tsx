@@ -163,7 +163,7 @@ export function PriceUpdateView({ id }: { id: string }) {
           {leadButton(step) === "back" && (
             <Link
               href={`/quotes/${encodeURIComponent(id)}`}
-              className="flex min-h-12 items-center justify-center rounded-xl bg-green-800 px-4 font-semibold text-white"
+              className="btn btn-primary"
             >
               {t("priceUpdate", "backToQuote")}
             </Link>

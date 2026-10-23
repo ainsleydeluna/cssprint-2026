@@ -44,7 +44,7 @@ export function ReceiptView({ id }: { id: string }) {
   }
 
   const back = (
-    <Link href="/receipts" className="flex min-h-12 items-center font-medium text-green-800 dark:text-green-400">
+    <Link href="/receipts" className="btn btn-secondary self-start">
       {t("receipts", "back")}
     </Link>
   );

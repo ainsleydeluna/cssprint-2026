@@ -3,6 +3,7 @@ import { type StemWithCost, stemName } from "@/lib/contract";
 import { clampCount } from "@/lib/money";
 import { t } from "@/lib/strings";
 import type { QuoteLine } from "@/lib/types";
+import { lineTone } from "./edit";
 
 /** A quote line while editing: `key` is local; `id` is missing until the server saves a new line. */
 export type EditLine = Omit<QuoteLine, "id" | "quoteId" | "shopId"> & { key: string; id?: string };
@@ -36,7 +37,7 @@ export function QuoteLineRow({ line, stems, onChange, onRemove }: Props) {
   const step = (by: number) => onChange({ count: clampCount((line.count ?? 0) + by, isFiller) });
 
   return (
-    <Row highlight={unsure || !line.stemId || line.count === null}>
+    <Row tone={lineTone(line)}>
       <Select
         label={line.stemId ? t("quote", "stem") : t("quote", "pickFlower")}
         value={line.stemId ?? ""}
