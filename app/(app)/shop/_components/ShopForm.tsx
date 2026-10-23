@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { Button, Input } from "@/components/receipt/kit";
@@ -46,8 +46,8 @@ export function ShopForm() {
   }
 
   const fields: Array<{ field: Field; label: string; hint?: string }> = [
-    { field: "wrapFee", label: `${t("shop", "wrapFee")} (₱)`, hint: t("shop", "feeHint") },
-    { field: "laborFee", label: `${t("shop", "laborFee")} (₱)`, hint: t("shop", "feeHint") },
+    { field: "wrapFee", label: `${t("shop", "wrapFee")} (â‚±)`, hint: t("shop", "feeHint") },
+    { field: "laborFee", label: `${t("shop", "laborFee")} (â‚±)`, hint: t("shop", "feeHint") },
     { field: "markupPercent", label: t("shop", "markup") },
     { field: "minimumMarginPercent", label: t("shop", "minimumMargin") },
     { field: "validForDays", label: t("shop", "validForDays") },
@@ -95,7 +95,7 @@ export function ShopForm() {
           />
         ))}
       </div>
-      <div className="sticky bottom-[calc(5rem+1px+env(safe-area-inset-bottom))] flex flex-col gap-2 bg-white py-3 dark:bg-zinc-950">
+      <div className="sticky bottom-[calc(5rem+1px+env(safe-area-inset-bottom))] flex flex-col gap-2 bg-background py-3">
         {status === "saved" && <p role="status" className="text-sm text-green-800 dark:text-green-400">{t("shop", "saved")}</p>}
         {status === "error" && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{t("common", "error")}</p>}
         <Button disabled={invalid || unchanged || status === "saving"} onClick={save}>

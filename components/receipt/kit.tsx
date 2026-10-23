@@ -60,10 +60,11 @@ export function Select({ label, hint, className = "", ...props }: ComponentProps
 export type RowTone = "blocking" | "unsure" | null;
 
 const rowTones = {
-  // The error style (alert-error): soft pink, red text, red left edge.
+  // The error style (alert-error): Blush Sky, red text, red left edge.
   blocking: "alert-error font-medium",
-  // Lavender Dusk, clearly not an error.
-  unsure: "field-unsure border-2 border-ink",
+  // Peach Sorbet with a soft pink edge: close to "Alisin" but lighter, so the button still stands out.
+  // Told apart from errors by normal text, no red edge, and the lavender "Hindi sigurado" badge.
+  unsure: "border-2 border-[#f4a7b9] bg-[#ffe4e1]",
 };
 
 /** One item in a list, coloured by `tone` when the line needs the florist's attention. */

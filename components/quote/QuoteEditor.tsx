@@ -1,4 +1,4 @@
-// No "use client" here: onReply is a function, so this is rendered only from
+﻿// No "use client" here: onReply is a function, so this is rendered only from
 // QuoteScreen (a Client Component), which makes it client code too.
 import { useEffect, useState } from "react";
 import { Button } from "@/components/receipt/kit";
@@ -66,7 +66,7 @@ export function QuoteEditor({ detail, shop, stems, demo, onReply, onSaved }: Pro
   const edit = (next: EditLine[]) => autosave.edit(next);
   const flush = () => void autosave.flush();
 
-  // Saves any pending edit now. A failed save shows "Hindi na-save…" with its retry; callers wait for it.
+  // Saves any pending edit now. A failed save shows "Hindi na-saveâ€¦" with its retry; callers wait for it.
   async function saveFirst() {
     await autosave.flush();
     return autosave.state() === "saved";
@@ -127,7 +127,7 @@ export function QuoteEditor({ detail, shop, stems, demo, onReply, onSaved }: Pro
       />
 
       {/* The total stays above the bottom bar (5rem + 1px border + home-indicator inset). */}
-      <div className="sticky bottom-[calc(5rem+1px+env(safe-area-inset-bottom))] flex flex-col gap-1 border-t border-zinc-200 bg-white py-3 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="sticky bottom-[calc(5rem+1px+env(safe-area-inset-bottom))] flex flex-col gap-1 border-t border-dashed border-ink/30 bg-background py-3">
         <div className="flex items-baseline justify-between gap-3">
           <span className="font-semibold">{t("quote", "total")}</span>
           <span className="text-2xl font-bold" data-testid="total">{peso(total)}</span>
