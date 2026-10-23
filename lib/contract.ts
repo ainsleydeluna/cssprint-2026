@@ -32,6 +32,12 @@ export type AnalyzeBouquetResult = {
     confidence: Confidence;
     /** From allowedStems when stem is "Other". */
     closestStem: string | null;
+    /**
+     * True when the photo's color of this flower has no row of its own and the
+     * AI picked the flower's row with the closest color. False otherwise, and
+     * for "Other".
+     */
+    closestColor: boolean;
     note: string;
   }>;
   note: string;
@@ -305,11 +311,13 @@ export type EvalResult = {
 export type AccuracyResponse = {
   eval: EvalResult[];
   /**
-   * From the ai_calls table. A call whose model is missing from TOKEN_PRICES
-   * has an unknown cost and is left out of the averages; null when every
-   * call's cost is unknown.
+   * From the ai_calls table, one row per call name, always all five. `calls`
+   * counts all of the shop's calls; medianSeconds and averageCostUsd cover the
+   * latest 1,000 calls and are null for a name with none among them. A call
+   * whose model is missing from TOKEN_PRICES has an unknown cost and is left out
+   * of the average; null when every call's cost is unknown.
    */
-  live: Array<{ call: AiCallName; calls: number; medianSeconds: number; averageCostUsd: number | null }>;
+  live: Array<{ call: AiCallName; calls: number; medianSeconds: number | null; averageCostUsd: number | null }>;
   /** Each quote's calls summed, averaged over quotes; null when there are none of known cost. */
   averageCostPerQuoteUsd: number | null;
 };

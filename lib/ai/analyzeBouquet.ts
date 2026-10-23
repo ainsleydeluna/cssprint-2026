@@ -17,6 +17,7 @@ Return one line per kind of flower and one line per filler you can see.
 - countLow, countHigh: how many the bouquet holds. The low end is what you can see; the high end adds the ones likely hidden. Flowers are counted in stems. A filler (listed under Fillers) is counted in bunches, usually 1 to 3.
 - confidence: high when the row and count are clear, medium when one is a guess, low when both are.
 - closestStem: when stem is "Other", the row a florist would use in its place: a row under Flowers, never a filler. Otherwise null.
+- closestColor: true when the flower is on the list but the color you see has no row of its own, so you picked the flower's row with the closest color. False when the row's color is the one you see, and for "Other".
 - note: when stem is "Other", start with the flower's real name. When you picked the closest color, the real color. Otherwise a few words on anything unsure; "" if nothing.
 
 Rules:
@@ -38,6 +39,7 @@ const SCHEMA = schema.object({
       countHigh: { type: "integer" },
       confidence: schema.confidence,
       closestStem: schema.nullable("string"),
+      closestColor: { type: "boolean" },
       note: { type: "string" },
     }),
   },
@@ -72,22 +74,43 @@ export async function analyzeBouquet(
       countHigh: Math.max(line.countLow, line.countHigh),
       // Other is counted as a flower, like its closest stem.
       isFiller: stem?.isFiller ?? false,
+      // Only a shop row can stand in for a color; an answer saved without the field reads as false.
+      closestColor: stem ? line.closestColor === true : false,
     };
   });
   const lines = mergeSameRow(named).map(({ isFiller, ...line }) => ({
     ...line,
     countLow: clampCount(line.countLow, isFiller),
     countHigh: clampCount(line.countHigh, isFiller),
+    // A closest-color line is highlighted on the quote screen and says what was seen.
+    ...(line.closestColor && {
+      confidence: line.confidence === "high" ? ("medium" as const) : line.confidence,
+      note: closestColorNote(line.color, line.note),
+    }),
   }));
   return { ...outcome, result: { lines, note: outcome.result.note } };
 }
+
+/**
+ * "Fuchsia ang nakita; pinakamalapit na kulay ang ginamit", then the AI's own
+ * note. It names the color seen, not the row, so it stays true if the florist
+ * picks another row. A color the AI's note already names is not repeated.
+ */
+function closestColorNote(colors: string, note: string): string {
+  const seen = colors.split(", ").filter((color) => color !== "" && !note.toLowerCase().includes(color.toLowerCase()));
+  const lead = seen.length > 0 ? `${capitalize(seen.join(", "))} ang nakita; pinakamalapit na kulay ang ginamit` : "Pinakamalapit na kulay ang ginamit";
+  return note === "" ? lead : `${lead}; ${note}`;
+}
+
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 const CONFIDENCE_ORDER: Confidence[] = ["low", "medium", "high"];
 
 /**
  * One line per shop row: lines naming the same row are added together (count
- * ranges summed, the lowest confidence, colors and notes joined), in the order
- * the row first appears. Other lines stay apart: each is a different flower.
+ * ranges summed, the lowest confidence, colors and notes joined, a closest
+ * color if any part was), in the order the row first appears. Other lines stay
+ * apart: each is a different flower.
  */
 function mergeSameRow<L extends AnalyzeBouquetResult["lines"][number]>(lines: L[]): L[] {
   const merged: L[] = [];
@@ -102,6 +125,7 @@ function mergeSameRow<L extends AnalyzeBouquetResult["lines"][number]>(lines: L[
     if (CONFIDENCE_ORDER.indexOf(line.confidence) < CONFIDENCE_ORDER.indexOf(same.confidence)) same.confidence = line.confidence;
     same.color = joinDistinct([same.color, line.color], ", ");
     same.note = joinDistinct([same.note, line.note], "; ");
+    same.closestColor ||= line.closestColor;
   }
   return merged;
 }
