@@ -155,7 +155,7 @@ describe("scoreReceipt", () => {
     expect(score.rightLines).toBe(0);
   });
 
-  it("needs the bundle size on a bundle line, and only there", () => {
+  it("needs the bundle size when the answer key has one", () => {
     const tulips = {
       receipt: "receipt-02.1.jpg",
       lines: [
@@ -170,6 +170,15 @@ describe("scoreReceipt", () => {
     expect(scoreReceipt(tulips, wrongSize).rightLines).toBe(1);
     const rightSize = receipt([{ stem: "Tulip - pink", quantity: 2, unit: "bundle", bundleSize: 10, totalPaid: 250 }]);
     expect(scoreReceipt(tulips, rightSize).rightLines).toBe(1);
+  });
+
+  it("ignores the bundle size when the answer key has none, because the receipt does not write one", () => {
+    const unwritten = {
+      receipt: "receipt-05.1.jpg",
+      lines: [{ stem: null, quantity: 3, unit: "bundle" as const, bundleSize: null, unitPrice: null, totalPaid: 350 }],
+    };
+    const guessed = receipt([{ stem: null, quantity: 3, unit: "bundle", bundleSize: 10, totalPaid: 350 }]);
+    expect(scoreReceipt(unwritten, guessed).rightLines).toBe(1);
   });
 
   it("takes quantity × unit price as the total paid when none is written, as the app does", () => {

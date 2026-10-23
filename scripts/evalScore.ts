@@ -120,7 +120,7 @@ export type ReceiptTruth = {
 
 /**
  * One receipt's score. A line is right when an answer line has its stem,
- * quantity, unit (and bundle size, for a bundle) and total paid; a missing
+ * quantity, unit (and bundle size, when the key has one) and total paid; a missing
  * total paid is quantity × unit price, as the app computes it. An answer-key
  * line with no stem is right when the answer line has no stem either. Out of the
  * answer key's lines or the answer's lines,
@@ -139,7 +139,7 @@ export function scoreReceipt(truth: ReceiptTruth, outcome: AiOutcome<ExtractRece
         (wanted.stem === null ? line.stem === null : line.stem !== null && key(line.stem) === key(wanted.stem)) &&
         line.quantity === wanted.quantity &&
         line.unit === wanted.unit &&
-        (wanted.unit !== "bundle" || line.bundleSize === wanted.bundleSize) &&
+        (wanted.bundleSize === null || line.bundleSize === wanted.bundleSize) &&
         sameMoney(receiptLineTotal(line), wantedTotal),
     );
     if (i === -1) continue;
