@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { cropInPixels, fitWithin, outputPlan, readOrientation, stepDownSizes, withOrientation } from "./process-photo";
+import { vi } from "vitest";
+import { cropInPixels, cropOrNull, fitWithin, outputPlan, readOrientation, stepDownSizes, withOrientation } from "./process-photo";
 
 // A 12 MP phone photo, upright landscape.
 const PHOTO = { width: 4000, height: 3000 };
@@ -123,9 +124,36 @@ describe("readOrientation (whether the photo carries a rotation flag)", () => {
     const app0 = [0xff, 0xe0, 0x00, 0x04, 0x4a, 0x46]; // a JFIF stand-in before the EXIF
     expect(readOrientation(new Uint8Array([0xff, 0xd8, ...app0, ...app1, ...jpeg.slice(2)]))).toBe(8);
   });
-  it("is 1 (upright) with no EXIF, a cut-off header, or not a JPEG", () => {
-    expect(readOrientation(jpeg)).toBe(1);
-    expect(readOrientation(withOrientation(jpeg, 6).slice(0, 20))).toBe(1);
-    expect(readOrientation(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toBe(1);
+  it("is 1 (upright) only for a whole JPEG header with no flag: it reached the image data", () => {
+    expect(readOrientation(jpeg)).toBe(1); // ends at EOI
+    const withSos = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x04, 0x4a, 0x46, 0xff, 0xda, 0x00, 0x02]);
+    expect(readOrientation(withSos)).toBe(1);
+    // EXIF present, but no Orientation tag: the default, upright.
+    const noTag = [0x4d, 0x4d, 0x00, 0x2a, 0, 0, 0, 8, 0, 1, 0x01, 0x0f, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0];
+    const app1 = [0xff, 0xe1, 0, 6 + noTag.length + 2, 0x45, 0x78, 0x69, 0x66, 0, 0, ...noTag];
+    expect(readOrientation(new Uint8Array([0xff, 0xd8, ...app1, 0xff, 0xda, 0x00, 0x02]))).toBe(1);
+  });
+  it("is null (unknown) when the flag can't be read: not a JPEG, cut off, or past the bytes read", () => {
+    expect(readOrientation(new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]))).toBeNull(); // WebP
+    expect(readOrientation(new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]))).toBeNull(); // HEIC
+    expect(readOrientation(withOrientation(jpeg, 6).slice(0, 20))).toBeNull(); // EXIF cut off
+    // A long segment runs past the bytes read (the first 128 KB): the EXIF may come after it.
+    expect(readOrientation(new Uint8Array([0xff, 0xd8, 0xff, 0xe2, 0xff, 0xff, 0x00, 0x01]))).toBeNull();
+    expect(readOrientation(new Uint8Array([0xff, 0xd8]))).toBeNull();
+  });
+});
+
+describe("cropOrNull (never worse than the whole-photo decode)", () => {
+  it("passes the crop decode's answer through", async () => {
+    await expect(cropOrNull(async () => "bitmap")).resolves.toBe("bitmap");
+    await expect(cropOrNull(async () => null)).resolves.toBeNull();
+  });
+  it("turns a crop decode that throws into null, so processPhoto takes the old path", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(cropOrNull(async () => {
+      throw new DOMException("The source image could not be decoded.", "InvalidStateError");
+    })).resolves.toBeNull();
+    expect(log).toHaveBeenCalled();
+    log.mockRestore();
   });
 });

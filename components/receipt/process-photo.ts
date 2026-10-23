@@ -69,26 +69,32 @@ export function withOrientation(jpeg: Uint8Array, orientation: number): Uint8Arr
 }
 
 /**
- * The EXIF orientation (1–8) in a JPEG's header, or 1 (upright) when there is none, the
- * header is cut off, or the file isn't a JPEG. Only the first segments are read.
+ * The EXIF orientation (1–8) in a JPEG's header; 1 (upright) only when the header was read
+ * through to the image data with no flag, or the EXIF has no Orientation tag. Null (unknown)
+ * when it can't be told: not a JPEG (WebP, HEIC), a cut-off file, or a header that runs past
+ * the bytes read. Unknown photos take the whole-photo decode.
  */
-export function readOrientation(bytes: Uint8Array): number {
+export function readOrientation(bytes: Uint8Array): number | null {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  if (bytes.length < 4 || view.getUint16(0) !== 0xffd8) return 1;
+  if (bytes.length < 4 || view.getUint16(0) !== 0xffd8) return null;
   let at = 2;
-  while (at + 4 <= bytes.length && bytes[at] === 0xff) {
+  while (at + 2 <= bytes.length) {
+    if (bytes[at] !== 0xff) return null;
     const marker = bytes[at + 1];
     // Start of the image data (or its end): no EXIF came before it.
     if (marker === 0xda || marker === 0xd9) return 1;
-    const length = view.getUint16(at + 2);
-    const isExif = marker === 0xe1 && at + 10 <= bytes.length && view.getUint32(at + 4) === 0x45786966 && view.getUint16(at + 8) === 0;
-    if (isExif && at + 2 + length <= bytes.length) return tiffOrientation(view, at + 10, at + 2 + length) ?? 1;
-    at += 2 + length;
+    if (at + 4 > bytes.length) return null;
+    const end = at + 2 + view.getUint16(at + 2);
+    // The segment runs past the bytes read: an EXIF could still come after it.
+    if (end > bytes.length) return null;
+    const isExif = marker === 0xe1 && at + 10 <= end && view.getUint32(at + 4) === 0x45786966 && view.getUint16(at + 8) === 0;
+    if (isExif) return tiffOrientation(view, at + 10, end);
+    at = end;
   }
-  return 1;
+  return null;
 }
 
-/** The Orientation tag (0x0112) of a TIFF block's first IFD, or null. */
+/** The Orientation tag (0x0112) of a TIFF block's first IFD: 1 when absent, null when unreadable. */
 function tiffOrientation(view: DataView, start: number, end: number): number | null {
   if (start + 8 > end) return null;
   const order = view.getUint16(start);
@@ -105,7 +111,7 @@ function tiffOrientation(view: DataView, start: number, end: number): number | n
       return value >= 1 && value <= 8 ? value : null;
     }
   }
-  return null;
+  return 1;
 }
 
 /** The photo's EXIF orientation, from its first 128 KB (EXIF sits at the start). */
@@ -242,7 +248,10 @@ export const decodePreview = (file: Blob, size: Size, longEdgePx = 1600) => deco
  * or when the browser can't resize while decoding.
  */
 async function decodeCrop(file: Blob, size: Size, box: CropRect): Promise<ImageBitmap | null> {
-  if ((await orientationOf(file)) !== 1 && !(await cropMeasuredUpright())) return null;
+  const orientation = await orientationOf(file);
+  // Unknown (not a JPEG, or the flag can't be read): the whole-photo path, as before.
+  if (orientation === null) return null;
+  if (orientation !== 1 && !(await cropMeasuredUpright())) return null;
   const src = cropInPixels(size, box);
   const out = fitWithin(src, MAX_PHOTO_PX);
   const bitmap = await createImageBitmap(file, src.x, src.y, src.width, src.height, {
@@ -261,13 +270,26 @@ async function decodeCrop(file: Blob, size: Size, box: CropRect): Promise<ImageB
 }
 
 /**
+ * The crop decode's answer, or null when it throws (an unusual photo, a browser quirk), so
+ * processPhoto takes the whole-photo path: never worse than without crop-based decode.
+ */
+export async function cropOrNull<T>(decode: () => Promise<T | null>): Promise<T | null> {
+  try {
+    return await decode();
+  } catch (e) {
+    console.error("Crop decode failed; using the whole-photo decode", e);
+    return null;
+  }
+}
+
+/**
  * Crops, shrinks to MAX_PHOTO_PX and re-encodes as JPEG through a canvas, decoding the file
  * again at only the size needed: just the crop where the browser allows (decodeCrop), else
  * the whole photo at reduced size. `box` is in fractions of the upright photo.
  * A canvas export holds pixels only, so EXIF data (including GPS location) is dropped.
  */
 export async function processPhoto(file: Blob, size: Size, box: CropRect | null): Promise<File> {
-  const cropped = box ? await decodeCrop(file, size, box) : null;
+  const cropped = box ? await cropOrNull(() => decodeCrop(file, size, box)) : null;
   const plan = cropped
     ? {
         crop: { x: 0, y: 0, width: cropped.width, height: cropped.height },
