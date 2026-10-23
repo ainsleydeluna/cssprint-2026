@@ -5,7 +5,8 @@
 import { describe, expect, test } from "vitest";
 import { costPerStem, isUnderwater, latestCost, margin, price, receiptLineTotal, recipeCost } from "../money";
 import { batches, quotes, receipts, shop, stems } from "./data";
-import { budgetOptions, extractReceipt, priceUpdate, quoteList } from "./responses";
+import { CALLS } from "../ai/config";
+import { accuracy, budgetOptions, extractReceipt, priceUpdate, quoteList } from "./responses";
 
 const purchaseDate = (receiptId: string) => receipts.find((receipt) => receipt.id === receiptId)!.purchaseDate;
 const datedBatches = batches.map((batch) => ({ ...batch, purchaseDate: purchaseDate(batch.receiptId) }));
@@ -66,5 +67,15 @@ describe("fake data follows the money rules", () => {
     for (const item of quoteList.quotes) expect(item.timeToQuoteSeconds, item.label).toBe(seconds(item));
     const sent = quoteList.quotes.flatMap((item) => (item.timeToQuoteSeconds === null ? [] : [item.timeToQuoteSeconds]));
     expect(quoteList.averageTimeToQuoteSeconds).toBe(sent.reduce((a, b) => a + b, 0) / sent.length);
+  });
+});
+
+describe("fake accuracy answer has the real route's shape", () => {
+  test("lists all five call names in pipeline order, with null median and cost when there are no calls", () => {
+    expect(accuracy.live.map((row) => row.call)).toEqual(Object.keys(CALLS));
+    for (const row of accuracy.live) {
+      if (row.calls === 0) expect(row, row.call).toMatchObject({ medianSeconds: null, averageCostUsd: null });
+    }
+    expect(accuracy.live.some((row) => row.calls === 0)).toBe(true);
   });
 });

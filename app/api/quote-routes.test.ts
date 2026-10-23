@@ -61,10 +61,10 @@ async function uploadBouquet(): Promise<string> {
 
 const bouquet = {
   lines: [
-    { stem: "Rose - white", color: "white", countLow: 10, countHigh: 13, confidence: "high", closestStem: null, note: "" },
-    { stem: "Other", color: "blush", countLow: 5, countHigh: 6, confidence: "high", closestStem: "Carnation - pink", note: "Peony, blush" },
-    { stem: "Other", color: "green", countLow: 3, countHigh: 3, confidence: "low", closestStem: null, note: "Unknown pods" },
-    { stem: "Baby's breath - white", color: "white", countLow: 1, countHigh: 2, confidence: "medium", closestStem: null, note: "" },
+    { stem: "Rose - white", color: "white", countLow: 10, countHigh: 13, confidence: "high", closestStem: null, closestColor: false, note: "" },
+    { stem: "Other", color: "blush", countLow: 5, countHigh: 6, confidence: "high", closestStem: "Carnation - pink", closestColor: false, note: "Peony, blush" },
+    { stem: "Other", color: "green", countLow: 3, countHigh: 3, confidence: "low", closestStem: null, closestColor: false, note: "Unknown pods" },
+    { stem: "Baby's breath - white", color: "white", countLow: 1, countHigh: 2, confidence: "medium", closestStem: null, closestColor: false, note: "" },
   ],
   note: "",
 };
