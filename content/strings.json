@@ -72,10 +72,7 @@
     "clipboardFailed": "Hindi nakopya. Pindutin nang matagal ang text para kopyahin ito.",
     "notSaved": "Nakopya ang reply, pero hindi na-save na naipadala.",
     "incompleteServer": "Kulang pa ang quote. Bumalik sa mga linya at ayusin ito.",
-    "timeToQuote": "Time-to-quote: {time}",
-    "hours": "{n} oras",
-    "minutes": "{n} min",
-    "seconds": "{n} seg"
+    "timeToQuote": "Time-to-quote: {time}"
   },
   "quotes": {
     "title": "Mga quote",
@@ -145,5 +142,10 @@
     "preparing": "Inihahanda ang photo…",
     "unreadable": "Hindi mabasa ang photo na ito. Subukan ang JPG o PNG.",
     "failed": "Hindi naihanda ang photo. Subukan ulit."
+  },
+  "duration": {
+    "hours": "{n} oras",
+    "minutes": "{n} min",
+    "seconds": "{n} seg"
   }
 }

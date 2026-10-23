@@ -8,7 +8,8 @@ import { timeToQuoteSeconds } from "@/lib/server/quote-rules";
 import { t } from "@/lib/strings";
 import type { Quote } from "@/lib/types";
 import { ApiFailure, draftReply, isUnauthorized, markCopied } from "./api";
-import { copyBlocker, copyReply, formatDuration, replyEdited } from "./copy";
+import { copyBlocker, copyReply, replyEdited } from "./copy";
+import { formatDuration } from "./duration";
 
 type Props = {
   detail: QuoteDetail;

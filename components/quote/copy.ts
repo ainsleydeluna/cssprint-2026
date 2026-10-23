@@ -44,19 +44,6 @@ export async function copyReply(
   }
 }
 
-/** A time-to-quote in its largest two units: "45 seg", "4 min 12 seg", "1 oras 5 min". */
-export function formatDuration(totalSeconds: number): string {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const parts = hours
-    ? [t("quote", "hours", { n: hours }), minutes ? t("quote", "minutes", { n: minutes }) : null]
-    : minutes
-      ? [t("quote", "minutes", { n: minutes }), seconds ? t("quote", "seconds", { n: seconds }) : null]
-      : [t("quote", "seconds", { n: seconds })];
-  return parts.filter((p) => p !== null).join(" ");
-}
-
 /**
  * True once the florist changed the reply from the text the server last gave (the draft,
  * or the saved text). "Gumawa ulit" then asks first, since a new draft replaces it.

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { t } from "@/lib/strings";
 import type { Quote } from "@/lib/types";
-import { copyBlocker, copyReply, formatDuration, replyEdited } from "./copy";
+import { copyBlocker, copyReply, replyEdited } from "./copy";
 
 const line = (stemId: string | null, count: number | null) => ({ stemId, count });
 
@@ -55,16 +55,6 @@ describe("copyReply", () => {
       },
     });
     expect(result).toEqual({ ok: false, failed: "save", error });
-  });
-});
-
-describe("formatDuration (time-to-quote)", () => {
-  it("shows seconds, minutes and hours in the largest two units", () => {
-    expect(formatDuration(0)).toBe(t("quote", "seconds", { n: 0 }));
-    expect(formatDuration(45)).toBe(t("quote", "seconds", { n: 45 }));
-    expect(formatDuration(120)).toBe(t("quote", "minutes", { n: 2 }));
-    expect(formatDuration(252)).toBe(`${t("quote", "minutes", { n: 4 })} ${t("quote", "seconds", { n: 12 })}`);
-    expect(formatDuration(3900)).toBe(`${t("quote", "hours", { n: 1 })} ${t("quote", "minutes", { n: 5 })}`);
   });
 });
 
