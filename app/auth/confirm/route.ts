@@ -8,7 +8,7 @@ import { createClient } from "@/lib/server/supabase";
  * Where a florist lands after the first sign-in. Spec decision 14 says shop
  * setup; set this to "/shop" when Pat's T7 screen merges. Until then /shop is a 404.
  */
-const SHOP_SETUP_PATH = "/quotes";
+const SHOP_SETUP_PATH = "/shop";
 
 // The magic link lands here. A token_hash link is verified on the server, so
 // it works when a phone opens it in its email app's own browser; a code link

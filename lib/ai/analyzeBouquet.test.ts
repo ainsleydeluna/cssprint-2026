@@ -40,6 +40,50 @@ describe("analyzeBouquet", () => {
     expect(request.system).toContain("Count stems, not individual blooms");
   });
 
+  test("asks for the flower's closest-color row, and Other only for a flower not on the list", async () => {
+    const { request } = await analyze();
+
+    expect(request.system).toContain("pick that flower's row with the closest color");
+    expect(request.system).toContain('Use "Other" only for a flower that is not on the list at all');
+  });
+
+  test("asks for notes in short, simple Taglish that never mention the allowed list", async () => {
+    const { request } = await analyze();
+
+    expect(request.system).toContain("short, simple Taglish");
+    expect(request.system).toContain("Wala sa listahan mo");
+    expect(request.system).toContain('Never write "allowed list"');
+  });
+
+  test("merges lines naming the same row: counts added, lowest confidence, notes joined", async () => {
+    const { lines } = await analyze(
+      line({ color: "blush pink", countLow: 6, countHigh: 8, confidence: "high", note: "Mas mapusyaw" }),
+      line({ stem: "Carnation - pink", countLow: 3, countHigh: 3 }),
+      line({ stem: "rose - RED", color: "fuchsia", countLow: 3, countHigh: 4, confidence: "medium", note: "Mas matingkad" }),
+      line({ stem: "Rose - red", color: "fuchsia", countLow: 1, countHigh: 1, confidence: "high", note: "" }),
+    );
+
+    expect(lines).toEqual([
+      line({ color: "blush pink, fuchsia", countLow: 10, countHigh: 13, confidence: "medium", note: "Mas mapusyaw; Mas matingkad" }),
+      line({ stem: "Carnation - pink", countLow: 3, countHigh: 3 }),
+    ]);
+  });
+
+  test("merges before the clamps, and keeps Other lines apart", async () => {
+    const { lines } = await analyze(
+      line({ countLow: 60, countHigh: 70 }),
+      line({ countLow: 50, countHigh: 60 }),
+      line({ stem: "Other", closestStem: "Carnation - pink", note: "Peony" }),
+      line({ stem: "Other", closestStem: "Carnation - pink", note: "Ranunculus" }),
+    );
+
+    expect(lines.map((l) => [l.stem, l.countLow, l.countHigh, l.note])).toEqual([
+      ["Rose - red", 100, 100, ""],
+      ["Other", 10, 12, "Peony"],
+      ["Other", 10, 12, "Ranunculus"],
+    ]);
+  });
+
   test("matches a row name ignoring capital letters and returns the shop's spelling", async () => {
     const { lines } = await analyze(line({ stem: "ROSE - red" }));
 
