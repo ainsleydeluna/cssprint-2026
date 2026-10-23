@@ -5,12 +5,12 @@ import { Button } from "@/components/receipt/kit";
 import type { QuoteDetail, StemWithCost, UpdateQuoteLinesResponse } from "@/lib/contract";
 import { COUNT_LIMITS, price, recipeCost } from "@/lib/money";
 import { t } from "@/lib/strings";
-import type { Shop } from "@/lib/types";
+import type { Quote, Shop } from "@/lib/types";
 import { updateLines } from "./api";
 import { Autosave, type SaveState } from "./autosave";
 import { BudgetPanel } from "./BudgetPanel";
 import { copyBlocker } from "./copy";
-import { editLine, toRequest } from "./edit";
+import { editLine, sendLines } from "./edit";
 import { peso } from "./format";
 import { type EditLine, QuoteLineRow } from "./QuoteLineRow";
 
@@ -23,6 +23,8 @@ type Props = {
   demo: boolean;
   /** Opens the reply once every edit is saved, since the reply route drafts from the saved lines. */
   onReply: (lines: EditLine[]) => void;
+  /** The quote from each lines-save answer: the server reprices it and clears its saved reply. */
+  onSaved: (quote: Quote) => void;
 };
 
 /**
@@ -38,7 +40,7 @@ function merge(latest: EditLine[], sent: EditLine[], answer: UpdateQuoteLinesRes
   });
 }
 
-export function QuoteEditor({ detail, shop, stems, demo, onReply }: Props) {
+export function QuoteEditor({ detail, shop, stems, demo, onReply, onSaved }: Props) {
   const quoteId = detail.quote.id;
   const [lines, setLines] = useState<EditLine[]>(() => detail.lines.map((l) => ({ ...l, key: l.id })));
   const [save, setSave] = useState<SaveState>("saved");
@@ -48,7 +50,8 @@ export function QuoteEditor({ detail, shop, stems, demo, onReply }: Props) {
     () =>
       new Autosave<EditLine[], UpdateQuoteLinesResponse>(lines, {
         delayMs: SAVE_DELAY_MS,
-        send: (sent) => updateLines(quoteId, toRequest(sent)),
+        // onSaved only ever sets QuoteScreen state from the newest state, so the first one is enough.
+        send: sendLines((req) => updateLines(quoteId, req), onSaved),
         merge,
         onChange: (state, value) => {
           setSave(state);

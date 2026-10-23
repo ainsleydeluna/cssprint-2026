@@ -12,7 +12,7 @@ export function QuoteLockNotice({ quoteId, lock, newPrice }: { quoteId: string; 
   const link = "flex min-h-12 items-center justify-center rounded-xl bg-green-800 px-4 font-semibold text-white";
   return (
     <div role="alert" className="flex flex-col gap-2 rounded-xl border border-amber-400 bg-amber-50 p-3 text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-200">
-      {lock.draftToo ? (
+      {lock.kind === "expired" ? (
         <>
           <p className="font-semibold">{lock.reason}</p>
           <Link href="/quotes/new" className={link}>{t("nav", "newQuote")}</Link>

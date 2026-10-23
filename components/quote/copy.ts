@@ -51,15 +51,22 @@ export async function copyReply(
  */
 export const replyEdited = (message: string, serverText: string) => message !== serverText;
 
-export type QuoteLock = { reason: string; draftToo: boolean };
+export type QuoteLock = { kind: "expired" | "underwater"; reason: string };
 
 /**
- * What a sent quote's state blocks, with the reason shown. Expired: no new draft and no copy
- * (the price no longer holds). Underwater: no copy of the old price; draft a price update instead.
- * `today` (Manila) catches a quote that expired while the page stayed open.
+ * Why a sent quote's reply can't be redrafted or copied, with the reason shown. Expired: the
+ * price no longer holds; make a new quote. Underwater: the old price is too low; draft a price
+ * update instead. `today` (Manila) catches a quote that expired while the page stayed open.
  */
 export function quoteLock(quote: Pick<Quote, "status" | "validUntil" | "underwaterAt">, today: ManilaDate): QuoteLock | null {
-  if (quote.status === "expired" || statusOn(quote, today) === "expired") return { reason: t("quote", "expired"), draftToo: true };
-  if (quote.status === "sent" && quote.underwaterAt !== null) return { reason: t("quote", "underwaterBlock"), draftToo: false };
+  if (quote.status === "expired" || statusOn(quote, today) === "expired") return { kind: "expired", reason: t("quote", "expired") };
+  if (quote.status === "sent" && quote.underwaterAt !== null) return { kind: "underwater", reason: t("quote", "underwaterBlock") };
   return null;
 }
+
+/**
+ * Whether the florist's edits to the reply are saved (PATCH replyText) as they type: only while
+ * the quote is a draft. A sent quote's saved text is what the customer got, so its edits stay on
+ * screen until copied (POST …/copied saves the text then).
+ */
+export const savesReplyText = (quote: Pick<Quote, "status">) => quote.status === "draft";
