@@ -140,7 +140,7 @@ describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", 
       { stem: "Carnation - pink", count: 6, note: "" },
       { stem: "Baby's breath - white", count: 1, note: "" },
     ];
-    // The budget is exactly "Fewer roses"; the unchanged recipe costs more, so it is dropped.
+    // The budget is exactly "Fewer roses". The unchanged recipe costs more, so fitToBudget scales it down to fit.
     const budget = expectedPrice(6 * cost("Rose - red") + 6 * cost("Carnation - pink") + cost("Baby's breath - white"));
     answer({
       options: [
@@ -165,7 +165,14 @@ describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", 
         price: budget,
         overBudgetBy: 0,
       },
+      { label: "Same recipe", overBudgetBy: 0 },
     ]);
+    const scaled = options[1];
+    expect(scaled.price).toBeLessThanOrEqual(budget);
+    for (const line of scaled.lines) {
+      const original = bouquet.lines.find((b) => stems.get(b.stem)!.id === line.stemId)!;
+      expect(line.count).toBeLessThanOrEqual(original.countLow);
+    }
     expect((await (await quoteRoute.GET(json("GET"), ctx(quote.id))).json()).quote.budget).toBe(budget);
     const logged = await client.from("ai_calls").select("call, ok").eq("quote_id", quote.id).eq("call", "fitToBudget");
     expect(logged.data).toEqual([{ call: "fitToBudget", ok: true }]);
