@@ -70,6 +70,14 @@ export function saveBlocker(lines: DraftLine[], stems: Pick<StemWithCost, "id" |
   return incomplete ? t("scan", "incomplete", { n: incomplete }) : null;
 }
 
+/**
+ * True once the florist changed the table the AI read: edited or removed a line, or
+ * changed the date. Scanning again then asks first, since those changes would be lost.
+ */
+export function hasEdits(lines: DraftLine[], purchaseDate: string, read: { lineCount: number; purchaseDate: string }): boolean {
+  return lines.length !== read.lineCount || lines.some((l) => l.edited) || purchaseDate !== read.purchaseDate;
+}
+
 /** The line as the save route takes it, or null while it has a problem. */
 export function toInput(line: DraftLine, stems: Pick<StemWithCost, "id" | "hidden">[]): SaveReceiptRequest["lines"][number] | null {
   if (lineProblems(line, stems).size > 0 || !line.stemId || !line.unit) return null;

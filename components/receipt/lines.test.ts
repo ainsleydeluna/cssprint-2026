@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { StemWithCost } from "@/lib/contract";
 import { t } from "@/lib/strings";
-import { type DraftLine, isMatched, lineProblems, parseAmount, sampleFromLine, saveBlocker, toInput } from "./lines";
+import {
+  type DraftLine,
+  hasEdits,
+  isMatched,
+  lineProblems,
+  parseAmount,
+  sampleFromLine,
+  saveBlocker,
+  toInput,
+} from "./lines";
 
 const stem = (id: string, hidden = false) => ({ id, hidden }) as StemWithCost;
 const stems = [stem("rose"), stem("sunflower", true)];
@@ -85,5 +94,23 @@ describe("saveBlocker", () => {
     expect(saveBlocker([line({ stemId: null }), line()], stems, "")).toBe(t("scan", "unmatched", { n: 1 }));
     expect(saveBlocker([line({ totalPaid: "" })], stems, "")).toBe(t("scan", "incomplete", { n: 1 }));
     expect(saveBlocker([line()], stems, "note")).toBeNull();
+  });
+});
+
+describe("hasEdits (ask before scanning again)", () => {
+  const read = { lineCount: 2, purchaseDate: "2026-10-22" };
+  const asRead = [line({ key: "1" }), line({ key: "2" })];
+  it("is false for the table exactly as the AI read it", () => {
+    expect(hasEdits(asRead, "2026-10-22", read)).toBe(false);
+    expect(hasEdits([], "2026-10-22", { lineCount: 0, purchaseDate: "2026-10-22" })).toBe(false);
+  });
+  it("is true once a line was edited", () => {
+    expect(hasEdits([line({ key: "1" }), line({ key: "2", edited: true })], "2026-10-22", read)).toBe(true);
+  });
+  it("is true once a line was removed, even with no line edited", () => {
+    expect(hasEdits([line({ key: "1" })], "2026-10-22", read)).toBe(true);
+  });
+  it("is true once the purchase date changed", () => {
+    expect(hasEdits(asRead, "2026-10-21", read)).toBe(true);
   });
 });

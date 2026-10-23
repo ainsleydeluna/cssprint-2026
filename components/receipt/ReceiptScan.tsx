@@ -12,14 +12,22 @@ import {
 import { t } from "@/lib/strings";
 import { addStem, extractReceipt, isUnauthorized, listStems, saveReceipt, uploadPhoto } from "./api";
 import { Button, Input, Row } from "./kit";
-import { type DraftLine, saveBlocker, toInput } from "./lines";
+import { type DraftLine, hasEdits, saveBlocker, toInput } from "./lines";
 import { PhotoPicker } from "./PhotoPicker";
 import { ReceiptTable } from "./ReceiptTable";
 
 type State =
   | { step: "pick" }
   | { step: "working"; message: string }
-  | { step: "table"; photoPath: string; purchaseDate: string; demo: boolean; note: string }
+  | {
+      step: "table";
+      photoPath: string;
+      purchaseDate: string;
+      demo: boolean;
+      note: string;
+      /** The table as the AI read it, to tell whether the florist changed anything. */
+      read: { lineCount: number; purchaseDate: string };
+    }
   | { step: "saved"; result: SaveReceiptResponse };
 
 const peso = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
@@ -47,6 +55,7 @@ export function ReceiptScan() {
   const [lines, setLines] = useState<DraftLine[]>([]);
   const [stems, setStems] = useState<StemWithCost[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingRescan, setConfirmingRescan] = useState(false);
 
   async function run<T>(message: string, task: () => Promise<T>, fallback: State): Promise<T | null> {
     setError(null);
@@ -76,7 +85,22 @@ export function ReceiptScan() {
     setStems(stemList);
     setLines(extract.lines.map(toDraft));
     // The route answers today in Manila when the AI could not read a date.
-    setState({ step: "table", photoPath, purchaseDate: extract.purchaseDate, demo: extract.demo, note: extract.note });
+    setState({
+      step: "table",
+      photoPath,
+      purchaseDate: extract.purchaseDate,
+      demo: extract.demo,
+      note: extract.note,
+      read: { lineCount: extract.lines.length, purchaseDate: extract.purchaseDate },
+    });
+  }
+
+  // Back to the photo step without saving. The uploaded photo stays in storage.
+  function backToPhoto() {
+    setConfirmingRescan(false);
+    setError(null);
+    setLines([]);
+    setState({ step: "pick" });
   }
 
   async function handleAddStem(input: AddStemRequest) {
@@ -148,6 +172,9 @@ export function ReceiptScan() {
     if (result) setState({ step: "saved", result });
   }
 
+  // Ask first only when going back would throw away the florist's changes.
+  const rescan = () => (hasEdits(lines, tableState.purchaseDate, tableState.read) ? setConfirmingRescan(true) : backToPhoto());
+
   return (
     <div className="flex flex-col gap-4">
       {state.demo && (
@@ -167,9 +194,26 @@ export function ReceiptScan() {
         {(blocker || error) && (
           <p role="status" className="text-sm text-red-700 dark:text-red-400">{error ?? blocker}</p>
         )}
-        <Button disabled={!!blocker || !state.purchaseDate} onClick={handleSave}>
-          {t("common", "save")}
-        </Button>
+        {confirmingRescan ? (
+          <div role="alertdialog" aria-labelledby="rescan-title" className="flex flex-col gap-3 rounded-xl border border-red-300 p-3 dark:border-red-800">
+            <p id="rescan-title" className="font-semibold">{t("scan", "rescanConfirmTitle")}</p>
+            <p className="text-sm">{t("scan", "rescanConfirmBody")}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="danger" onClick={backToPhoto}>{t("scan", "rescan")}</Button>
+              <Button variant="secondary" onClick={() => setConfirmingRescan(false)}>{t("common", "cancel")}</Button>
+            </div>
+          </div>
+        ) : lines.length === 0 ? (
+          // Nothing to save: scanning again is the only way on.
+          <Button onClick={rescan}>{t("scan", "rescan")}</Button>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="secondary" onClick={rescan}>{t("scan", "rescan")}</Button>
+            <Button disabled={!!blocker || !state.purchaseDate} onClick={handleSave}>
+              {t("common", "save")}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
