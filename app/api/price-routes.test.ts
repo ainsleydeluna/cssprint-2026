@@ -171,6 +171,24 @@ describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", 
     expect(logged.data).toEqual([{ call: "fitToBudget", ok: true }]);
   });
 
+  test("budget options refuse a missing budget and an unknown quote", async () => {
+    const { quote } = await create();
+    const missing = await budgetRoute.POST(json("POST", { budget: "cheap" }), ctx(quote.id));
+    expect([missing.status, (await missing.json()).code]).toEqual([400, "invalid_request"]);
+    const unknown = await budgetRoute.POST(json("POST", { budget: 1000 }), ctx(crypto.randomUUID()));
+    expect([unknown.status, (await unknown.json()).code]).toEqual([404, "not_found"]);
+  });
+
+  test("a failed budget call answers 502 ai_failed and is still logged", async () => {
+    const { quote } = await create();
+    const error = `Canned failure ${crypto.randomUUID()}`;
+    ai.answers.push({ ok: false, error, ...usage });
+    const response = await budgetRoute.POST(json("POST", { budget: 500 }), ctx(quote.id));
+    expect([response.status, (await response.json()).code]).toEqual([502, "ai_failed"]);
+    const logged = await client.from("ai_calls").select("call, ok, quote_id").eq("error", error);
+    expect(logged.data).toEqual([{ call: "fitToBudget", ok: false, quote_id: quote.id }]);
+  });
+
   test("budget options tell the AI the most the flowers may cost and what they cost now", async () => {
     const { quote } = await create();
     answer({ options: [], note: "" });
@@ -193,24 +211,6 @@ describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", 
     expect((await (await quoteRoute.GET(json("GET"), ctx(quote.id))).json()).quote.budget).toBe(100);
     const logged = await client.from("ai_calls").select("call").eq("quote_id", quote.id).eq("call", "fitToBudget");
     expect(logged.data).toEqual([]);
-  });
-
-  test("budget options refuse a missing budget and an unknown quote", async () => {
-    const { quote } = await create();
-    const missing = await budgetRoute.POST(json("POST", { budget: "cheap" }), ctx(quote.id));
-    expect([missing.status, (await missing.json()).code]).toEqual([400, "invalid_request"]);
-    const unknown = await budgetRoute.POST(json("POST", { budget: 1000 }), ctx(crypto.randomUUID()));
-    expect([unknown.status, (await unknown.json()).code]).toEqual([404, "not_found"]);
-  });
-
-  test("a failed budget call answers 502 ai_failed and is still logged", async () => {
-    const { quote } = await create();
-    const error = `Canned failure ${crypto.randomUUID()}`;
-    ai.answers.push({ ok: false, error, ...usage });
-    const response = await budgetRoute.POST(json("POST", { budget: 500 }), ctx(quote.id));
-    expect([response.status, (await response.json()).code]).toEqual([502, "ai_failed"]);
-    const logged = await client.from("ai_calls").select("call, ok, quote_id").eq("error", error);
-    expect(logged.data).toEqual([{ call: "fitToBudget", ok: false, quote_id: quote.id }]);
   });
 
   /**
