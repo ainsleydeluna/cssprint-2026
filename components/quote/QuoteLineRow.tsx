@@ -54,7 +54,7 @@ export function QuoteLineRow({ line, stems, onChange, onRemove }: Props) {
       {(unsure || line.note) && (
         <p className="flex flex-wrap items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
           {unsure && (
-            <span className="rounded-full border border-[#e58a9f] bg-blush px-2 py-0.5 text-xs font-semibold text-error">
+            <span className="rounded-full bg-lavender px-2 py-0.5 text-xs font-semibold text-[#4a2f4a]">
               {t("quote", "unsure")}
             </span>
           )}

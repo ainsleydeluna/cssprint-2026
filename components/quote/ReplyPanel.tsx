@@ -1,4 +1,4 @@
-﻿// No "use client" here: onBack, onCopied and onText are functions, so this is rendered only from
+// No "use client" here: onBack, onCopied and onText are functions, so this is rendered only from
 // QuoteScreen (a Client Component), which makes it client code too.
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";

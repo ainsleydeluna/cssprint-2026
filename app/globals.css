@@ -219,6 +219,7 @@ body {
     background: var(--error-soft);
     color: var(--error);
     border: 2px solid #e58a9f;
+    border-left: 6px solid var(--error);
     border-radius: 15px 225px 15px 255px / 255px 15px 225px 15px;
     padding: 0.75rem 1rem;
     font-weight: 700;

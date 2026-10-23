@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Tangkay",
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
   },
   // Icons: app/icon.png and app/apple-icon.png (the logo, padded); the manifest's are in public/icons.
 };
