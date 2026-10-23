@@ -49,15 +49,22 @@ export type CallCounts = Partial<Record<AiCallName, number>>;
  * Per call name: count, median seconds and average cost. Per quote: the sum of
  * its calls' costs, averaged over quotes. Failed calls count too: they took time
  * and may have used tokens. A call of unknown cost is left out of the cost
- * averages, and so is a quote with one. `counts` (from countCalls) gives the
- * full count per call name when `rows` is only the newest calls; without it,
- * the rows are counted.
+ * averages, and so is a quote with one.
+ *
+ * Every call name is listed. Its count comes from `counts` (countCalls), which
+ * covers all of the shop's calls; without it, the rows are counted. Medians,
+ * costs and cost per quote cover only `rows`, the latest 1,000 calls the route
+ * reads, so a name with no calls among them has a null median and cost.
  */
 export function liveStats(rows: CallRow[], counts: CallCounts = {}): Pick<AccuracyResponse, "live" | "averageCostPerQuoteUsd"> {
-  const live = (Object.keys(CALLS) as AiCallName[]).flatMap((call) => {
+  const live = (Object.keys(CALLS) as AiCallName[]).map((call) => {
     const calls = rows.filter((row) => row.call === call);
-    if (calls.length === 0) return [];
-    return [{ call, calls: counts[call] ?? calls.length, medianSeconds: median(calls.map((row) => row.seconds)), averageCostUsd: averageKnown(calls.map(costUsd)) }];
+    return {
+      call,
+      calls: counts[call] ?? calls.length,
+      medianSeconds: calls.length === 0 ? null : median(calls.map((row) => row.seconds)),
+      averageCostUsd: averageKnown(calls.map(costUsd)),
+    };
   });
 
   const perQuote = new Map<string, number | null>();

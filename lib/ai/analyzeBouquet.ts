@@ -71,24 +71,44 @@ export async function analyzeBouquet(
       countHigh: Math.max(line.countLow, line.countHigh),
       // Other is counted as a flower, like its closest stem.
       isFiller: stem?.isFiller ?? false,
+      standIn: stem ? isStandIn(stem.name, line.color) : false,
     };
   });
-  const lines = mergeSameRow(named).map(({ isFiller, ...line }) => ({
+  const lines = mergeSameRow(named).map(({ isFiller, standIn, ...line }) => ({
     ...line,
     countLow: clampCount(line.countLow, isFiller),
     countHigh: clampCount(line.countHigh, isFiller),
+    // A stand-in is highlighted on the quote screen and says what was seen.
+    ...(standIn && {
+      confidence: line.confidence === "high" ? ("medium" as const) : line.confidence,
+      note: joinDistinct([`${capitalize(line.color)} ang nakita, priced as ${line.stem}`, line.note], "; "),
+    }),
   }));
   return { ...outcome, result: { lines, note: outcome.result.note } };
 }
+
+/**
+ * A stand-in: the row's color is not in the AI's own color words, such as
+ * fuchsia roses priced as "Rose - red". A "mixed" row, or no color words, is
+ * never a stand-in.
+ */
+function isStandIn(rowName: string, colorWords: string): boolean {
+  const rowColor = rowName.split(" - ").slice(1).join(" - ").trim().toLowerCase();
+  if (rowColor === "" || rowColor === "mixed" || colorWords.trim() === "") return false;
+  return !colorWords.toLowerCase().includes(rowColor);
+}
+
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 const CONFIDENCE_ORDER: Confidence[] = ["low", "medium", "high"];
 
 /**
  * One line per shop row: lines naming the same row are added together (count
- * ranges summed, the lowest confidence, colors and notes joined), in the order
- * the row first appears. Other lines stay apart: each is a different flower.
+ * ranges summed, the lowest confidence, colors and notes joined, a stand-in if
+ * any part was), in the order the row first appears. Other lines stay apart:
+ * each is a different flower.
  */
-function mergeSameRow<L extends AnalyzeBouquetResult["lines"][number]>(lines: L[]): L[] {
+function mergeSameRow<L extends AnalyzeBouquetResult["lines"][number] & { standIn: boolean }>(lines: L[]): L[] {
   const merged: L[] = [];
   for (const line of lines) {
     const same = line.stem === "Other" ? undefined : merged.find((kept) => kept.stem === line.stem);
@@ -101,6 +121,7 @@ function mergeSameRow<L extends AnalyzeBouquetResult["lines"][number]>(lines: L[
     if (CONFIDENCE_ORDER.indexOf(line.confidence) < CONFIDENCE_ORDER.indexOf(same.confidence)) same.confidence = line.confidence;
     same.color = joinDistinct([same.color, line.color], ", ");
     same.note = joinDistinct([same.note, line.note], "; ");
+    same.standIn ||= line.standIn;
   }
   return merged;
 }

@@ -7,6 +7,7 @@ const photo = { data: new Uint8Array([0xff, 0xd8, 0xff]), mediaType: "image/jpeg
 const stems = [
   { name: "Rose - red", isFiller: false, hidden: false },
   { name: "Carnation - pink", isFiller: false, hidden: false },
+  { name: "Gerbera - mixed", isFiller: false, hidden: false },
   { name: "Baby's breath - white", isFiller: true, hidden: false },
   { name: "Sunflower - yellow", isFiller: false, hidden: true },
 ];
@@ -58,14 +59,57 @@ describe("analyzeBouquet", () => {
   test("merges lines naming the same row: counts added, lowest confidence, notes joined", async () => {
     const { lines } = await analyze(
       line({ color: "blush pink", countLow: 6, countHigh: 8, confidence: "high", note: "Mas mapusyaw" }),
-      line({ stem: "Carnation - pink", countLow: 3, countHigh: 3 }),
+      line({ stem: "Carnation - pink", color: "pink", countLow: 3, countHigh: 3 }),
       line({ stem: "rose - RED", color: "fuchsia", countLow: 3, countHigh: 4, confidence: "medium", note: "Mas matingkad" }),
       line({ stem: "Rose - red", color: "fuchsia", countLow: 1, countHigh: 1, confidence: "high", note: "" }),
     );
 
     expect(lines).toEqual([
-      line({ color: "blush pink, fuchsia", countLow: 10, countHigh: 13, confidence: "medium", note: "Mas mapusyaw; Mas matingkad" }),
-      line({ stem: "Carnation - pink", countLow: 3, countHigh: 3 }),
+      line({
+        color: "blush pink, fuchsia",
+        countLow: 10,
+        countHigh: 13,
+        confidence: "medium",
+        note: "Blush pink, fuchsia ang nakita, priced as Rose - red; Mas mapusyaw; Mas matingkad",
+      }),
+      line({ stem: "Carnation - pink", color: "pink", countLow: 3, countHigh: 3 }),
+    ]);
+  });
+
+  test("caps a stand-in row at medium and says what color was seen", async () => {
+    const { lines } = await analyze(line({ color: "fuchsia", confidence: "high", note: "" }));
+
+    expect(lines[0]).toMatchObject({ stem: "Rose - red", confidence: "medium", note: "Fuchsia ang nakita, priced as Rose - red" });
+  });
+
+  test("keeps a low confidence low and the AI's own note after the stand-in note", async () => {
+    const { lines } = await analyze(line({ color: "fuchsia", confidence: "low", note: "Malabo" }));
+
+    expect(lines[0]).toMatchObject({ confidence: "low", note: "Fuchsia ang nakita, priced as Rose - red; Malabo" });
+  });
+
+  test("is not a stand-in when the color words name the row's color, the row is mixed, or no color is given", async () => {
+    const { lines } = await analyze(
+      line({ color: "Deep RED", confidence: "high" }),
+      line({ stem: "Gerbera - mixed", color: "orange and yellow", confidence: "high" }),
+      line({ stem: "Carnation - pink", color: "", confidence: "high" }),
+    );
+
+    expect(lines.map((l) => [l.confidence, l.note])).toEqual([
+      ["high", ""],
+      ["high", ""],
+      ["high", ""],
+    ]);
+  });
+
+  test("caps a merged line when any part was a stand-in, and names every part's colors", async () => {
+    const { lines } = await analyze(
+      line({ color: "deep red", confidence: "high", note: "" }),
+      line({ color: "fuchsia", confidence: "high", note: "" }),
+    );
+
+    expect(lines).toEqual([
+      line({ color: "deep red, fuchsia", countLow: 20, countHigh: 24, confidence: "medium", note: "Deep red, fuchsia ang nakita, priced as Rose - red" }),
     ]);
   });
 
