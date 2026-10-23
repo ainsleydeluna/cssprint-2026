@@ -3,10 +3,19 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button, Input } from "@/components/receipt/kit";
-import type { BudgetOption, BudgetOptionsResponse } from "@/lib/contract";
+import type { BudgetOption, BudgetOptionsResponse, StemWithCost } from "@/lib/contract";
 import { t } from "@/lib/strings";
 import { ApiFailure, budgetOptions, isUnauthorized } from "./api";
-import { emptyOptionsMessage, fallbackNote, marginPercent, optionToLines, overBudgetAmount, parseBudget } from "./budget";
+import {
+  emptyOptionsMessage,
+  fallbackNote,
+  marginPercent,
+  optionRecipe,
+  optionToLines,
+  overBudgetAmount,
+  parseBudget,
+  recipeKey,
+} from "./budget";
 import { peso } from "./format";
 import type { EditLine } from "./QuoteLineRow";
 
@@ -16,6 +25,10 @@ type Props = {
   initialBudget: number | null;
   /** The quote's price now (the editor's live total), to tell "already fits" from "none found". */
   price: number;
+  /** The editor's lines now: options found for an older recipe are cleared. */
+  lines: EditLine[];
+  /** Every stem row, for the flowers on each option's card. */
+  stems: StemWithCost[];
   /** True while a line has no flower or no count: the route would answer incomplete_quote. */
   blocked: boolean;
   /** Saves any pending edit, since the route reads the saved lines; false if that save failed. */
@@ -24,13 +37,15 @@ type Props = {
   onChoose: (lines: EditLine[]) => void;
 };
 
-export function BudgetPanel({ quoteId, initialBudget, price, blocked, saveFirst, onChoose }: Props) {
+export function BudgetPanel({ quoteId, initialBudget, price, lines, stems, blocked, saveFirst, onChoose }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(initialBudget?.toString() ?? "");
   const [busy, setBusy] = useState(false);
-  // The budget each answer was for, so editing the field doesn't change what an answer says.
-  const [result, setResult] = useState<{ answer: BudgetOptionsResponse; budget: number } | null>(null);
+  // The budget and recipe each answer was for, so editing the field doesn't change what an answer
+  // says, and editing a line clears its options (they were priced for the old recipe).
+  const [found, setFound] = useState<{ answer: BudgetOptionsResponse; budget: number; recipe: string } | null>(null);
+  const result = found && found.recipe === recipeKey(lines) ? found : null;
   const [problem, setProblem] = useState<"error" | "incomplete" | null>(null);
   const budget = parseBudget(text);
 
@@ -38,11 +53,13 @@ export function BudgetPanel({ quoteId, initialBudget, price, blocked, saveFirst,
     if (budget === null) return;
     setBusy(true);
     setProblem(null);
-    setResult(null);
+    setFound(null);
+    // The recipe as asked about; an edit after this makes the answer stale.
+    const recipe = recipeKey(lines);
     try {
       // A failed save already shows "Hindi na-save…" with its retry in the editor.
       if (!(await saveFirst())) return;
-      setResult({ answer: await budgetOptions(quoteId, budget), budget });
+      setFound({ answer: await budgetOptions(quoteId, budget), budget, recipe });
     } catch (e) {
       if (isUnauthorized(e)) return router.push("/sign-in");
       if (e instanceof ApiFailure && e.code === "incomplete_quote") return setProblem("incomplete");
@@ -56,11 +73,13 @@ export function BudgetPanel({ quoteId, initialBudget, price, blocked, saveFirst,
 
   function close() {
     setOpen(false);
-    setResult(null);
+    setFound(null);
     setProblem(null);
   }
 
   function choose(option: BudgetOption) {
+    // Never replace newer edits with an option priced for an older recipe.
+    if (!result) return;
     onChoose(optionToLines(option));
     close();
   }
@@ -124,6 +143,7 @@ export function BudgetPanel({ quoteId, initialBudget, price, blocked, saveFirst,
                       <span className="min-w-0 font-semibold">{option.label}</span>
                       <span className="shrink-0 text-lg font-bold">{peso(option.price)}</span>
                     </div>
+                    <p className="text-sm">{optionRecipe(option, stems)}</p>
                     <span className="text-sm text-zinc-600 dark:text-zinc-400">
                       {t("quote", "margin", { n: marginPercent(option.margin) })}
                     </span>

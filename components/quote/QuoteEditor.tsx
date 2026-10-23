@@ -119,6 +119,8 @@ export function QuoteEditor({ detail, shop, stems, demo, onReply, onSaved }: Pro
         quoteId={quoteId}
         initialBudget={detail.quote.budget}
         price={total}
+        lines={lines}
+        stems={stems}
         blocked={!!blocker}
         saveFirst={saveFirst}
         onChoose={edit}

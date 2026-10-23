@@ -1,14 +1,39 @@
 // Rules for fitting a quote to the customer's budget. Pure, so budget.test.ts covers them.
 import { parseAmount } from "@/components/receipt/lines";
-import type { BudgetOption } from "@/lib/contract";
+import { type BudgetOption, type StemWithCost, stemName } from "@/lib/contract";
 import { t } from "@/lib/strings";
 import { peso } from "./format";
 import type { EditLine } from "./QuoteLineRow";
 
-/** The typed budget ("₱2,000" works), or null unless it is a number above 0. */
+/** The largest amount the route takes: money is numeric(10,2) (MAX_MONEY in lib/server/fields.ts). */
+const MAX_BUDGET = 99_999_999.99;
+
+/** The typed budget ("₱2,000" works), or null unless it is above 0 and at most ₱99,999,999.99. */
 export function parseBudget(text: string): number | null {
   const budget = parseAmount(text);
-  return budget > 0 ? budget : null;
+  return budget > 0 && budget <= MAX_BUDGET ? budget : null;
+}
+
+/**
+ * The recipe as the options were found for: each line's flower, count and note, in order.
+ * Options for another key are stale (the florist edited a line since), so they are cleared
+ * and never applied. A save only adds ids and costs, which leaves the key alone.
+ */
+export const recipeKey = (lines: Pick<EditLine, "stemId" | "count" | "note">[]) =>
+  JSON.stringify(lines.map((l) => [l.stemId, l.count, l.note]));
+
+/** An option's flowers for its card: "12 × Rose - red · 4 × Stargazer lily - pink". */
+export function optionRecipe(
+  option: { lines: Pick<BudgetOption["lines"][number], "stemId" | "count">[] },
+  stems: Pick<StemWithCost, "id" | "flower" | "color">[],
+): string {
+  const byId = new Map(stems.map((s) => [s.id, s]));
+  return option.lines
+    .map((l) => {
+      const stem = byId.get(l.stemId);
+      return `${l.count} × ${stem ? stemName(stem) : l.stemId}`;
+    })
+    .join(" · ");
 }
 
 /** The route's margin (0–1) as a whole percent; toPrecision drops float noise (0.355 → 36). */

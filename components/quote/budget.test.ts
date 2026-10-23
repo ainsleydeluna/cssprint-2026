@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { BudgetOption } from "@/lib/contract";
 import { t } from "@/lib/strings";
-import { emptyOptionsMessage, fallbackNote, marginPercent, optionToLines, overBudgetAmount, parseBudget } from "./budget";
+import type { StemWithCost } from "@/lib/contract";
+import {
+  emptyOptionsMessage,
+  fallbackNote,
+  marginPercent,
+  optionRecipe,
+  optionToLines,
+  overBudgetAmount,
+  parseBudget,
+  recipeKey,
+} from "./budget";
+import type { EditLine } from "./QuoteLineRow";
 
 describe("parseBudget", () => {
   it("accepts ₱, commas and spaces", () => {
@@ -82,5 +93,50 @@ describe("fallbackNote (above the over-budget fallback card)", () => {
     expect(fallbackNote([card(0)], 2000)).toBeNull();
     expect(fallbackNote([card(0), card(0)], 2000)).toBeNull();
     expect(fallbackNote([], 2000)).toBeNull();
+  });
+});
+
+describe("parseBudget: the server's money limit", () => {
+  it("accepts up to ₱99,999,999.99 (numeric(10,2), like the route)", () => {
+    expect(parseBudget("₱99,999,999.99")).toBe(99999999.99);
+  });
+  it("refuses anything above it, so the button stays off", () => {
+    expect(parseBudget("100,000,000")).toBeNull();
+    expect(parseBudget("99999999.999")).toBeNull();
+  });
+});
+
+describe("recipeKey (old options go stale once the recipe changes)", () => {
+  const l = (key: string, patch: Partial<EditLine> = {}): EditLine => ({
+    key, stemId: "rose", count: 12, countLow: 10, countHigh: 14, confidence: "high", note: "", costPerStem: 45, ...patch,
+  });
+  const lines = [l("a", { id: "1" }), l("b", { id: "2", stemId: "baby", count: 2 })];
+
+  it("stays the same when nothing about the recipe changed (a save only adds ids and costs)", () => {
+    expect(recipeKey([l("x"), l("y", { stemId: "baby", count: 2 })])).toBe(recipeKey(lines));
+    expect(recipeKey(lines.map((x) => ({ ...x, costPerStem: 50 })))).toBe(recipeKey(lines));
+  });
+  it("changes on any edit: a count, a flower, a note, a line added or removed", () => {
+    const before = recipeKey(lines);
+    expect(recipeKey([l("a", { count: 13 }), lines[1]])).not.toBe(before);
+    expect(recipeKey([l("a", { stemId: "tulip" }), lines[1]])).not.toBe(before);
+    expect(recipeKey([l("a", { note: "lighter pink" }), lines[1]])).not.toBe(before);
+    expect(recipeKey([lines[0]])).not.toBe(before);
+    expect(recipeKey([...lines, l("c")])).not.toBe(before);
+  });
+});
+
+describe("optionRecipe (the flowers on an option's card)", () => {
+  const stems = [
+    { id: "rose", flower: "Rose", color: "red" },
+    { id: "lily", flower: "Stargazer lily", color: "pink" },
+  ] as StemWithCost[];
+
+  it("lists each line as count × stem name", () => {
+    const option = { lines: [{ stemId: "rose", count: 12 }, { stemId: "lily", count: 4 }] };
+    expect(optionRecipe(option, stems)).toBe("12 × Rose - red · 4 × Stargazer lily - pink");
+  });
+  it("falls back to the row id for a stem the list doesn't have", () => {
+    expect(optionRecipe({ lines: [{ stemId: "gone", count: 3 }] }, stems)).toBe("3 × gone");
   });
 });
