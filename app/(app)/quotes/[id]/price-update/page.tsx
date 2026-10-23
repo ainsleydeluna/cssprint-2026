@@ -10,7 +10,7 @@ export default function PriceUpdatePage({ params }: PageProps<"/quotes/[id]/pric
     <section>
       <Suspense
         fallback={
-          <Link href="/quotes" className="flex min-h-12 items-center font-medium text-green-800 dark:text-green-400">
+          <Link href="/quotes" className="btn btn-secondary self-start">
             {t("nav", "quotes")}
           </Link>
         }

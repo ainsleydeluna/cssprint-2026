@@ -22,7 +22,7 @@ export function ReceiptList() {
     return (
       <div className="flex flex-col gap-3">
         <p>{t("receipts", "empty")}</p>
-        <Link href="/scan" className="flex min-h-12 items-center justify-center rounded-xl bg-green-800 px-4 font-semibold text-white">
+        <Link href="/scan" className="btn btn-primary">
           {t("receipts", "scanFirst")}
         </Link>
       </div>

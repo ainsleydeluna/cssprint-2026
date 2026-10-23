@@ -1,26 +1,233 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Page */
+  --background: #fdfbf7;
+  /* paper */
+  --paper-dot: #e7ded3;
+  --foreground: #5b4d5e;
+  /* mauve text */
+  --ink: #2d282a;
+  /* charcoal: button labels, outlines */
+  --card: #ffe4e1;
+  /* Peach Sorbet */
+  --muted: #e0f7fa;
+  /* Mint Frost */
+  --muted-foreground: #6e5f70;
+  --border: #e7ded3;
+
+  /* Palette: fill + deeper edge of the same color */
+  --sage: #cfdbc5;
+  /* Sage Mist */
+  --sage-edge: #a9bf9b;
+  --mint: #e0f7fa;
+  /* Mint Frost */
+  --mint-edge: #a6dfe6;
+  --blush: #ffd1dc;
+  /* Blush Sky */
+  --blush-edge: #f4a7b9;
+  --peach: #ffe4e1;
+  /* Peach Sorbet */
+  --peach-edge: #f7c1b9;
+  --lavender: #d8bfd8;
+  /* Lavender Dusk */
+  --lavender-edge: #bb9bbb;
+
+  /* Roles */
+  --primary: var(--sage);
+  --primary-foreground: var(--ink);
+  --primary-edge: var(--sage-edge);
+  --secondary: var(--mint);
+  --secondary-edge: var(--mint-edge);
+
+  --unsure: var(--lavender);
+  /* "Hindi sigurado" */
+  --unsure-foreground: var(--ink);
+  --error: #b91c1c;
+  /* red text + left edge */
+  --error-soft: var(--blush);
+  /* errors and the margin alarm */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-ink: var(--ink);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-edge: var(--primary-edge);
+  --color-secondary: var(--secondary);
+  --color-secondary-edge: var(--secondary-edge);
+  --color-blush: var(--blush);
+  --color-lavender: var(--lavender);
+  --color-unsure: var(--unsure);
+  --color-unsure-foreground: var(--unsure-foreground);
+  --color-error: var(--error);
+  --color-error-soft: var(--error-soft);
+  --font-sans: var(--font-quicksand);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background-color: var(--background);
+  background-image: radial-gradient(var(--paper-dot) 1px, transparent 0);
+  background-size: 20px 20px;
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  /* Quicksand is thin at 400 */
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+
+  /* Smudged pastel button: <Link className="btn btn-primary">
+     Smudge sits on a bottom layer; a clean flat fill sits behind the label. */
+  .btn {
+    --btn-bg: var(--sage);
+    --btn-edge: var(--sage-edge);
+    position: relative;
+    isolation: isolate;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    /* 44px tap target */
+    padding: 0.625rem 1.5rem;
+    color: var(--ink);
+    font-weight: 700;
+    font-size: 1rem;
+    text-decoration: none;
+    background: transparent;
+    border: 0;
+    border-radius: 255px 18px 225px 18px / 18px 225px 18px 255px;
+    transition: transform 0.12s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Bottom layer: smudged chalk edge, glow and shadow */
+  .btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    border-radius: inherit;
+    background-color: var(--btn-bg);
+    border: 3.5px solid var(--btn-edge);
+    box-shadow: 0 0 6px var(--btn-edge), 4px 5px 0 var(--btn-edge);
+    filter: url(#pastel-smear);
+    pointer-events: none;
+  }
+
+  /* Top layer: clean flat fill behind the label (no filter) */
+  .btn::before {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    z-index: -1;
+    border-radius: inherit;
+    background-color: var(--btn-bg);
+    pointer-events: none;
+  }
+
+  .btn:active {
+    transform: translate(2px, 3px) scale(0.98);
+  }
+
+  .btn:active::after {
+    box-shadow: 0 0 4px var(--btn-edge), 1px 2px 0 var(--btn-edge);
+  }
+
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    opacity: 0.5;
+    transform: none;
+  }
+
+  /* Colors (label stays charcoal) */
+  .btn-primary {
+    --btn-bg: var(--sage);
+    --btn-edge: var(--sage-edge);
+  }
+
+  /* main action */
+  .btn-secondary {
+    --btn-bg: var(--mint);
+    --btn-edge: var(--mint-edge);
+  }
+
+  /* other actions */
+  .btn-blush {
+    --btn-bg: var(--blush);
+    --btn-edge: var(--blush-edge);
+  }
+
+  .btn-peach {
+    --btn-bg: var(--peach);
+    --btn-edge: var(--peach-edge);
+  }
+
+  .btn-lavender {
+    --btn-bg: var(--lavender);
+    --btn-edge: var(--lavender-edge);
+  }
+
+  .btn-danger {
+    --btn-bg: var(--blush);
+    --btn-edge: #e58a9f;
+    color: var(--error);
+  }
+
+        .btn-quiet {
+          color: var(--muted-foreground);
+        }
+    
+        .btn-quiet::before,
+        .btn-quiet::after {
+          display: none;
+        }
+
+  /* delete, remove */
+
+  /* Optional corner variations */
+  .hand-2 {
+    border-radius: 20px 255px 20px 225px / 225px 20px 255px 20px;
+  }
+
+  .hand-3 {
+    border-radius: 255px 25px 225px 25px / 25px 225px 25px 255px;
+  }
+
+  /* Hand-drawn card */
+  .card-hand {
+    background: #ffffffb3;
+    border: 2px solid var(--ink);
+    border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+    box-shadow: 3px 4px 0 var(--ink);
+    padding: 1rem;
+  }
+
+  /* Errors and the margin alarm: Blush Sky, red text, red left edge */
+  .alert-error {
+    background: var(--error-soft);
+    color: var(--error);
+    border: 2px solid var(--ink);
+    border-left: 6px solid var(--error);
+    border-radius: 15px 225px 15px 255px / 255px 15px 225px 15px;
+    padding: 0.75rem 1rem;
+    font-weight: 700;
+  }
+
+  /* Unsure fields ("Hindi sigurado"): Lavender Dusk, clearly not an error */
+  .field-unsure {
+    background: var(--unsure);
+    color: var(--unsure-foreground);
+  }
 }

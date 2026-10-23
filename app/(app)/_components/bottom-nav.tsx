@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -18,9 +18,10 @@ export function BottomNavBar({ pathname }: { pathname: string | null }) {
   return (
     <nav
       aria-label="Pangunahing menu"
-      className="fixed inset-x-0 bottom-0 border-t border-zinc-200 bg-white pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] dark:border-zinc-800 dark:bg-zinc-950"
+      className="fixed inset-x-0 bottom-0 border-t border-dashed border-ink/30 bg-background pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]"
     >
-      <ul className="grid grid-cols-3">
+      {/* Height stays 5rem (py-2 + h-16) so the layout padding still matches. */}
+      <ul className="grid grid-cols-3 gap-2 px-2 py-2">
         {TABS.map(({ href, label }) => {
           const active = pathname === href;
           return (
@@ -28,10 +29,8 @@ export function BottomNavBar({ pathname }: { pathname: string | null }) {
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={`flex h-20 items-center justify-center px-2 text-center text-sm leading-tight font-semibold break-words ${
-                  active
-                    ? "bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-300"
-                    : "text-zinc-600 active:bg-zinc-100 dark:text-zinc-400 dark:active:bg-zinc-900"
+                className={`btn h-16 w-full px-2 text-center text-sm leading-tight break-words ${
+                  active ? "btn-primary" : "btn-quiet"
                 }`}
               >
                 {label}
