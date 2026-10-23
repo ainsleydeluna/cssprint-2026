@@ -299,6 +299,34 @@ describe.skipIf(!testAccountsReady)("quote routes", { timeout: 20_000 }, () => {
     expect(logged.data).toEqual([{ call: "draftReply", ok: true }]);
   });
 
+  test("saving a draft's lines clears its saved reply, so a reply with the old price is not shown again", async () => {
+    const detail = await completed();
+    answer({ message: "Hi po! {price}, valid hanggang {validUntil}.", note: "" });
+    expect((await replyRoute.POST(json("POST"), ctx(detail.quote.id))).status).toBe(200);
+
+    const [rose, ...rest] = editable(detail);
+    const saved: QuoteDetail = await (await putLines(detail.quote.id, [{ ...rose, count: rose.count! + 1 }, ...rest])).json();
+    expect(saved.quote.replyText).toBe("");
+    expect((await client.from("quotes").select("reply_text").eq("id", detail.quote.id).single()).data).toEqual({ reply_text: "" });
+  });
+
+  test("an expired quote's reply cannot be drafted or copied", async () => {
+    const { quote } = await completed();
+    await copiedRoute.POST(json("POST", { replyText: "Hi po!" }), ctx(quote.id));
+    await client.from("quotes").update({ valid_until: manilaDate(-1) }).eq("id", quote.id);
+
+    const drafted = await replyRoute.POST(json("POST"), ctx(quote.id));
+    expect([drafted.status, await drafted.json()]).toEqual([400, { code: "invalid_request", error: "This quote has expired" }]);
+    const copied = await copiedRoute.POST(json("POST", { replyText: "Hi po! Again" }), ctx(quote.id));
+    expect([copied.status, await copied.json()]).toEqual([400, { code: "invalid_request", error: "This quote has expired" }]);
+
+    expect((await client.from("quotes").select("status, reply_text").eq("id", quote.id).single()).data).toEqual({
+      status: "expired",
+      reply_text: "Hi po!",
+    });
+    expect((await client.from("ai_calls").select("id").eq("quote_id", quote.id).eq("call", "draftReply")).data).toEqual([]);
+  });
+
   test("a failed reply draft answers 502 ai_failed, keeps the saved text and still logs the call", async () => {
     const { quote } = await completed();
     const error = `Canned failure ${crypto.randomUUID()}`;

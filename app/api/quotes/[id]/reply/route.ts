@@ -10,8 +10,9 @@ import { readQuote } from "@/lib/server/quotes";
 // Drafts the Taglish reply and saves its text on a draft quote; a sent quote
 // keeps the text that was copied. Each press of "Regenerate" is a new live
 // call. A draft is written with the valid-until date its first copy will
-// stamp. Answers incomplete_quote while the quote has no lines, or any line has
-// a blank count or is a "pick a flower" line.
+// stamp. Answers invalid_request for an expired quote, and incomplete_quote
+// while the quote has no lines, or any line has a blank count or is a "pick a
+// flower" line.
 export async function POST(_request: Request, ctx: RouteContext<"/api/quotes/[id]/reply">) {
   const session = await requireShop();
   if (session instanceof Response) return session;
@@ -19,6 +20,7 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/quotes/[id
   const detail = await readQuote(supabase, (await ctx.params).id);
   if (!detail) return errorResponse("not_found", "Quote not found");
   const { quote, lines } = detail;
+  if (quote.status === "expired") return errorResponse("invalid_request", "This quote has expired");
   if (cannotSend(lines)) return errorResponse("incomplete_quote", "The quote has no lines, or a line has a blank count or no flower picked");
 
   const stems = new Map((await stemsWithCost(supabase, lines.map((line) => line.stemId!))).map((stem) => [stem.id, stem]));

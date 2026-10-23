@@ -8,8 +8,8 @@ import { toColumns } from "@/lib/server/rows";
 
 // Autosave: the whole recipe, debounced on every edit. Counts are saved as the
 // florist typed them. Each line costs its stem's latest cost, and the server
-// reprices the quote. Only a draft's lines change: a sent quote's price changes
-// through the price update.
+// reprices the quote and clears its saved reply text. Only a draft's lines
+// change: a sent quote's price changes through the price update.
 export async function PUT(request: Request, ctx: RouteContext<"/api/quotes/[id]/lines">) {
   const session = await requireShop();
   if (session instanceof Response) return session;
@@ -49,8 +49,9 @@ export async function PUT(request: Request, ctx: RouteContext<"/api/quotes/[id]/
     if (error) throw new Error(`Adding quote lines failed: ${error.message}`);
   }
 
+  // A saved reply quotes the old price, so the new recipe clears it.
   const price = quotePrice(lines.map((line) => line.fields), shop);
-  const { error } = await supabase.from("quotes").update({ price }).eq("id", detail.quote.id);
+  const { error } = await supabase.from("quotes").update({ price, reply_text: "" }).eq("id", detail.quote.id);
   if (error) throw new Error(`Repricing the quote failed: ${error.message}`);
   return Response.json((await readQuote(supabase, detail.quote.id))! satisfies UpdateQuoteLinesResponse);
 }

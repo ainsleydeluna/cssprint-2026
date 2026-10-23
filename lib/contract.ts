@@ -231,7 +231,8 @@ export type DeleteQuoteResponse = { deleted: true };
 
 // PUT /api/quotes/[id]/lines — replaces the whole recipe (debounced on every
 // edit). The server sets each line's costPerStem to the stem's latest cost and
-// reprices the quote. Lines without an id are new.
+// reprices the quote, and clears its saved reply text (it quotes the old
+// price). Lines without an id are new.
 export type UpdateQuoteLinesRequest = {
   lines: Array<
     Pick<QuoteLine, "stemId" | "count" | "countLow" | "countHigh" | "confidence" | "note"> & { id?: string }
@@ -239,12 +240,14 @@ export type UpdateQuoteLinesRequest = {
 };
 export type UpdateQuoteLinesResponse = QuoteDetail;
 
-// POST /api/quotes/[id]/reply — drafts the Taglish reply. Saves nothing; the
-// text is saved when copied.
+// POST /api/quotes/[id]/reply — drafts the Taglish reply, and saves its text on
+// a draft quote. Answers invalid_request ("This quote has expired") for an
+// expired quote.
 export type DraftReplyResponse = { message: string; demo: boolean };
 // POST /api/quotes/[id]/copied — first copy sets status "sent", stamps sentAt
-// and validUntil; later copies only save the text. Answers incomplete_quote
-// while any line has a blank count or is a "pick a flower" line.
+// and validUntil; later copies only save the text. Answers invalid_request
+// ("This quote has expired") for an expired quote, and incomplete_quote while
+// any line has a blank count or is a "pick a flower" line.
 export type CopiedRequest = { replyText: string };
 export type CopiedResponse = Quote;
 
