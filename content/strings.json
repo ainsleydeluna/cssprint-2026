@@ -72,7 +72,17 @@
     "clipboardFailed": "Hindi nakopya. Pindutin nang matagal ang text para kopyahin ito.",
     "notSaved": "Nakopya ang reply, pero hindi na-save na naipadala.",
     "incompleteServer": "Kulang pa ang quote. Bumalik sa mga linya at ayusin ito.",
-    "timeToQuote": "Time-to-quote: {time}"
+    "timeToQuote": "Time-to-quote: {time}",
+    "fitToBudget": "I-fit sa budget",
+    "budget": "Budget ng customer (₱)",
+    "budgetNeeded": "Maglagay ng budget na higit sa ₱0.",
+    "findOptions": "Hanapin ang mga option",
+    "fitting": "Naghahanap ng mga option…",
+    "fixLinesFirst": "Ayusin muna ang mga linya.",
+    "chooseHint": "Papalitan ng napili ang lahat ng linya sa itaas.",
+    "noOptions": "Walang nahanap na option. Subukan ulit, o i-edit ang mga linya.",
+    "margin": "Margin {n}%",
+    "chooseOption": "Piliin ito"
   },
   "quotes": {
     "title": "Mga quote",

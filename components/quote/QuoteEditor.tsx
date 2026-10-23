@@ -8,6 +8,7 @@ import { t } from "@/lib/strings";
 import type { Shop } from "@/lib/types";
 import { updateLines } from "./api";
 import { Autosave, type SaveState } from "./autosave";
+import { BudgetPanel } from "./BudgetPanel";
 import { copyBlocker } from "./copy";
 import { editLine, toRequest } from "./edit";
 import { peso } from "./format";
@@ -62,12 +63,17 @@ export function QuoteEditor({ detail, shop, stems, demo, onReply }: Props) {
   const edit = (next: EditLine[]) => autosave.edit(next);
   const flush = () => void autosave.flush();
 
+  // Saves any pending edit now. A failed save shows "Hindi na-save…" with its retry; callers wait for it.
+  async function saveFirst() {
+    await autosave.flush();
+    return autosave.state() === "saved";
+  }
+
   async function openReply() {
     setOpening(true);
-    await autosave.flush();
+    const saved = await saveFirst();
     setOpening(false);
-    // A failed save shows "Hindi na-save…" with its retry; the reply waits for it.
-    if (autosave.state() === "saved") onReply(autosave.value);
+    if (saved) onReply(autosave.value);
   }
 
   // An edited line is now checked by the florist: it saves as confidence "high", so it stays un-highlighted after a reload.
@@ -106,6 +112,7 @@ export function QuoteEditor({ detail, shop, stems, demo, onReply }: Props) {
       <Button variant="secondary" onClick={addLine}>
         {t("quote", "addLine")}
       </Button>
+      <BudgetPanel quoteId={quoteId} initialBudget={detail.quote.budget} blocked={!!blocker} saveFirst={saveFirst} onChoose={edit} />
 
       {/* The total stays above the bottom bar (5rem + 1px border + home-indicator inset). */}
       <div className="sticky bottom-[calc(5rem+1px+env(safe-area-inset-bottom))] flex flex-col gap-1 border-t border-zinc-200 bg-white py-3 dark:border-zinc-800 dark:bg-zinc-950">
