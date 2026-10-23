@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { t } from "@/lib/strings";
 import { ShopForm } from "./_components/ShopForm";
 import { SignOut } from "./_components/SignOut";

@@ -4,7 +4,7 @@ import { t } from "@/lib/strings";
 import type { Unit } from "@/lib/types";
 import { ApiFailure } from "./api";
 import { Button, Input, Row, Select } from "./kit";
-import { type DraftLine, isMatched, type LineField, lineProblems, parseAmount, sampleFromLine } from "./lines";
+import { type DraftLine, isMatched, type LineField, lineProblems, lineTone, parseAmount, sampleFromLine } from "./lines";
 
 const UNITS: Unit[] = ["dozen", "per10", "bundle", "bunch", "piece"];
 const ADD_ROW = "__add";
@@ -89,7 +89,7 @@ function ReceiptLineRow({
   }
 
   return (
-    <Row highlight={!matched || (line.confidence !== "high" && !line.edited)}>
+    <Row tone={lineTone(line, stems)}>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
         {t("scan", "onReceipt")} <span className="font-mono">{line.rawText}</span>
         {line.note && <span className="block">{line.note}</span>}

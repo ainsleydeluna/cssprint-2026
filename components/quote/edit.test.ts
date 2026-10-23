@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { UpdateQuoteLinesResponse } from "@/lib/contract";
 import type { Quote } from "@/lib/types";
-import { editLine, sendLines, toRequest } from "./edit";
+import { editLine, lineTone, sendLines, toRequest } from "./edit";
 import type { EditLine } from "./QuoteLineRow";
 
 const line = (key: string, patch: Partial<EditLine> = {}): EditLine => ({
@@ -56,5 +56,21 @@ describe("sendLines (the lines autosave's send)", () => {
     }, onQuote);
     await expect(failing([line("a")])).rejects.toThrow("offline");
     expect(onQuote).not.toHaveBeenCalled();
+  });
+});
+
+describe("lineTone (row colour)", () => {
+  it("is blocking for a \"pick a flower\" line or a blank count, which keep the reply from copying", () => {
+    expect(lineTone(line("a", { stemId: null, confidence: "high" }))).toBe("blocking");
+    expect(lineTone(line("a", { count: null, confidence: "high" }))).toBe("blocking");
+    expect(lineTone(line("a", { count: null, confidence: "low" }))).toBe("blocking");
+  });
+
+  it("is unsure for a complete line the AI wasn't sure of", () => {
+    expect(lineTone(line("a", { confidence: "medium" }))).toBe("unsure");
+  });
+
+  it("is plain for a complete, sure line", () => {
+    expect(lineTone(line("a", { confidence: "high" }))).toBeNull();
   });
 });

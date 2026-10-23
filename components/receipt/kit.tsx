@@ -26,7 +26,7 @@ export function Button({
 
 // text-base (16px) stops iPhones zooming in when a field is focused.
 const fieldStyles =
-  "min-h-12 w-full min-w-0 rounded-xl border-2 border-ink/60 bg-white px-3 text-base text-ink focus:border-ink focus:outline-none";
+  "min-h-12 w-full min-w-0 rounded-xl border-2 border-ink/60 bg-white px-3 text-base text-ink focus:border-ink focus:outline-3 focus:outline-offset-2 focus:outline-ink";
 
 type FieldProps = { label: string; hint?: string };
 
@@ -56,14 +56,20 @@ export function Select({ label, hint, className = "", ...props }: ComponentProps
   );
 }
 
-/** One item in a list. `highlight` marks a line that needs the florist's attention (unsure = Lavender Dusk). */
-export function Row({ highlight = false, children }: { highlight?: boolean; children: ReactNode }) {
+/** "blocking": the line stops saving or copying. "unsure": the AI wasn't sure ("Hindi sigurado"). */
+export type RowTone = "blocking" | "unsure" | null;
+
+const rowTones = {
+  // The error style (alert-error): soft pink, red text, red left edge.
+  blocking: "alert-error font-medium",
+  // Lavender Dusk, clearly not an error.
+  unsure: "field-unsure border-2 border-ink",
+};
+
+/** One item in a list, coloured by `tone` when the line needs the florist's attention. */
+export function Row({ tone = null, children }: { tone?: RowTone; children: ReactNode }) {
   return (
-    <li
-      className={`flex flex-col gap-3 rounded-xl p-3 ${
-        highlight ? "field-unsure border-2 border-ink" : "border border-border bg-white/70"
-      }`}
-    >
+    <li className={`flex flex-col gap-3 rounded-xl p-3 ${tone ? rowTones[tone] : "border border-border bg-white/70"}`}>
       {children}
     </li>
   );

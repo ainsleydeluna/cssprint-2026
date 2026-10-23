@@ -2,6 +2,7 @@
 import type { SaveReceiptRequest, StemWithCost } from "@/lib/contract";
 import { t } from "@/lib/strings";
 import type { Confidence, Unit } from "@/lib/types";
+import type { RowTone } from "./kit";
 
 /** One receipt line while the florist edits it. Numbers stay as typed until save. */
 export type DraftLine = {
@@ -55,6 +56,15 @@ export function lineProblems(line: DraftLine, stems: Pick<StemWithCost, "id" | "
   if (line.unit === "bundle" && !(Number.isInteger(bundleSize) && bundleSize > 0)) problems.add("bundleSize");
   if (!(parseAmount(line.totalPaid) >= 0)) problems.add("totalPaid");
   return problems;
+}
+
+/**
+ * A line's row colour: "blocking" while any field keeps the receipt from saving (unmatched
+ * included); else "unsure" while the AI wasn't sure and the florist hasn't touched the line.
+ */
+export function lineTone(line: DraftLine, stems: Pick<StemWithCost, "id" | "hidden">[]): RowTone {
+  if (lineProblems(line, stems).size > 0) return "blocking";
+  return line.confidence !== "high" && !line.edited ? "unsure" : null;
 }
 
 /**
