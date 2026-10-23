@@ -1,6 +1,7 @@
 // Rules for drafting and copying the reply. Pure, so copy.test.ts covers them.
+import { statusOn } from "@/lib/server/quote-rules";
 import { t } from "@/lib/strings";
-import type { Quote, QuoteLine } from "@/lib/types";
+import type { ManilaDate, Quote, QuoteLine } from "@/lib/types";
 
 /**
  * Why the reply can't be drafted or copied yet, or null. The same rule as the server's
@@ -49,3 +50,16 @@ export async function copyReply(
  * or the saved text). "Gumawa ulit" then asks first, since a new draft replaces it.
  */
 export const replyEdited = (message: string, serverText: string) => message !== serverText;
+
+export type QuoteLock = { reason: string; draftToo: boolean };
+
+/**
+ * What a sent quote's state blocks, with the reason shown. Expired: no new draft and no copy
+ * (the price no longer holds). Underwater: no copy of the old price; draft a price update instead.
+ * `today` (Manila) catches a quote that expired while the page stayed open.
+ */
+export function quoteLock(quote: Pick<Quote, "status" | "validUntil" | "underwaterAt">, today: ManilaDate): QuoteLock | null {
+  if (quote.status === "expired" || statusOn(quote, today) === "expired") return { reason: t("quote", "expired"), draftToo: true };
+  if (quote.status === "sent" && quote.underwaterAt !== null) return { reason: t("quote", "underwaterBlock"), draftToo: false };
+  return null;
+}

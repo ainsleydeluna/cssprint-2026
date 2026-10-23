@@ -18,6 +18,7 @@ import type {
   UpdateQuoteLinesResponse,
   UploadPhotoResponse,
 } from "@/lib/contract";
+import type { Quote } from "@/lib/types";
 
 export class ApiFailure extends Error {
   /** The contract's error code, or null when the call failed without one (offline, server crash). */
@@ -75,6 +76,10 @@ export const getQuote = (quoteId: string) => call<QuoteResponse>(quoteUrl(quoteI
 
 /** Drafts the reply from the saved lines (a draft quote keeps the text). Each call is a new AI call. */
 export const draftReply = (quoteId: string) => call<DraftReplyResponse>(quoteUrl(quoteId, "/reply"), { method: "POST" });
+
+/** Saves the florist's edited reply text (PATCH /api/quotes/[id]); the route answers the quote. */
+export const updateReplyText = (quoteId: string, replyText: string) =>
+  call<Quote>(quoteUrl(quoteId), json("PATCH", { replyText }));
 
 /** After copying: the first copy sends the quote (sentAt, validUntil); later copies save the text. */
 export const markCopied = (quoteId: string, replyText: string) =>

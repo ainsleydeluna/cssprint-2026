@@ -72,7 +72,11 @@
     "clipboardFailed": "Hindi nakopya. Pindutin nang matagal ang text para kopyahin ito.",
     "notSaved": "Nakopya ang reply, pero hindi na-save na naipadala.",
     "incompleteServer": "Kulang pa ang quote. Bumalik sa mga linya at ayusin ito.",
-    "timeToQuote": "Time-to-quote: {time}"
+    "timeToQuote": "Time-to-quote: {time}",
+    "underwater": "Underwater: hindi na abot ng presyong ito ang minimum margin sa bagong cost.",
+    "newPrice": "Bagong presyo: {price}",
+    "underwaterBlock": "Huwag munang kopyahin: luma na ang presyo. Mag-draft muna ng price update.",
+    "expired": "Expired na. Gumawa ng bagong quote."
   },
   "quotes": {
     "title": "Mga quote",
