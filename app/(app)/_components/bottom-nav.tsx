@@ -10,8 +10,11 @@ const TABS = [
 ] as const;
 
 export function BottomNav() {
-  const pathname = usePathname();
+  return <BottomNavBar pathname={usePathname()} />;
+}
 
+/** The bar itself. `pathname` null (while the URL is still loading) highlights no tab. */
+export function BottomNavBar({ pathname }: { pathname: string | null }) {
   return (
     <nav
       aria-label="Pangunahing menu"
