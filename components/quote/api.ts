@@ -21,6 +21,7 @@ import type {
   UpdateQuoteLinesResponse,
   UploadPhotoResponse,
 } from "@/lib/contract";
+import type { DeleteQuoteResponse, QuoteListResponse, UpdateQuoteRequest, UpdateQuoteResponse } from "@/lib/contract";
 
 export class ApiFailure extends Error {
   /** The contract's error code, or null when the call failed without one (offline, server crash). */
@@ -53,6 +54,16 @@ const json = (method: string, body: unknown): RequestInit => ({
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(body),
 });
+
+/** Newest first, each with its time-to-quote, and the shop average over sent quotes. */
+export const listQuotes = () => call<QuoteListResponse>("/api/quotes");
+
+export const renameQuote = (quoteId: string, label: string) =>
+  call<UpdateQuoteResponse>(`/api/quotes/${encodeURIComponent(quoteId)}`, json("PATCH", { label } satisfies UpdateQuoteRequest));
+
+/** Also deletes its photo and lines. */
+export const deleteQuote = (quoteId: string) =>
+  call<DeleteQuoteResponse>(`/api/quotes/${encodeURIComponent(quoteId)}`, { method: "DELETE" });
 
 export function uploadPhoto(photo: File, kind: PhotoKind) {
   const form = new FormData();

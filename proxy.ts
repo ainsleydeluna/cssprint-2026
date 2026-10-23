@@ -9,8 +9,12 @@ import { type NextRequest, NextResponse } from "next/server";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-/** Pages a signed-out visitor may open. */
-const PUBLIC_PAGES = ["/sign-in", "/sign-in/link-failed", "/auth/confirm"];
+/**
+ * Pages a signed-out visitor may open. Sign-out is one: a second press, or one
+ * after the session expired, should still clear the cookies and land on sign-in,
+ * not be redirected as a POST.
+ */
+const PUBLIC_PAGES = ["/sign-in", "/sign-in/link-failed", "/auth/confirm", "/auth/sign-out"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
