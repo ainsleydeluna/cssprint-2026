@@ -141,6 +141,41 @@ export function isUnderwater(
   return margin(price, recipeCostAtLatest) < shop.minimumMarginPercent / 100;
 }
 
+/** Rounds down to centavos, trimming float error first as roundMoney does. */
+function floorMoney(amount: number): Money {
+  return Math.floor(Number((amount * 100).toPrecision(15))) / 100;
+}
+
+/**
+ * The highest recipe cost whose price fits the budget and still meets the
+ * shop's minimum margin; null when none does (the budget is below the fees, or
+ * the markup is too low for the minimum margin at every price that fits).
+ */
+export function maxRecipeCost(
+  budget: Money,
+  shop: Pick<Shop, "markupPercent" | "wrapFee" | "laborFee" | "minimumMarginPercent">,
+): Money | null {
+  const fees = shop.wrapFee + shop.laborFee;
+  const markup = 1 + shop.markupPercent / 100;
+  const keep = 1 - shop.minimumMarginPercent / 100;
+  let top = Math.floor(budget / 10) * 10;
+  // When the markup alone is below the minimum margin, a price P has a cost that
+  // prices at P and keeps the margin only while P < (fees + ₱10) ÷ (1 − keep ×
+  // markup), whatever the budget. Starting there, the first price or two check out.
+  const shortfall = 1 - keep * markup;
+  if (shortfall > 0) top = Math.min(top, Math.ceil((fees + 10) / shortfall / 10) * 10);
+  // Prices are whole ₱10s. From the highest price that can work down, take the
+  // highest cost at that price, capped by the minimum margin there. A lower price
+  // never allows a higher cost, so the first that checks out is the answer. The
+  // step limit is only a guard: the answer comes within a few steps.
+  for (let level = top, steps = 0; level > fees && steps < 1000; level -= 10, steps++) {
+    const cost = Math.min(floorMoney((level - fees) / markup), floorMoney(level * keep));
+    const at = price(cost, shop);
+    if (cost > 0 && at <= budget && !isUnderwater(at, cost, shop)) return cost;
+  }
+  return null;
+}
+
 /** Count limits from spec decisions 8 and 25. */
 export const COUNT_LIMITS = { stemsPerLine: 100, bunchesPerLine: 5, stemsPerBouquet: 200 } as const;
 
