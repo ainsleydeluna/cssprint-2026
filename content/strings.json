@@ -187,6 +187,7 @@
     "numberNeeded": "Maglagay ng numero na 0 o higit pa.",
     "percentNeeded": "Maglagay ng numero mula 0 hanggang 99.",
     "daysNeeded": "Maglagay ng buong numero, 1 o higit pa.",
+    "accuracyLink": "AI accuracy",
     "link": "Setup ng shop",
     "stemsLink": "Listahan ng bulaklak",
     "signOut": "Mag-sign out",
