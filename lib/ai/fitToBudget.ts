@@ -71,9 +71,10 @@ function flowerCost(lines: Line[], stems: Row[]): Money {
 
 /**
  * An option over the most its flowers may cost, with every count scaled down by
- * the same share (rounded down) until it fits. The main flower and any filler
- * it keeps stay at 1 or more; another flower that rounds down to 0 is dropped.
- * An option that cannot fit even so comes back as it was, for the route to drop.
+ * the same share (rounded down) until it fits, and " · binawasan para pumasok
+ * sa budget" added to its label. The main flower and any filler it keeps stay
+ * at 1 or more; another flower that rounds down to 0 is dropped. An option that
+ * cannot fit even so comes back as it was, for the route to drop.
  */
 function underCap(option: { label: string; lines: Line[] }, cap: Money, main: Row | undefined, stems: Row[]) {
   const total = flowerCost(option.lines, stems);
@@ -84,7 +85,8 @@ function underCap(option: { label: string; lines: Line[] }, cap: Money, main: Ro
       const count = Math.max(row === main || row.isFiller ? 1 : 0, Math.floor(line.count * share));
       return count === 0 ? [] : [{ ...line, count }];
     });
-    if (flowerCost(lines, stems) <= cap) return { ...option, lines };
+    // The card says the AI's recipe was cut, so a dropped flower is no surprise.
+    if (flowerCost(lines, stems) <= cap) return { label: `${option.label} · binawasan para pumasok sa budget`, lines };
   }
   return option;
 }

@@ -63,8 +63,10 @@ describe("fitToBudget", () => {
       return outcome.result.options;
     }
     const counts = (o: Option) => o.lines.map((l) => [l.stem, l.count]);
+    // A shrunk option says so on its card; one the AI kept under the cap keeps its label.
+    const shrunk = (label: string) => `${label} · binawasan para pumasok sa budget`;
 
-    test("has every count scaled down by the same share, rounded down, keeping the notes", async () => {
+    test("has every count scaled down by the same share, rounded down, keeping the notes, and says so in its label", async () => {
       // ₱450 + ₱160 = ₱610; × 566.66/610: 18.6 roses → 18, 1.9 bunches → 1. ₱405 + ₱80 = ₱485.
       const [scaled] = await fitUnder(
         566.66,
@@ -74,7 +76,7 @@ describe("fitToBudget", () => {
         ]),
       );
       expect(scaled).toEqual(
-        option("Fewer roses", [
+        option(shrunk("Fewer roses"), [
           { stem: "Rose - red", count: 18, note: "Long stems" },
           { stem: "Baby's breath - white", count: 1, note: "" },
         ]),
@@ -103,6 +105,7 @@ describe("fitToBudget", () => {
         ]),
       );
       expect(counts(scaled)).toEqual([["Rose - red", 4]]);
+      expect(scaled.label).toBe(shrunk("Roses and a carnation"));
     });
 
     test("that cannot fit even at 1 rose and 1 bunch is left as it was, for the route to drop", async () => {
@@ -130,7 +133,7 @@ describe("fitToBudget", () => {
           { stem: "Carnation - red", count: 6, note: "" },
         ]),
       );
-      expect(options.map((o) => o.label)).toEqual(["Fewer roses", "Carnations instead"]);
+      expect(options.map((o) => o.label)).toEqual([shrunk("Fewer roses"), "Carnations instead"]);
     });
   });
 

@@ -165,7 +165,7 @@ describe.skipIf(!testAccountsReady)("budget, price-update and accuracy routes", 
         price: budget,
         overBudgetBy: 0,
       },
-      { label: "Same recipe", overBudgetBy: 0 },
+      { label: "Same recipe · binawasan para pumasok sa budget", overBudgetBy: 0 },
     ]);
     const scaled = options[1];
     expect(scaled.price).toBeLessThanOrEqual(budget);

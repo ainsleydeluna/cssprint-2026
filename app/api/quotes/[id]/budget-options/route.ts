@@ -40,7 +40,8 @@ export async function POST(request: Request, ctx: RouteContext<"/api/quotes/[id]
   const byId = new Map(stems.map((stem) => [stem.id, stem]));
   // Every line has a stem and a count (cannotSend above), and stems are never deleted.
   const recipe = detail.lines.map((line) => ({ stem: byId.get(line.stemId!)!, count: line.count! }));
-  const currentPrice = price(recipeCost(recipe.map(({ stem, count }) => ({ stemId: stem.id, count, costPerStem: stem.latestCost }))).cost, shop);
+  const currentRecipeCost = recipeCost(recipe.map(({ stem, count }) => ({ stemId: stem.id, count, costPerStem: stem.latestCost }))).cost;
+  const currentPrice = price(currentRecipeCost, shop);
   if (currentPrice <= budget) return Response.json({ options: [], demo: false } satisfies BudgetOptionsResponse);
 
   // The most the flowers may cost for a price within the budget at the minimum
@@ -51,7 +52,6 @@ export async function POST(request: Request, ctx: RouteContext<"/api/quotes/[id]
   if (maxCost === null || (main !== undefined && maxCost < main.latestCost)) {
     return Response.json({ options: [], demo: false } satisfies BudgetOptionsResponse);
   }
-  const currentRecipeCost = recipeCost(recipe.map(({ stem, count }) => ({ stemId: stem.id, count, costPerStem: stem.latestCost }))).cost;
   const outcome = await fitToBudget({
     recipe: recipe.map(({ stem, count }) => ({ stem: stem.name, count })),
     budget,
