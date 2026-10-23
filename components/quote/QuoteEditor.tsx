@@ -1,4 +1,4 @@
-﻿// No "use client" here: onReply is a function, so this is rendered only from
+// No "use client" here: onReply is a function, so this is rendered only from
 // QuoteScreen (a Client Component), which makes it client code too.
 import { useEffect, useState } from "react";
 import { Button } from "@/components/receipt/kit";
@@ -66,7 +66,7 @@ export function QuoteEditor({ detail, shop, stems, demo, onReply, onSaved }: Pro
   const edit = (next: EditLine[]) => autosave.edit(next);
   const flush = () => void autosave.flush();
 
-  // Saves any pending edit now. A failed save shows "Hindi na-saveâ€¦" with its retry; callers wait for it.
+  // Saves any pending edit now. A failed save shows "Hindi na-save…" with its retry; callers wait for it.
   async function saveFirst() {
     await autosave.flush();
     return autosave.state() === "saved";

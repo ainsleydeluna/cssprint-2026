@@ -1,4 +1,4 @@
-﻿import { Button, Row, Select } from "@/components/receipt/kit";
+import { Button, Row, Select } from "@/components/receipt/kit";
 import { type StemWithCost, stemName } from "@/lib/contract";
 import { clampCount } from "@/lib/money";
 import { t } from "@/lib/strings";
@@ -24,7 +24,7 @@ export function QuoteLineRow({ line, stems, onChange, onRemove }: Props) {
   function swap(stemId: string) {
     const next = stems.find((s) => s.id === stemId);
     if (!next) return onChange({ stemId: null, costPerStem: 0 });
-    // The line takes the new row's latest cost; a count moves into that row's limits (fillers 1â€“5 bunches).
+    // The line takes the new row's latest cost; a count moves into that row's limits (fillers 1–5 bunches).
     onChange({
       stemId: next.id,
       costPerStem: next.latestCost,
@@ -54,7 +54,7 @@ export function QuoteLineRow({ line, stems, onChange, onRemove }: Props) {
       {(unsure || line.note) && (
         <p className="flex flex-wrap items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
           {unsure && (
-            <span className="rounded-full bg-lavender px-2 py-0.5 text-xs font-semibold text-[#4a2f4a]">
+            <span className="rounded-full border border-[#e58a9f] bg-blush px-2 py-0.5 text-xs font-semibold text-error">
               {t("quote", "unsure")}
             </span>
           )}
@@ -62,14 +62,14 @@ export function QuoteLineRow({ line, stems, onChange, onRemove }: Props) {
         </p>
       )}
 
-      {/* A group, not a <label>: a label wrapping the âˆ’ button would press it when its text is tapped. */}
+      {/* A group, not a <label>: a label wrapping the − button would press it when its text is tapped. */}
       <div role="group" aria-labelledby={`${line.key}-count`} className="flex flex-col gap-1 text-sm">
         <span id={`${line.key}-count`} className="font-medium">
           {t("quote", isFiller ? "countBunches" : "countStems")}
         </span>
         <div className="grid grid-cols-[3rem_1fr_3rem] gap-2">
           <Button variant="secondary" aria-label={t("quote", "less")} disabled={line.count !== null && line.count <= 1} onClick={() => step(-1)}>
-            âˆ’
+            −
           </Button>
           <input
             aria-labelledby={`${line.key}-count`}

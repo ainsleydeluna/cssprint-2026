@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { Button, Input } from "@/components/receipt/kit";
@@ -46,8 +46,8 @@ export function ShopForm() {
   }
 
   const fields: Array<{ field: Field; label: string; hint?: string }> = [
-    { field: "wrapFee", label: `${t("shop", "wrapFee")} (â‚±)`, hint: t("shop", "feeHint") },
-    { field: "laborFee", label: `${t("shop", "laborFee")} (â‚±)`, hint: t("shop", "feeHint") },
+    { field: "wrapFee", label: `${t("shop", "wrapFee")} (₱)`, hint: t("shop", "feeHint") },
+    { field: "laborFee", label: `${t("shop", "laborFee")} (₱)`, hint: t("shop", "feeHint") },
     { field: "markupPercent", label: t("shop", "markup") },
     { field: "minimumMarginPercent", label: t("shop", "minimumMargin") },
     { field: "validForDays", label: t("shop", "validForDays") },
