@@ -13,9 +13,11 @@ export type ModelId = "claude-opus-5-5" | "claude-sonnet-5-5" | "claude-haiku-5-
  * thinking off with `thinking: { type: "between_tools" }` at effort "high" or
  * below. Opus 5.5 rejects any way of turning thinking off (HTTP 400), so its
  * calls send no `thinking` field and use effort "low", the closest setting.
+ * analyzeBouquet uses Sonnet 5.5, the bake-off's most accurate bouquet run
+ * (decision 27; fixtures/eval/results.json, 2026-10-23).
  */
 export const CALLS: Record<AiCallName, { model: ModelId; effort: "low" | "medium" | "high" }> = {
-  analyzeBouquet: { model: "claude-opus-5-5", effort: "low" },
+  analyzeBouquet: { model: "claude-sonnet-5-5", effort: "low" },
   extractReceipt: { model: "claude-sonnet-5-5", effort: "low" },
   fitToBudget: { model: "claude-sonnet-5-5", effort: "low" },
   draftReply: { model: "claude-sonnet-5-5", effort: "low" },
@@ -24,8 +26,8 @@ export const CALLS: Record<AiCallName, { model: ModelId; effort: "low" | "medium
 
 export const COUNT_PREFILL: CountPrefill = "middle";
 
-/** Longer side of a shrunken photo, in pixels. The bake-off compares 1280 and 1600. */
-export const MAX_PHOTO_PX = Number(process.env.NEXT_PUBLIC_MAX_PHOTO_PX) || 1600;
+/** Longer side of a shrunken photo, in pixels. 1280, the size of the bake-off's chosen runs (1600 was the other size compared). */
+export const MAX_PHOTO_PX = Number(process.env.NEXT_PUBLIC_MAX_PHOTO_PX) || 1280;
 
 /** US dollars per million tokens, Anthropic API list prices checked 2026-10-22. */
 export const TOKEN_PRICES: Record<ModelId, { input: number; output: number }> = {
